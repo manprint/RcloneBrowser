@@ -257,6 +257,7 @@ scripts/dev.sh build  [qt64|qt610]                 # configure and build into bu
 scripts/dev.sh test   [qt64|qt610] [-- <ctest args>]   # unit tests (ctest -L unit)
 scripts/dev.sh e2e    [qt64|qt610] [-- <ctest args>]   # end-to-end tests (ctest -L e2e)
 scripts/dev.sh smoke  [qt64|qt610]                 # start the app offscreen for 10 s
+scripts/dev.sh fixtures [qt64|qt610]               # record tests/fixtures/rclone-1.75/ with the host rclone (offline)
 scripts/dev.sh shell  [qt64|qt610]                 # interactive shell in the container
 scripts/dev.sh image  [qt64|qt610]                 # build the Docker image (needs network)
 ```

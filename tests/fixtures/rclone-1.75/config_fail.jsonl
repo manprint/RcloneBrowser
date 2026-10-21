@@ -1,0 +1,1 @@
+{"time":"2026-10-21T18:05:51.360206236Z","level":"critical","msg":"Failed to create file system for \"nope:\": didn't find section in config file (\"nope\")","source":"cmd/cmd.go:102"}

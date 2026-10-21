@@ -1,0 +1,9 @@
+{"time":"2026-10-21T17:19:57.000000000+02:00","level":"notice","msg":"\nTransferred:   \t    0 B / 0 B, -, 0 B/s, ETA -\nTransferring:\n * unknown.bin: transferring\n\n","stats":{"bytes":0,"checks":0,"deletedDirs":0,"deletes":0,"elapsedTime":1.0,"errors":0,"eta":null,"fatalError":false,"listed":1,"renames":0,"retryError":false,"serverSideCopies":0,"serverSideCopyBytes":0,"serverSideMoveBytes":0,"serverSideMoves":0,"speed":0,"totalBytes":0,"totalChecks":0,"totalTransfers":0,"transferTime":0,"transfers":0,"transferring":[{"bytes":0,"dstFs":"/FIXTURE/dst","eta":null,"group":"transfer","name":"unknown.bin","percentage":0,"size":-1,"speed":0,"speedAvg":0,"srcFs":"/FIXTURE/src"}]}}
+{"time":"2026-10-21T17:19:58.000000000+02:00","level":"notice","msg":"\nTransferred:   \t    150 B / 100 B, 150%, 150 B/s, ETA 0s\nTransferring:\n * over.bin: 150% / 100 B, 150 B/s, 0s\n\n","stats":{"bytes":150,"checks":0,"deletedDirs":0,"deletes":0,"elapsedTime":2.0,"errors":0,"eta":0,"fatalError":false,"listed":1,"renames":0,"retryError":false,"serverSideCopies":0,"serverSideCopyBytes":0,"serverSideMoveBytes":0,"serverSideMoves":0,"speed":150,"totalBytes":100,"totalChecks":0,"totalTransfers":1,"transferTime":1.0,"transfers":0,"transferring":[{"bytes":150,"dstFs":"/FIXTURE/dst","eta":0,"group":"transfer","name":"over.bin","percentage":150,"size":100,"speed":150,"speedAvg":150,"srcFs":"/FIXTURE/src"}]}}
+{"level":"notice","msg":"m","stats":{"bytes":5}}
+[1,2]
+{"foo":1}
+{"level":"warning","msg":"w"}
+{"level":"error","msg":"e","object":"o"}
+{"level":"info","msg":"x
+{"level":"info","msg":"\u001b[32mBisync successful\u001b[0m","object":"\u001b[36mp\u001b[0m"}

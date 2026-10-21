@@ -8,7 +8,7 @@ Phase closure: P1; review by agent-1:opus.
 Read STATE.md §0–1 first for scope, ownership, recovery, checks and commit rules. Open a unit before editing it. Checkpoint at recovery boundaries. Close with evidence. A delegated worker follows its assigned OPEN unit. Missing design decisions go to agent-1:opus. No network access (U6).
 
 ## Local design context
-Plan revision: 1.
+Plan revision: 4.
 - R1/R2 (rclone 1.75.2, local probes 2026-10-21). With `--use-json-log` every line is one JSON object `{time, level, msg, source[, object, objectType][, stats]}`.
   - The stats object has: bytes, checks, deletedDirs, deletes, elapsedTime, errors, eta (null until known), fatalError, listed, renames, retryError, serverSideCopies, serverSideCopyBytes, serverSideMoveBytes, serverSideMoves, speed, totalBytes, totalChecks, totalTransfers, transferTime, transfers, transferring[] (absent on the final line), and lastError (only after an error).
   - Each item of transferring[] has: bytes, dstFs, eta, group, name, percentage, size, speed, speedAvg, srcFs.
@@ -138,6 +138,7 @@ TransferArgs PrepareTransferArgs(const QStringList &args,
   - NEW `scripts/record-fixtures.sh`.
   - NEW `tests/fixtures/rclone-1.75/` (generated) and `tests/fixtures/synthetic/{panic.txt,stats_variants.jsonl,README.md}`.
   - NEW `tests/tst_rclone_log.cpp`, `tests/tst_rclone_format.cpp`, registered as `unit`.
+  - WRITE `README.md`: add the `scripts/dev.sh fixtures [qt64|qt610]` line to the "Development (Docker)" command list (records `tests/fixtures/rclone-1.75/` with the host rclone; offline).
 - **Change:**
   - Preconditions: P0 DONE.
   - Contract: the parser and formatting rules above.
@@ -156,8 +157,8 @@ TransferArgs PrepareTransferArgs(const QStringList &args,
       - `copy_errors`: `mkdir ro && chmod 555 ro`, then `copy src ro/x $C --retries 1 --low-level-retries 1`, then `chmod 755 ro`.
       - `config_fail`: `copy nope: dst $C`.
       - `lsjson_tree`: stdout only, as `lsjson_tree.json`: `lsjson src --config $W/empty.conf`.
-      - `lsjson_recursive`: stdout only: `lsjson -R --files-only src`.
-      - `lsjson_missing`: `.stdout`, `.stderr` and `.exit` kept separately: `lsjson src/nope`.
+      - `lsjson_recursive`: stdout only: `lsjson -R --files-only src --config $W/empty.conf`.
+      - `lsjson_missing`: `.stdout`, `.stderr` and `.exit` kept separately: `lsjson src/nope --config $W/empty.conf`.
       - `listremotes`: stdout: `listremotes --long --json --config $W/remotes.conf`.
       - `rcd_start`: stderr. Run `RCLONE_RC_USER=u RCLONE_RC_PASS=p rclone rcd --rc-addr 127.0.0.1:0 --use-json-log --config $W/empty.conf` in the background for 1.5 s, then kill it.
     - Afterwards, replace `$W` with `/FIXTURE` in every output. Write `<outdir>/README.md` with the rclone version line, the date and the scenario commands.
@@ -175,20 +176,20 @@ TransferArgs PrepareTransferArgs(const QStringList &args,
       - (i) `{"level":"info","msg":"\u001b[32mBisync successful\u001b[0m","object":"\u001b[36mp\u001b[0m"}`.
   - Steps:
     1. S1 — Implement rclone_log and rclone_format. Register them in CMake. Expected: they build.
-    2. S2 — Write record-fixtures.sh and run `scripts/dev.sh fixtures`. Expected: all files exist; `copy_ok.exit` is 0; `copy_errors.exit` and `config_fail.exit` are 1; `lsjson_missing.exit` is 3; no file contains the temp path.
+    2. S2 — Write record-fixtures.sh and run `scripts/dev.sh fixtures`. Expected: all files exist; `copy_ok.exit` is 0; `copy_errors.exit` and `config_fail.exit` are 1; `lsjson_missing.exit` is 3; no file contains the temp path (`grep -rl '/tmp/' tests/fixtures/rclone-1.75` is empty).
     3. S3 — Write the synthetic fixtures and the tests. Run `scripts/dev.sh test`. Expected: the new tests pass.
   - Recovery boundary: after S2 (generated artifacts are committed with the unit).
   - Failure handling: if a fixture contradicts R1 (for example a renamed field), stop and escalate to agent-1:opus. Do not adapt the tests to the new shape.
 - **Unit tests:**
   - `tests/tst_rclone_log.cpp`, `QTEST_GUILESS_MAIN`. Read the fixtures through `rbFixture()` and split them on `\n`.
     - T-LOG-COPY (copy_ok):
-      - there are ≥ 2 Stats events, and the first Stats has `eta == std::nullopt`;
+      - there are ≥ 2 Stats events, and every Stats has `eta` either nullopt or ≥ 0 (with `--bwlimit` rclone knows the ETA from the first tick; null `eta` is covered by T-LOG-CHECKS and T-LOG-VARIANTS);
       - at least one Stats has `hasTransferring && !transferring.isEmpty()`, with every name in the 6 expected relative paths;
       - the last Stats has `!hasTransferring`, `transfers == totalTransfers == 6` and `bytes == totalBytes`;
       - the Log events with msg "Copied (new)" have exactly the object set {`file 1.bin`, `file 2.bin`, `file 3.bin`, `dir [x] (y)/ñ"quote'.txt`, `12345 /trail.txt`, `a:b.txt`};
       - there are no Debug-level events.
-    - T-LOG-CHECKS (sync_checks): the last Stats has `checks == totalChecks == 6` and `transfers == 0`.
-    - T-LOG-ERRORS (copy_errors): ≥ 6 Error events with a non-empty object; the last Stats has `errors ≥ 1` and a non-empty `lastError` that contains "permission denied".
+    - T-LOG-CHECKS (sync_checks): the last Stats has `checks == totalChecks == 6` and `transfers == 0`; every Stats has `eta == std::nullopt` (nothing to transfer).
+    - T-LOG-ERRORS (copy_errors): ≥ 6 Error events with a non-empty object whose msg contains "permission denied"; the last Stats has `errors ≥ 1` and a non-empty `lastError` (rclone reports its most recent error there, which is the later directory-modtime failure, not the per-file "permission denied").
     - T-LOG-CONFIGFAIL: exactly one non-empty event; it is a Critical Log whose msg contains `didn't find section in config file`; there are no Stats.
     - T-LOG-GARBAGE (I-3):
       - each panic.txt line gives Text with msg equal to the raw line;
@@ -363,7 +364,7 @@ TransferArgs PrepareTransferArgs(const QStringList &args,
     - expect `findChild<QLineEdit*>("transferred")->text() == "6 / 6, 100%"`, `size == formatBytes(fs.bytes) + ", 100%"`, `errors == "0"`;
     - expect 0 `QProgressBar` children after the final line;
     - expect the output to contain 6 lines with `: Copied (new)`.
-  - T-JOB-RENDER-ERR: feed copy_errors. The `errors` text starts with a number ≥ 1 followed by ` — ` and contains `permission denied`.
+  - T-JOB-RENDER-ERR: feed copy_errors. The `errors` text starts with a number ≥ 1 followed by ` — `, and the `errors` tooltip (`recentErrors`) contains `permission denied`.
   - Gate G-U1.4: `scripts/dev.sh test qt64 -- -R tst_jobwidget_render` passes, with 2 functions.
 - **e2e tests:** `tests/tst_e2e_jobwidget.cpp`.
   - Setup for every case:
@@ -377,7 +378,7 @@ TransferArgs PrepareTransferArgs(const QStringList &args,
     - at some sample, `size` contains `iB` and `bandwidth` ends with `/s`, and at least one `QProgressBar` exists;
     - final status `finished`;
     - the output has ≥ 4 `Copied (new)` lines and no ` DEBUG : ` line.
-  - T-E2E-JOB-ERRORS: read-only destination. Status `error`; `errors` text matches `^[1-9]\d* — ` and contains `permission denied`.
+  - T-E2E-JOB-ERRORS: read-only destination. Status `error`; `errors` text matches `^[1-9]\d* — `, and the `errors` tooltip contains `permission denied`.
   - T-E2E-JOB-LOGFILE (#142):
     - user args include `--log-file <tmp>/t.log`, passed through `PrepareTransferArgs`, so the test calls `noteIgnoredArgs` and `setLogFile` as `addTransfer` does;
     - at some sample, `size` is non-empty;

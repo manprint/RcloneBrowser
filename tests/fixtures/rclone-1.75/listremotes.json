@@ -1,0 +1,4 @@
+[
+{"name":"mem","type":"memory","source":"file","description":""},
+{"name":"loc","type":"local","source":"file","description":"test local"}
+]

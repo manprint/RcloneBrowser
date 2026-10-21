@@ -1,0 +1,8 @@
+[
+{"Path":"a:b.txt","Name":"a:b.txt","Size":1,"MimeType":"text/plain; charset=utf-8","ModTime":"2026-10-21T18:05:46.964182452Z","IsDir":false},
+{"Path":"file 1.bin","Name":"file 1.bin","Size":1500000,"MimeType":"application/octet-stream","ModTime":"2026-10-21T18:05:46.952864485Z","IsDir":false},
+{"Path":"file 2.bin","Name":"file 2.bin","Size":1500000,"MimeType":"application/octet-stream","ModTime":"2026-10-21T18:05:46.957982852Z","IsDir":false},
+{"Path":"file 3.bin","Name":"file 3.bin","Size":1500000,"MimeType":"application/octet-stream","ModTime":"2026-10-21T18:05:46.962544315Z","IsDir":false},
+{"Path":"dir [x] (y)/ñ\"quote'.txt","Name":"ñ\"quote'.txt","Size":2,"MimeType":"text/plain; charset=utf-8","ModTime":"2026-10-21T18:05:46.964182452Z","IsDir":false},
+{"Path":"12345 /trail.txt","Name":"trail.txt","Size":1,"MimeType":"text/plain; charset=utf-8","ModTime":"2026-10-21T18:05:46.964182452Z","IsDir":false}
+]

@@ -64,6 +64,8 @@ set(MOC
 set(OTHER
   pch.h
   utils.h
+  rclone_log.h
+  rclone_format.h
   job_options.h
   global.h
   qcronfield.h
@@ -88,6 +90,8 @@ set(SOURCE
   icon_cache.cpp
   item_model.cpp
   utils.cpp
+  rclone_log.cpp
+  rclone_format.cpp
   job_options.cpp
   list_of_job_options.cpp
   qcron.cpp

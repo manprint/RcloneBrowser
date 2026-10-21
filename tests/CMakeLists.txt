@@ -14,6 +14,8 @@ function(rb_add_test name label)
 endfunction()
 
 rb_add_test(tst_utils unit)
+rb_add_test(tst_rclone_log unit)
+rb_add_test(tst_rclone_format unit)
 if(RB_TEST_RCLONE)
   rb_add_test(tst_e2e_rclone_smoke e2e)
 endif()

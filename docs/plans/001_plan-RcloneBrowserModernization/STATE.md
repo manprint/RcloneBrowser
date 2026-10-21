@@ -1,7 +1,7 @@
 # Rclone Browser modernization — Implementation state
 
 Read this file first in every session. Updated 2026-10-21 by agent-1:opus (execute session 1).
-Plan ID: 001_plan-RcloneBrowserModernization. Revision: 2. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
+Plan ID: 001_plan-RcloneBrowserModernization. Revision: 4. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
 Plan baseline: `0a57f4f` (HEAD of `ci/macos-arm64-dmg`, which is master `1551dbd` plus the PR #1 commits). Pre-existing changes at planning time:
 - untracked `.serena/`, which is unrelated: never stage or modify it;
 - untracked `docs/plans/001_plan-RcloneBrowserModernization/`, this plan, authored by this planning session (provenance established).
@@ -64,17 +64,17 @@ Recover an unresolved audit completion commit first, without finalizing the susp
 
 - Active scope: plan 001, all phases 0–13 (invocation `/plan-execute-verify-mid execute 001`, 2026-10-21).
 - Scope result: RUNNING
-- Type: phase closure
-- ID / attempt: P0 / 1
-- Status: DONE (closed by the completion commit for unit:P0:1)
-- Intent: phase 0 integration: Docker dev env, core library + QtTest harness, CI rework, triage document.
-- Assigned: agent-1:opus (closure and review)
-- File / unit heading: phase_01.md "Phase gates and closure"
+- Type: sub-phase
+- ID / attempt: 1.1 / 1
+- Status: DONE (closed by the completion commit for unit:1.1:1)
+- Intent: pure rclone JSON log parser and formatting helpers, fixture recorder with recorded rclone 1.75.2 fixtures, synthetic fixtures, unit tests.
+- Assigned: agent-2:sonnet; supervisor: agent-1:opus (reviews at P1)
+- File / unit heading: phase_02.md "1.1 Log parser, formatting helpers, fixture recorder" (revision 4)
 - Current step: closed
-- Next action: open 1.1 (phase_02.md "1.1"); read phase_02.md local design context first.
-- Next eligible plan unit: 1.1.
-- Unit base: `b98bfd3`; branch: `dev/001-modernization`; owned changes: STATE.md only.
-- Repo state: HEAD `b98bfd3` before the closure commit; untracked `.serena/` (unrelated).
+- Next action: open 1.2 (phase_02.md "1.2 Environment factory and transfer argument ownership").
+- Next eligible plan unit: 1.2 (phase_02.md).
+- Unit base: `29172d0` + revision 3 plan edits (STATE.md, phase_02.md); branch: `dev/001-modernization`; owned changes: NEW `src/rclone_log.h/.cpp`, `src/rclone_format.h/.cpp`, `src/CMakeLists.txt` (SOURCE/OTHER), NEW `scripts/record-fixtures.sh`, NEW `tests/fixtures/rclone-1.75/**`, `tests/fixtures/synthetic/**`, NEW `tests/tst_rclone_log.cpp`, `tests/tst_rclone_format.cpp`, `tests/CMakeLists.txt` (registration), `README.md` (fixtures line).
+- Repo state: HEAD `29172d0`; uncommitted plan revision 3; untracked `.serena/` (unrelated).
 
 ## 2. Feature context and readiness
 
@@ -173,6 +173,7 @@ The executor never runs these (U6). It only runs the local "verify" commands, an
 | Type | ID / attempt | Plan revision | Agent | Changes | Evidence/review | Commit |
 |------|--------------|---------------|-------|---------|-----------------|--------|
 | plan | plan / 1 | 2 | agent-1:opus | `docs/plans/001_plan-RcloneBrowserModernization/` (overview, phase_01–14, STATE, inputs) | quality checklist; cold read of 1.4 (§7) | included in unit:0.1:1 |
+| sub-phase | 1.1 / 1 | 4 | agent-2:sonnet (worker); agent-1:opus (coordinator, reviewer) | NEW `src/rclone_log.h/.cpp`, `src/rclone_format.h/.cpp` (SOURCE/OTHER); NEW `scripts/record-fixtures.sh`; recorded `tests/fixtures/rclone-1.75/` (19 files, rclone 1.75.2); `tests/fixtures/synthetic/{panic.txt,stats_variants.jsonl,README.md}`; NEW `tests/tst_rclone_log.cpp`, `tests/tst_rclone_format.cpp` (unit); README `dev.sh fixtures` line | G-U1.1 pass; revisions 3 and 4 (§8); review (§7) | unit:1.1:1 |
 | phase | P0 / 1 | 2 | agent-1:opus | STATE.md: phase 0 gates, review, board | G-BUILD64, G-UNIT, G-E2E, G-SMOKE pass; G-BUILD610 blocked (P-2); G-CI debt (§9); P0 review (§7) | unit:P0:1 |
 | sub-phase | 0.4 / 1 | 2 | agent-3:haiku (worker); agent-1:opus (coordinator, reviewer) | NEW `docs/triage/upstream-issues.md`: 7 issue categories + Pull requests, 139 rows, `User OK` empty; supervisor corrections #117, #209, #231, #248 | G-U0.4 pass; review (§7) | unit:0.4:1 |
 | sub-phase | 0.3 / 1 | 2 | agent-2:sonnet (worker); agent-1:opus (coordinator, reviewer) | build.yml: `-DRB_BUILD_TESTS=ON` + `ctest -L unit` in the 5 build jobs (Windows after build with Qt bin on PATH, FreeBSD in the VM, macOS before bundling, Linux before install); Linux downloads rclone v1.75.2 with a SHA256SUMS check, `-DRB_TEST_RCLONE`, `ctest -L e2e`; `create_release` sparse checkout + tag/VERSION check; NEW codeql.yml (dispatch + Monday 03:00, manual build), dependabot.yml (github-actions monthly); DELETE `.travis.yml`, `.appveyor.yml`; README Travis/AppVeyor badges removed; `tests/CMakeLists.txt` test binaries in `build/tests` | G-U0.3 pass; G-CI not-run (needs push, §9); review (§7) | unit:0.3:1 |
@@ -207,6 +208,7 @@ Research checkpoint: N/A. Planning research is complete (R1–R16).
 | G-BASE | §3 | pass | exit 0; 90/90 ninja steps; `grep -c 'warning:'` = 0; `build-docker-base/build/rclone-browser` exists (3.5 MB) | 0a57f4f | 2026-10-21 |
 | G-U0.1 | `bash -n`; `dev.sh nosuch`; `dev.sh build qt64`; `dev.sh smoke qt64`; `RB_RCLONE=/bin/true dev.sh build`; `dev.sh build qt610` | pass | exit 64 with usage; build exit 0, 90/90, 0 `warning:` (`/tmp/rb-gates/u01-build.log`), exe present; `smoke: alive after 10s`; exit 2 with the rclone message; exit 3 with the image message; `-e RCLONE_CONFIG=/tmp/home/rclone-empty.conf` present, no `.config/rclone`, no host HOME mount; Dockerfiles match the contract byte-for-byte; `dev.sh test qt64 -- -N` passthrough works (0 tests before 0.2) | 0a57f4f + 0.1 diff | 2026-10-21 |
 | G-U0.2 | `dev.sh build qt64` (clean); `dev.sh test qt64 -- -V`; `dev.sh e2e qt64 -- -V`; `dev.sh smoke qt64`; I-8 ninja check | pass | build 99/99, 0 `warning:` (`/tmp/rb-gates/u02-build.log`), exe + `src/librclone-browser-core.a`; tst_utils PASS T_UTIL_SPLIT/EMPTY/PORTABLE, Totals 5 passed, 1/1; tst_e2e_rclone_smoke PASS T_E2E_SMOKE_VERSION/LSJSON, Totals 4 passed, 1/1; smoke alive; 55 compile commands, 0 without `-Werror`; version strings identical to the G-BASE binary (`GUI for rclone, v2.0`) | 649f6d6 + 0.2 diff | 2026-10-21 |
+| G-U1.1 | `scripts/dev.sh build qt64`; `scripts/dev.sh fixtures qt64`; `scripts/dev.sh test qt64 -- -R 'tst_rclone_(log\|format)' -V` | pass | build exit 0, 0 `warning:`; fixture exits copy_ok 0, copy_errors 1, config_fail 1, lsjson_missing 3; `grep -rl '/tmp/' tests/fixtures/rclone-1.75` empty; `lsjson_missing.stderr` has no config NOTICE; 2/2 passed, 0 `FAIL!`, 11 distinct functions (T_LOG_COPY/CHECKS/ERRORS/CONFIGFAIL/GARBAGE/VARIANTS/TIME/RENDER, T_FMT_BYTES/DURATION/PERCENT); tst_rclone_log Totals 10 passed, tst_rclone_format Totals 25 passed (`/tmp/rb-gates/u11.log`) | 29172d0 + 1.1 diff (revision 4) | 2026-10-21 |
 | G-BUILD64 (P0) | §3 (clean; `RB_GATE_LOGS=/tmp/rb-gates`, log `p0-build64.log`) + I-8 ninja check | pass | exit 0; 99/99; `grep -c 'warning:'` = 0; I-8 prints `0` | 942c18c (0.4 adds only `docs/triage/`, not part of the build) | 2026-10-21 |
 | G-UNIT (P0) | `scripts/dev.sh test qt64` | pass | `100% tests passed, 0 tests failed out of 1`; Total Tests 1 = 1 non-e2e `tests/tst_*.cpp` (tst_utils); no SKIP | 942c18c | 2026-10-21 |
 | G-E2E (P0) | `scripts/dev.sh e2e qt64` | pass | `100% tests passed, 0 tests failed out of 1`; Total Tests 1 = 1 `tests/tst_e2e_*.cpp`; no SKIP | 942c18c; host rclone 1.75.2 | 2026-10-21 |
@@ -227,6 +229,7 @@ Results are one of: pass, fail, blocked, not-run, not-applicable-yet. Only pass 
 | Plan readiness | agent-1:opus | revision 1 | quality checklist "Plan readiness" (every item); dependencies acyclic; every test ID has an owner and a gate | READY |
 | 0.2 design (before S2) | agent-1:opus | revision 2; worker S1 draft of root/src/tests CMakeLists on base 649f6d6 | D10 lists and targets; `rb_warnings` `if(MSVC)` form (I-8); PUBLIC definitions; MOC_OUT once; PCH on CORE_SOURCE/MOC_OUT; exe = main.cpp + QRC (+ rc/icns); tests registration | approved with changes: drop the empty `if(WIN32)` branch (use `if(APPLE)`); write S3/S4 test sources before the first build (configure needs them); verify the version string in the binary. Qt resources stay exe-only (D10); 13.2 adds the qrc to its own test. RB_BUILD_TESTS default ON kept (QtTest is part of qtbase everywhere). |
 | 0.2 diff (after S5) | agent-1:opus | revision 2; 0.2 working-tree diff on 649f6d6 | D10 targets/lists, MOC_OUT once, PCH macro on CORE_SOURCE/MOC_OUT, exe properties and install rules unchanged, I-8 (`rb_warnings` PUBLIC), I-9 (support header verbatim, `cleanEnv()` restores the temp `RCLONE_CONFIG`), naming rule | approved. Accepted deviation: `AUTOMOC ON` on test targets (test classes are declared in the .cpp; the project has no AUTOMOC). Windows/macOS link and MSVC PCH are CI-compiled → G-CI debt (§9). |
+| 1.1 diff | agent-1:opus | revision 4; 1.1 working-tree diff on 29172d0 | parser rules 1–8 (JSON shape, levels, `qRound64`, eta null, RFC 3339 3-digit fraction, ANSI strip, render); formatting rules; I-3 (garbage → Text); recorder: root guard, `RCLONE_*` unset, temp `--config` on every scenario + exported temp `RCLONE_CONFIG` safety net (I-9), `$W`→`/FIXTURE`, cleanup trap; Qt 6.4 API only; naming rule | approved. The worker escalated two oracle mismatches instead of adapting (per contract) → revision 4. Accepted choices: extra `.exit` files for the stdout-only scenarios; non-finite numbers read as 0; missing item `size` → -1; `formatPercent` guards overflow; `QTimeZone("UTC")` (no `QTimeZone::UTC` in 6.4). |
 | P0 closure | agent-1:opus | revision 2; e7834ad..b98bfd3 (0.3, 0.4) on top of 0.1/0.2 | integration (core lib + tests + CI wiring); I-6: no push/tag/merge, the branch has no upstream, the only network access was P-1 under one-off user authorization, every container runs `--network none`; I-8 (`-Werror` on every compile command, 0 warnings); I-9 (temp config in dev.sh and the test support; CI configures no remotes); tests (unit 1/1, e2e 1/1, naming rule); README matches `scripts/dev.sh` | approved. Note for P1: the README command list omits `dev.sh fixtures` on purpose until 1.1 adds `scripts/record-fixtures.sh`; 1.1/P1 documents it. Windows/macOS/FreeBSD and all CI changes stay G-CI debt (§9). |
 | 0.4 dispositions | agent-1:opus | revision 2; `docs/triage/upstream-issues.md` | known mappings applied; derived dispositions cite only existing unit headings; allowed disposition vocabulary | approved with corrections: #117 `fixed-by 1.4` (T-E2E-JOB-CANCEL is owned by 1.4; phase_04 3.3 records it as fixed in P1, which supersedes the 0.4 mapping "→ 3.3"); #209 `fixed-by fork 0a57f4f` (Homebrew rclone lookup; 4.2 is README/CHANGELOG/VERSION); #231 `verify-in 1.4` moved to Bug-verify (stats/log parsing with newer rclone; was obsolete with unit 3.2); #248 `wontfix-obsolete` moved to Obsolete (the Qt 6 port has no `QProcess::start(QString)`; the build is warning-free under `-Werror`). 55 `needs-user` rows left for the user. |
 | 0.3 diff | agent-1:opus | revision 2; 0.3 working-tree diff on e7834ad | contract S1–S3; ctest placement per platform; SHA256 taken from SHA256SUMS in the same step before configure; I-9 (no rclone remotes in CI; e2e uses its temp config); VERSION check; CodeQL triggers and manual build; dependabot without action bumps | approved with one change: test binaries were written to `build/build` (CMAKE_RUNTIME_OUTPUT_DIRECTORY), which the Windows (`build\build\Release\*`) and FreeBSD (`build/build/*`) artifact globs ship in release zips → `RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}` on test targets (also keeps Windows tests on the Qt install DLLs and plugins instead of the windeployqt copies). Accepted: sparse `actions/checkout@v4` before the VERSION check (the release job had no checkout); an `::error::` message after the contract test; CodeQL with `-DRB_BUILD_TESTS=OFF` and codeql-action v4 (as in hrpv; no other codeql-action in the repo); checkout kept at the repo's v4. |
@@ -240,6 +243,8 @@ Cold-read note (1.4, agent-1:opus, 2026-10-21): every symbol 1.4 uses is defined
 |----------|------------------------|---------------------------------|------------|------------------------|
 | 1 | draft revision 0 (research checkpoint) | full plan, phase_01–14 | agent-1:opus | — |
 | 2 | no explicit rule on the host rclone config | I-9: never use host rclone remotes/config; temp config with isolated temporary remotes everywhere; dev.sh `-e RCLONE_CONFIG=/tmp/home/rclone-empty.conf`; `rbInitTestEnvironment()` sets `RCLONE_CONFIG`. User 2026-10-21: "non devi assolutamente usare i remote configurati sull host. mai", "se hai bisogno di test, crea dei remote isolati e temporanei", "mai quelli sull'host". | agent-1:opus | phase_01 0.1 (dev.sh creates an existing empty `/tmp/home/rclone-empty.conf`, because a missing file makes rclone print a NOTICE), 0.2 (test support creates the empty file and sets `RCLONE_CONFIG`; the smoke-test env lambda restores `RCLONE_CONFIG` after stripping `RCLONE_*`; 0.2 slot names aligned with the test naming rule, e.g. `T_UTIL_SPLIT()`); review at every P<N>. Applied before 0.1 attempt 1 was dispatched. |
+| 3 | (a) phase_01 0.4 known mapping `#117 → 3.3`; (b) G-U0.4 "rows starting with `\| #`"; (c) phase_02 1.1 recorder scenarios `lsjson_recursive`/`lsjson_missing` without `--config`; (d) README `dev.sh fixtures` line owned by no unit | (a) `#117 → fixed-by 1.4`: T-E2E-JOB-CANCEL is owned by 1.4 and phase_04 3.3 records #117 as fixed in P1; (b) count data rows `^\| #\d` (the header row also starts with `\| #`); (c) both scenarios pass `--config $W/empty.conf`: the recorder unsets `RCLONE_CONFIG`, so they would read the container default config and ship a `NOTICE: Config file … not found` line in `lsjson_missing.stderr` (I-9 spirit: temp config everywhere); (d) 1.1 owns the README command-list line; 1.1 S2 also checks `grep -rl '/tmp/' tests/fixtures/rclone-1.75` is empty | agent-1:opus | (a), (b) applied in unit:0.4:1 (§7); (c), (d) phase_02 1.1 before dispatch; T-LSJ-MISSING (phase_03 2.2) reads the last stderr message and is unaffected |
+| 4 | phase_02 oracles: T-LOG-COPY "first Stats has `eta == std::nullopt`"; T-LOG-ERRORS last Stats `lastError` contains "permission denied"; T-JOB-RENDER-ERR and T-E2E-JOB-ERRORS `errors` text contains `permission denied` | recorded 1.75.2 fixtures (1.1 S2): with `--bwlimit 1M` the stats-level `eta` is known from the first tick (copy_ok etas 3,2,1,0,0), and `lastError` is rclone's most recent error, the directory-modtime failure (`chtimes …: no such file or directory`) that follows the 6 per-file `permission denied` errors. Replacement: T-LOG-COPY every Stats `eta` nullopt or ≥ 0; T-LOG-CHECKS every Stats `eta == nullopt`; T-LOG-ERRORS ≥ 6 Error events with an object whose msg contains `permission denied`, last Stats `errors ≥ 1` + non-empty `lastError`; T-JOB-RENDER-ERR/T-E2E-JOB-ERRORS check `permission denied` in the `errors` tooltip (`recentErrors`). Fixtures and the TransferMonitor semantics are unchanged (escalated by the 1.1 worker per "report, don't adapt") | agent-1:opus | 1.1 tests updated before G-U1.1; 1.4 contract updated before dispatch; T-MON-ERR (1.3) checked: `recentErrors().first()` is `a:b.txt: Failed to copy: … permission denied`, `lastError()` equals the final stats lastError — unaffected |
 
 Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 9.1 S2 (new `actionServes`) and 11.2 S2 (new `openDual` button). Each re-recording lists only the added lines here when it happens.
 
@@ -275,7 +280,7 @@ Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 9
 | 0.2 | phase_01.md | 0.1 | DONE | 1 | G-U0.2 pass; unit:0.2:1 |
 | 0.3 | phase_01.md | 0.2, P-1 (B-P1) | DONE | 1 | G-U0.3 pass; G-CI debt (§9); unit:0.3:1 |
 | 0.4 | phase_01.md | 0.1 | DONE | 1 | G-U0.4 pass; unit:0.4:1 |
-| 1.1 | phase_02.md | P0 | TODO | 1 | — |
+| 1.1 | phase_02.md | P0 | DONE | 1 | G-U1.1 pass; unit:1.1:1 |
 | 1.2 | phase_02.md | 1.1 | TODO | 1 | — |
 | 1.3 | phase_02.md | 1.1 | TODO | 1 | — |
 | 1.4 | phase_02.md | 1.2, 1.3 | TODO | 1 | — |
@@ -313,7 +318,7 @@ Units run in ID order. A prerequisite must be DONE; SKIPPED never satisfies it i
 | ID | File | Closure unit | Status | Review / commit reference |
 |----|------|--------------|--------|---------------------------|
 | 0 | phase_01.md | P0 | DONE | P0 review (§7); unit:P0:1 |
-| 1 | phase_02.md | P1 | TODO | — |
+| 1 | phase_02.md | P1 | IN_PROGRESS | — |
 | 2 | phase_03.md | P2 | TODO | — |
 | 3 | phase_04.md | P3 | TODO | — |
 | 4 | phase_05.md | P4 | TODO | — |
