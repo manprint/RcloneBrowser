@@ -97,10 +97,11 @@ class TestE2eConfigFlow : public QObject {
     return k;
   }
 
-  // `rclone reveal` on the temporary config (I-9).
+  // `rclone reveal` on the temporary config (I-9). An obscured value is
+  // base64url and may start with '-': it goes after `--`, never as a flag.
   QString reveal(const QString &obscured) const {
     QProcess p;
-    p.start(rbRclone(), {"reveal", obscured, "--config", mConf});
+    p.start(rbRclone(), {"reveal", "--config", mConf, "--", obscured});
     p.closeWriteChannel();
     if (!p.waitForFinished(20000)) {
       p.kill();

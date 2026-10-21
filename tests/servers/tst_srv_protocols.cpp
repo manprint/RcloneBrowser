@@ -180,13 +180,14 @@ class TestSrvProtocols : public QObject {
   }
 
   // One CLI rclone call on the temporary config (I-9), Parsed environment.
+  // `--config` goes first, so `args` may end with `--` and positional values.
   int runRclone(const QStringList &args, QByteArray *out = nullptr,
                 QByteArray *err = nullptr, int timeoutMs = 90000) const {
     QProcess p;
     p.setProcessEnvironment(
         RcloneEnvironment(RcloneEnvMode::Parsed,
                           QProcessEnvironment::systemEnvironment()));
-    p.start(rbRclone(), args + QStringList{"--config", mConf});
+    p.start(rbRclone(), QStringList{"--config", mConf} + args);
     p.closeWriteChannel();
     if (!p.waitForFinished(timeoutMs)) {
       p.kill();
@@ -346,10 +347,11 @@ class TestSrvProtocols : public QObject {
     return QString();
   }
 
-  // `rclone reveal` on the temporary config (I-9).
+  // `rclone reveal` on the temporary config (I-9). An obscured value is
+  // base64url and may start with '-': it goes after `--`, never as a flag.
   QString reveal(const QString &obscured) const {
     QByteArray out;
-    if (runRclone({"reveal", obscured}, &out, nullptr, 20000) != 0) {
+    if (runRclone({"reveal", "--", obscured}, &out, nullptr, 20000) != 0) {
       return QString();
     }
     return QString::fromUtf8(out).trimmed();
