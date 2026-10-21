@@ -8,6 +8,8 @@ Simple cross platform GUI for [rclone](https://rclone.org/) command line tool.
 
 Supports macOS, Windows, GNU/Linux and BSD family.
 
+**Requirements: rclone 1.75.0 or newer.** At startup Rclone Browser runs `rclone version`; with an older rclone (or output it cannot recognize) it shows a dialog that leads to Preferences, the rclone downloads page or Quit, and does not continue. See [rclone version, updates and config password](#rclone-version-updates-and-config-password).
+
 <img src="https://github.com/kapitainsky/RcloneBrowser/wiki/images/readme/osLogos.png" width="50%" />
 
 Table of contents
@@ -26,6 +28,7 @@ Table of contents
     *   [Windows](https://github.com/kapitainsky/RcloneBrowser#windows)
 *   [Portable vs standard mode](https://github.com/kapitainsky/RcloneBrowser#portable-vs-standard-mode)
 *   [Transfers and logging](#transfers-and-logging)
+*   [rclone version, updates and config password](#rclone-version-updates-and-config-password)
 *   [History](https://github.com/kapitainsky/RcloneBrowser#history)
 *   [Code signing certificates donations](https://github.com/kapitainsky/RcloneBrowser#code-signing-certificates-donations)
 
@@ -284,7 +287,7 @@ In standard operations mode all configurations files are stored in the following
     *   tasks file:  ~/.local/share/rclone-browser/rclone-browser/tasks.bin
     *   queue file:  ~/.local/share/rclone-browser/rclone-browser/queue.conf
     *   scheduler file:  ~/.local/share/rclone-browser/rclone-browser/scheduler.conf
-    *   lock file:  in $TMPDIR or /tmp if $TMPDIR is not defined
+    *   lock file:  in $TMPDIR or /tmp if $TMPDIR is not defined; on Linux the name includes your user id, so several users of one machine can run Rclone Browser at the same time
 
 *   Windows:
     *   preferences: in registry Computer\HKEY_CURRENT_USER\Software\rclone-browser\rclone-browser
@@ -306,6 +309,14 @@ Rclone Browser reads the progress of every transfer (stats, per-file progress an
 *   `--log-file <path>` is honored: the job appends a readable text log to that file (the same lines as the output panel, followed by the final stats).
 *   rclone's logging environment variables (`RCLONE_VERBOSE`, `RCLONE_LOG_LEVEL`, `RCLONE_LOG_FILE`, `RCLONE_STATS*`, `RCLONE_USE_JSON_LOG`, `RCLONE_PROGRESS`, `RCLONE_QUIET`, `RCLONE_COLOR`, ...) are not passed to the rclone processes whose output the app reads. `RCLONE_LOG_FILE` and `RCLONE_LOG_LEVEL` still count as `--log-file` and `--log-level` for transfers. All other `RCLONE_*` settings apply as usual; the `rclone config` terminal keeps the full environment.
 *   Combined short flags such as `-vP` are passed to rclone unchanged; write logging flags separately.
+
+rclone version, updates and config password
+-------------------------------------------
+
+*   **Preferences, "Test" button**: runs the rclone selected in `rclone location` with `version` and shows its first line, followed by "OK" or "requires 1.75.0 or newer" (or the reason it cannot run). Saving Preferences checks the version again.
+*   **Update checks** (enabled in Preferences, at most once a day, in the background): Rclone Browser looks for new releases of itself at [manprint/RcloneBrowser](https://github.com/manprint/RcloneBrowser/releases) and of rclone in the GitHub repository set in `rclone releases repository` (default `rclone/rclone`; any `owner/repo` with GitHub-style releases works, e.g. a fork). A failed check is only logged on stderr.
+*   **Encrypted rclone.conf**: when rclone needs the configuration password, Rclone Browser asks for it; a wrong password asks again. If `RCLONE_PASSWORD_COMMAND` is set in the environment Rclone Browser is started from, rclone gets the password from that command and no prompt is shown; if the command fails, a message shows rclone's error instead of a prompt.
+*   **Config button** (Linux): opens `rclone config` in `$TERMINAL` when set, otherwise the first of gnome-terminal, konsole, xfce4-terminal, xterm and x-terminal-emulator found in `PATH`. On macOS it opens Terminal through a temporary `.command` file. The remote list reloads when the terminal closes.
 
 History
 --------
