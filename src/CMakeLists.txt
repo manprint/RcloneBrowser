@@ -63,6 +63,7 @@ set(MOC
   update_check.h
   rc_client.h
   rclone_daemon.h
+  config_flow.h
 )
 
 set(OTHER
@@ -108,6 +109,7 @@ set(SOURCE
   update_check.cpp
   rc_client.cpp
   rclone_daemon.cpp
+  config_flow.cpp
   export_runner.cpp
   instance_lock.cpp
   terminal_command.cpp

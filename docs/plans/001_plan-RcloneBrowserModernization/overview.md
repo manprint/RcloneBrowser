@@ -154,7 +154,8 @@ Scope: the rclone CLI/rc behavior the design depends on, checked against rclone 
 | R10 | `vfs/refresh` and `vfs/list` over a VFS host's rc (required, 5.3) | CONFIRMED (local, serve webdav as VFS host) | D7, 5.3 |
 | R11 | rcd with an encrypted config; `config/unlock` (required, 5.2) | CONFIRMED (local) | 5.2, T-E2E-DAEMON-* |
 | R12 | `operations/list` parameters, `_filter`, connection strings, error texts (required, 5.2) | CONFIRMED (local); Drive option names string-checked only | 5.2, T-E2E-RCLIST-* |
-| R13 | rc config answers must be echoed in `parameters` (required, 6.1) | CONFIRMED (local) | D8, 6.1, T-E2E-CONFIG-SFTP |
+| R13 | rc config answers must be echoed in `parameters` (required, 6.1) | CONFIRMED (local); its "echo all" decision superseded by R18 | D8, 6.1, T-E2E-CONFIG-SFTP |
+| R18 | rc config echo rules, Update password defaults, `config_fs_advanced` loop (required, 6.1; found in the 6.1 pre-dispatch review, revision 10) | CONFIRMED (local probes, isolated containers) | 6.1, 6.2, T-CFG-PARAMS, T-CFG-LOOP, T-E2E-CONFIG-SFTP, T-E2E-CONFIG-UPDATE |
 | R14 | bisync flags and exit codes; copyto/copyurl output (required, 8.x) | CONFIRMED (local) | D1 (`--color NEVER`), 8.1, 8.2 |
 | R15 | `serve/*` rc endpoints (required, 9.1) | CONFIRMED (local) | 9.1, T-E2E-SERVE-* |
 | R16 | `--header-upload` reaches the S3 PutObject request (required, 13.1); tag storage by a real S3 server (optional) | CONFIRMED on the wire (local `serve s3`); storage UNVERIFIED, optional G-S3-MINIO (P-3) | 13.1, T-E2E-S3-TAGS |
@@ -234,6 +235,7 @@ Scope: the rclone CLI/rc behavior the design depends on, checked against rclone 
 - R11 (phase_06): rcd starts with an encrypted config; the first config call fails with HTTP 500 carrying the R8 text; `config/unlock` fixes it. Impact: 5.2 `ensureRcUnlocked`.
 - R12 (phase_06): `operations/list` needs `fs = "<remote>:<path>"` with `remote = ""`; `_filter.ExcludeRule` matches the CLI hidden-file flags; connection-string options are accepted. Impact: 5.2 listing parity.
 - R13 (phase_07): answering only through `opt.result` stores a password in clear text; echoing all answers in `parameters` stores it obscured; `config/update` with `all:true` offers current values as Default. Impact: ConfigFlow request rules.
+- R18 (phase_07, revision 10): echo only non-default answers (a password only when non-empty, never `config_*`), so the conf holds only non-default keys and passwords stay obscured. In Update, an empty password answer must be sent as `DefaultStr`, because `""` overwrites the password with an obscured empty string. `config_fs_advanced=true` with `all:true` never ends, because the `State` strings repeat. Impact: ConfigFlow request rules, no "Show advanced options", the loop guard.
 - R14 (phase_09): bisync without prior listings exits 7 and needs `--resync`; JSON messages carry ANSI codes unless `--color NEVER`; long absolute paths break bisync lock names (README note). Impact: D1 flag, 8.1 e2e with short relative paths.
 - R15 (phase_10): `serve/types`, `serve/start`, `serve/list`, `serve/stop`, `serve/stopall`; unknown types and params are rejected with HTTP 500 texts; `read_only` blocks webdav writes. Impact: ServeManager contract.
 - R16 (phase_14): `--header-upload "X-Amz-Tagging: …"` appears in the PutObject request headers dumped by `--dump headers` against an anonymous local `rclone serve s3`. `serve s3 --auth-key` returned `InvalidAccessKeyId` (unexplained), so tests use anonymous access. Impact: 13.1 builds tags as a header; storage on real S3 is optional evidence.
