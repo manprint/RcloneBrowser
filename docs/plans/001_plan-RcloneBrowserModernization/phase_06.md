@@ -11,7 +11,7 @@ Phase closure: P5; review by agent-1:opus.
 Read STATE.md §0–1 first for scope, ownership, recovery, checks and commit rules. Open a unit before editing it. Checkpoint at recovery boundaries. Close with evidence. A delegated worker follows its assigned OPEN unit. Missing design decisions go to agent-1:opus. No network access (U6); only 127.0.0.1 is used. Tests must stop every rcd they start (`cleanup()` kills leftovers).
 
 ## Local design context
-Plan revision: 1.
+Plan revision: 7 (STATE.md §8: rc timeout, proxy, env, endpoint and parent-death rules).
 - R4 (1.75.2):
   - `rclone rcd --rc-addr 127.0.0.1:0 --use-json-log` logs `{"level":"notice","msg":"Serving remote control on http://127.0.0.1:PORT/",…}`;
   - `RCLONE_RC_USER`/`RCLONE_RC_PASS` from the env enable Basic auth; a request without auth gets 401;
@@ -61,7 +61,10 @@ public:
   using Callback = std::function<void(const RcReply &)>;
   void call(const QString &path, const QJsonObject &params, QObject *context, Callback cb, int timeoutMs = 30000);
   // POST base+path; Content-Type application/json; Authorization "Basic " + base64(user:pass);
-  // QNetworkRequest::setTransferTimeout(timeoutMs). cb runs once, unless `context` was destroyed first.
+  // QNetworkRequest::setTransferTimeout(timeoutMs); timeoutMs <= 0 disables the timeout (revision 7).
+  // cb runs once, unless `context` was destroyed first. The QNAM uses QNetworkProxy::NoProxy.
+  // Without an endpoint, cb is queued on `context` with {ok=false, httpStatus=0, error="rc endpoint not set"}.
+  // No callback runs once ~RcClient has started.
 };
 
 class RcloneDaemon : public QObject {
@@ -89,6 +92,10 @@ signals:
   - If no port arrives within 10 s: kill, state Failed, `lastError = "rcd did not report its port"`.
   - Process exit while Starting or Running (not by `stop`): state Failed, with `lastError` the last Error/Critical message or `"rcd exited (code N)"`.
   - stdout is drained and ignored.
+  - Revision 7:
+    - before `applyRcCredentials`, every inherited variable whose name starts with `RCLONE_RC_` is removed from the env (no `RCLONE_RC_NO_AUTH`, `_HTPASSWD`, `_WEB_GUI` from the user's environment);
+    - the client endpoint is cleared when the state leaves Running; a late `core/quit` reply after Stopped is a no-op;
+    - on Linux the child gets `prctl(PR_SET_PDEATHSIG, SIGTERM)` through `QProcess::setChildProcessModifier`, so rcd does not outlive an app that dies without running destructors.
 
 ## Sub-phases
 
@@ -156,7 +163,7 @@ signals:
       - Quit: after the existing job handling in `canClose`/quit, call `mDaemon->stop()` and wait for Stopped with `QEventLoop` and a 4 s cap.
     - `ItemModel::load` rc path. Condition: `global.daemon && global.daemon->state() == Running && GetDefaultOptionsList("defaultRcloneOptions").isEmpty()`.
       - Build params: `fs = rcListFs(mRemote, parent->path.path(), Settings/remoteMode)`, `remote = ""`, `opt = {noMimeType: true}`. When `Settings/showHidden` is false, add `_filter = {ExcludeRule: [".*/**", ".*"]}`.
-      - `global.daemon->client()->call("operations/list", params, this, cb)`, with the same process-counter bookkeeping (+1, then −1 in the callback) and the same loading spinner.
+      - `global.daemon->client()->call("operations/list", params, this, cb, 0)` (no timeout: rclone builds the whole reply before sending it, so a large directory can be silent for longer than any inactivity timeout; revision 7), with the same process-counter bookkeeping (+1, then −1 in the callback) and the same loading spinner.
       - Callback, ok: each element of `result["list"]` (array of objects) goes through `lsjsonEntryFromObject`, then `itemFromEntry`, then into the cache, then the existing merge.
       - Callback, not ok:
         - if `classifyConfigLoadError(1, error.toUtf8())` is NeedsPassword or WrongPassword, call `emit configLocked()` (new ItemModel signal → MainWindow `ensureRcUnlocked()`) and show the Special row `⚠ configuration is locked`;

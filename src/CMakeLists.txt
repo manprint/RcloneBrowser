@@ -61,6 +61,8 @@ set(MOC
   file_dialog.h
   remote_folder_dialog.h
   update_check.h
+  rc_client.h
+  rclone_daemon.h
 )
 
 set(OTHER
@@ -103,6 +105,8 @@ set(SOURCE
   lsjson_parser.cpp
   rclone_version.cpp
   update_check.cpp
+  rc_client.cpp
+  rclone_daemon.cpp
   export_runner.cpp
   instance_lock.cpp
   terminal_command.cpp
