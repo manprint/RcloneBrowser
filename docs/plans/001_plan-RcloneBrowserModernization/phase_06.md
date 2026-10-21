@@ -11,7 +11,7 @@ Phase closure: P5; review by agent-1:opus.
 Read STATE.md §0–1 first for scope, ownership, recovery, checks and commit rules. Open a unit before editing it. Checkpoint at recovery boundaries. Close with evidence. A delegated worker follows its assigned OPEN unit. Missing design decisions go to agent-1:opus. No network access (U6); only 127.0.0.1 is used. Tests must stop every rcd they start (`cleanup()` kills leftovers).
 
 ## Local design context
-Plan revision: 7 (STATE.md §8: rc timeout, proxy, env, endpoint and parent-death rules).
+Plan revision: 8 (STATE.md §8: revision 7 rc timeout, proxy, env, endpoint and parent-death rules; revision 8 unlock verification and 5.2 lifecycle rules).
 - R4 (1.75.2):
   - `rclone rcd --rc-addr 127.0.0.1:0 --use-json-log` logs `{"level":"notice","msg":"Serving remote control on http://127.0.0.1:PORT/",…}`;
   - `RCLONE_RC_USER`/`RCLONE_RC_PASS` from the env enable Basic auth; a request without auth gets 401;
@@ -25,6 +25,7 @@ Plan revision: 7 (STATE.md §8: rc timeout, proxy, env, endpoint and parent-deat
   - connection-string overrides `remote,key=value:path` are accepted (checked with `loc,links=true:`);
   - errors: a missing dir gives `error in ListJSON: directory not found`; an unknown remote gives `didn't find section in config file ("nope")`.
   - Drive `remoteMode` maps to `<remote>,shared_with_me=true:` and `<remote>,trashed_only=true:`. These are the documented option names of `--drive-shared-with-me`/`--drive-trashed-only`; they are not locally testable, so a unit test checks the string only.
+- R17 (local probe 2026-10-21, rcd 1.75.2, isolated container): `config/unlock` returns `{}` for a wrong password too; the next config-using call still fails with `not allowed to ask for password` (NeedsPassword). `config/listremotes` fails while locked and returns `{remotes:[…]}` once unlocked, so it verifies an unlock. Connection-string options unknown to a backend are ignored (`loc,shared_with_me=true:` and `loc,trashed_only=true:` list normally).
 - R10 (local probe): with `rclone serve webdav <dir> --rc --rc-addr 127.0.0.1:0` (the same VFS layer as mount), `vfs/list` gives `{"vfses":[…]}` and `vfs/refresh {"recursive":true}` gives `{"result":{"":"OK"}}`. Tests use serve webdav as the VFS host because Docker has no FUSE.
 - D6: transport and lifecycle (port from the log line, `core/quit`, then kill after 3 s).
 - D7: mounts stay separate processes, with rc credentials in the env.
@@ -171,9 +172,14 @@ signals:
       - Add a test hook `bool lastLoadUsedRc() const`.
     - `MainWindow::ensureRcUnlocked()` (re-entrancy guarded by a bool):
       - the 3.3 prompt flow (NeedsPassword/WrongPassword dialog);
-      - on accept: `SetRclonePassword(pw)` and `client()->call("config/unlock", {configPassword: pw})`;
-      - on ok, refresh the current remote views (the existing refresh API); on error, repeat the prompt with the Wrong prefix;
+      - on accept: `SetRclonePassword(pw)` and `client()->call("config/unlock", {configPassword: pw})`, then (R17, revision 8) `config/listremotes` to verify;
+      - verification ok: refresh the current remote views (the existing refresh API); verification still NeedsPassword/WrongPassword: repeat the prompt with the Wrong prefix; any other error: status-bar message, stop;
       - cancel stops the loop.
+    - Revision 8 lifecycle rules:
+      - `stopDaemonAndWait()` (stop + QEventLoop, 4 s cap) serves both quit and Preferences: when the rclone path or the config path changed, it runs before `rcloneGetVersion()`, because `stop()` is asynchronous and a `start()` while still Running is a no-op;
+      - silent unlock: on every transition to Running, and after the 3.3 prompt has accepted a password, if `GetRclonePassword()` is non-empty and the daemon is Running, call `config/unlock` with it and ignore the reply (no second prompt for the same password);
+      - the rc listing serves every `Settings/remoteMode` (R17: non-drive backends ignore the overrides);
+      - `result["list"]` that is not an array gives the Special row `⚠ invalid rc listing reply`.
     - Out of scope (unchanged): `rcloneListRemotes` and other operations stay CLI in this phase (U3; the config flow moves to rc in P6).
   - Steps:
     1. S1 — Daemon lifecycle wiring. Expected: it builds; smoke passes (daemon starts in smoke, and the app exits cleanly when killed by smoke).
@@ -191,7 +197,8 @@ signals:
   - T-E2E-DAEMON-UNLOCK:
     - encrypted conf as in 3.3, `SetRclonePassword("")`, daemon started;
     - the load emits `configLocked` and the Special row `⚠ configuration is locked`;
-    - then `client()->call("config/unlock", {configPassword: "pw"})` is ok;
+    - R17: `config/unlock {configPassword: "wrong"}` is ok, but `config/listremotes` then fails and classifies as NeedsPassword;
+    - then `client()->call("config/unlock", {configPassword: "pw"})` is ok and `config/listremotes` lists `loc`;
     - a re-load lists entries.
   - Gate G-U5.2e: `scripts/dev.sh e2e qt64 -- -R tst_e2e_rclisting` passes with 6 functions.
 - **Done:** review recorded; G-U5.2e passes; smoke passes; unit closed; completion commit.

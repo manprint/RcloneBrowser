@@ -8,6 +8,7 @@
 #endif
 
 class JobWidget;
+class RcloneDaemon;
 class UpdateChecker;
 struct RcloneVersion;
 
@@ -17,6 +18,11 @@ class MainWindow : public QMainWindow {
 public:
   MainWindow();
   ~MainWindow();
+
+public slots:
+  // asks for the config password (one prompt at a time) and unlocks the rc
+  // daemon; reloads the open remote views once the config is readable
+  void ensureRcUnlocked();
 
 private slots:
   void rcloneGetVersion();
@@ -57,6 +63,13 @@ private:
   void showUnsupportedRcloneDialog(const QString &problem);
   void startUpdateChecks(const RcloneVersion &rcloneVersion);
 
+  // stops the rc daemon and waits for it (4 s at most); no-op when not running
+  void stopDaemonAndWait();
+  // gives GetRclonePassword() to a running daemon, ignoring the reply
+  void unlockDaemonSilently();
+  // one round of the ensureRcUnlocked() prompt loop
+  void promptRcUnlock(bool wrongPassword);
+
   Ui::MainWindow ui;
 
   QSystemTrayIcon mSystemTray;
@@ -66,6 +79,11 @@ private:
   QSoundEffect mNotificationSound;
 #endif
   JobWidget *mLastFinished = nullptr;
+
+  // private rclone rcd (also in global.daemon); a child of this window
+  RcloneDaemon *mDaemon = nullptr;
+  // ensureRcUnlocked() prompt loop is active
+  bool mRcUnlockBusy = false;
 
   bool mAlwaysShowInTray;
   bool mCloseToTray;

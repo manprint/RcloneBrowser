@@ -31,6 +31,8 @@ signals:
                    const QString &script, const QString &uniqueId,
                    const QString &info);
   void addSavedTransfer(const QString &uniqueId, bool dryRun, bool addToQueue);
+  // the rc listing found the rclone config locked (forwarded from the model)
+  void configLocked();
 
 private slots:
 

@@ -62,6 +62,9 @@ public:
 
   QModelIndex addRoot(const QString &name, const QString &path);
 
+  // test hook: true when the last load() listed through the rc daemon
+  bool lastLoadUsedRc() const { return mLastLoadUsedRc; }
+
   QModelIndex index(int row, int column,
                     const QModelIndex &parent) const override;
   QModelIndex parent(const QModelIndex &index) const override;
@@ -85,6 +88,8 @@ public:
 signals:
   void getIcon(Item *item, const QPersistentModelIndex &index);
   void drop(const QDir &path, const QModelIndex &parent);
+  // an rc listing failed because the rclone config is encrypted and locked
+  void configLocked();
 
 private:
   Item *mRoot;
@@ -115,4 +120,6 @@ private:
 
   // rclone lsjson processes count;
   int mLocalRcloneLsProcessCount = 0;
+
+  bool mLastLoadUsedRc = false;
 };

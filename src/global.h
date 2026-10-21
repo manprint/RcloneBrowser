@@ -1,5 +1,7 @@
 #pragma once
 
+class RcloneDaemon;
+
 class Global {
 public:
   // global variable to keep used RC ports
@@ -7,6 +9,9 @@ public:
 
   // global count of lsl/lsd rclone proecesses
   int rcloneLsProcessCount = 0;
+
+  // private rclone rcd, owned by MainWindow; null when there is none
+  RcloneDaemon *daemon = nullptr;
 
 public:
   Global() = default;

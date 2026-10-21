@@ -342,6 +342,8 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
   ui.tree->header()->setSectionsMovable(false);
 
   model = new ItemModel(iconCache, remote, this);
+  QObject::connect(model, &ItemModel::configLocked, this,
+                   &RemoteWidget::configLocked);
   ui.tree->setModel(model);
   QTimer::singleShot(0, ui.tree, SLOT(setFocus()));
 

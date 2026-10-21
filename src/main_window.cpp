@@ -2,12 +2,15 @@
 
 #include "main_window.h"
 #include <QTabBar>
+#include "global.h"
 #include "job_options.h"
 #include "job_widget.h"
 #include "list_of_job_options.h"
 #include "mount_dialog.h"
 #include "mount_widget.h"
 #include "preferences_dialog.h"
+#include "rc_client.h"
+#include "rclone_daemon.h"
 #include "rclone_version.h"
 #include "remote_widget.h"
 #include "scheduler_widget.h"
@@ -38,6 +41,15 @@ QString releaseLink(const ReleaseInfo &release, const QString &slug) {
     return release.htmlUrl.toString(QUrl::FullyEncoded);
   }
   return "https://github.com/" + slug + "/releases/latest";
+}
+
+// Label of the config password prompt (3.3 flow and the rc unlock loop).
+QString configPasswordLabel(bool wrongPassword) {
+  QString label = "Enter password for .rclone.conf configuration file:";
+  if (wrongPassword) {
+    label = "Wrong password. " + label;
+  }
+  return label;
 }
 
 } // namespace
@@ -93,6 +105,22 @@ MainWindow::MainWindow() {
   // asynchronous update checks (started from rcloneGetVersion)
   mRcloneUpdateChecker = new UpdateChecker(this);
   mBrowserUpdateChecker = new UpdateChecker(this);
+  // private rclone rcd for folder listings (started once rclone is checked)
+  mDaemon = new RcloneDaemon(this);
+  global.daemon = mDaemon;
+  connect(mDaemon, &RcloneDaemon::stateChanged, this,
+          [this](RcloneDaemon::State state) {
+            if (state == RcloneDaemon::State::Running) {
+              unlockDaemonSilently();
+            }
+          });
+  connect(mDaemon, &RcloneDaemon::failed, this, [this](const QString &msg) {
+    // no retry: the next Preferences accept or app start tries again
+    statusBar()->showMessage(
+        "rclone backend unavailable, using direct commands: " + msg);
+    qWarning().noquote() << "rclone backend unavailable:" << msg;
+  });
+
   connect(mRcloneUpdateChecker, &UpdateChecker::newerAvailable, this,
           [this](const ReleaseInfo &release) {
             auto s = GetSettings();
@@ -737,8 +765,15 @@ MainWindow::MainWindow() {
       settings->setValue("Settings/jobLastFinishedScriptRun",
                          dialog.getJobLastFinishedScriptRun());
 
+      const QString oldRclone = GetRclone();
+      const QStringList oldConf = GetRcloneConf();
       SetRclone(dialog.getRclone());
       SetRcloneConf(dialog.getRcloneConf());
+      if (GetRclone() != oldRclone || GetRcloneConf() != oldConf) {
+        // stop() is asynchronous and start() while Running does nothing: the
+        // new daemon starts from rcloneGetVersion() once the old one is gone
+        stopDaemonAndWait();
+      }
       mFirstTime = true;
       rcloneGetVersion();
 
@@ -851,6 +886,8 @@ MainWindow::MainWindow() {
                        &MainWindow::addTransfer);
       QObject::connect(remote, &RemoteWidget::addSavedTransfer, this,
                        &MainWindow::addSavedTransfer);
+      QObject::connect(remote, &RemoteWidget::configLocked, this,
+                       &MainWindow::ensureRcUnlocked);
 
       QString nameTrimmed = name;
 
@@ -2203,6 +2240,7 @@ MainWindow::MainWindow() {
                      if (canClose()) {
                        saveQueueFile();
                        saveSchedulerFile();
+                       stopDaemonAndWait();
                        QApplication::quit();
                      }
                    });
@@ -2257,6 +2295,9 @@ MainWindow::MainWindow() {
 }
 
 MainWindow::~MainWindow() {
+  // the daemon (a child) goes away after this body: nobody may use it then
+  global.daemon = nullptr;
+
   auto settings = GetSettings();
   settings->setValue("MainWindow/geometry", saveGeometry());
 }
@@ -2394,6 +2435,7 @@ void MainWindow::quitApp(void) {
     // no running widget - bye bye - quitting at last
     saveQueueFile();
     saveSchedulerFile();
+    stopDaemonAndWait();
     QApplication::quit();
   } else {
     // something still running we check again a bit later then
@@ -2742,6 +2784,7 @@ void MainWindow::rcloneGetVersion() {
 #endif
 #endif
 
+          mDaemon->start();
           rcloneListRemotes();
           startUpdateChecks(rcloneVersion);
         } else {
@@ -3145,6 +3188,117 @@ void MainWindow::rcloneListRemotes() {
            QIODevice::ReadOnly);
 }
 
+void MainWindow::stopDaemonAndWait() {
+  auto active = [this]() {
+    return mDaemon->state() == RcloneDaemon::State::Starting ||
+           mDaemon->state() == RcloneDaemon::State::Running;
+  };
+  if (!active()) {
+    return;
+  }
+
+  QEventLoop loop;
+  // The loop is the connection context, so Qt also drops the connection when
+  // the loop is destroyed; disconnect explicitly so it never outlives it.
+  const QMetaObject::Connection conn = QObject::connect(
+      mDaemon, &RcloneDaemon::stateChanged, &loop,
+      [&loop](RcloneDaemon::State state) {
+        if (state == RcloneDaemon::State::Stopped ||
+            state == RcloneDaemon::State::Failed) {
+          loop.quit();
+        }
+      });
+  QTimer::singleShot(4000, &loop, &QEventLoop::quit);
+  mDaemon->stop();
+  if (active()) {
+    loop.exec();
+  }
+  QObject::disconnect(conn);
+}
+
+void MainWindow::unlockDaemonSilently() {
+  const QString password = GetRclonePassword();
+  if (mDaemon->state() != RcloneDaemon::State::Running || password.isEmpty()) {
+    return;
+  }
+  mDaemon->client()->call("config/unlock",
+                          QJsonObject{{"configPassword", password}}, this,
+                          [](const RcReply &) {});
+}
+
+void MainWindow::ensureRcUnlocked() {
+  if (mRcUnlockBusy) {
+    return;
+  }
+  mRcUnlockBusy = true;
+  promptRcUnlock(false);
+}
+
+void MainWindow::promptRcUnlock(bool wrongPassword) {
+  bool ok = false;
+  const QString password = QInputDialog::getText(
+      this, qApp->applicationDisplayName(), configPasswordLabel(wrongPassword),
+      QLineEdit::Password, QString(), &ok);
+  if (!ok) {
+    mRcUnlockBusy = false;
+    return;
+  }
+  SetRclonePassword(password);
+
+  // a locked config asks again, any other error ends the loop
+  auto failed = [this](const QString &error) {
+    const ConfigLoadProblem problem =
+        classifyConfigLoadError(1, error.toUtf8());
+    if (problem == ConfigLoadProblem::NeedsPassword ||
+        problem == ConfigLoadProblem::WrongPassword) {
+      SetRclonePassword("");
+      promptRcUnlock(true);
+      return;
+    }
+    mRcUnlockBusy = false;
+    statusBar()->showMessage("rclone backend: " + error);
+  };
+
+  mDaemon->client()->call(
+      "config/unlock", QJsonObject{{"configPassword", password}}, this,
+      [this, failed](const RcReply &unlocked) {
+        if (!unlocked.ok) {
+          failed(unlocked.error);
+          return;
+        }
+        // R17: unlock is ok even for a wrong password, listremotes tells
+        mDaemon->client()->call(
+            "config/listremotes", QJsonObject(), this,
+            [this, failed](const RcReply &verified) {
+              if (!verified.ok) {
+                failed(verified.error);
+                return;
+              }
+              mRcUnlockBusy = false;
+              // same code path as the Refresh button of each remote view
+              for (int i = 0; i < ui.tabs->count(); i++) {
+                auto remoteTab = qobject_cast<RemoteWidget *>(ui.tabs->widget(i));
+                if (!remoteTab) {
+                  continue;
+                }
+                // a disabled refresh means the view has no usable selection
+                // (the handler needs a selected row): reload its root instead
+                QAction *refresh = remoteTab->findChild<QAction *>("refresh");
+                if (refresh && refresh->isEnabled()) {
+                  refresh->trigger();
+                } else if (auto *model = remoteTab->findChild<ItemModel *>()) {
+                  const QModelIndex root = model->index(0, 0, QModelIndex());
+                  if (root.isValid()) {
+                    model->refresh(root);
+                  }
+                }
+              }
+            },
+            30000);
+      },
+      30000);
+}
+
 bool MainWindow::getConfigPassword(QProcess *p) {
   const QByteArray stderrBytes = p->readAllStandardError();
   const ConfigLoadProblem problem =
@@ -3153,17 +3307,18 @@ bool MainWindow::getConfigPassword(QProcess *p) {
   switch (problem) {
   case ConfigLoadProblem::NeedsPassword:
   case ConfigLoadProblem::WrongPassword: {
-    QString label = "Enter password for .rclone.conf configuration file:";
     if (problem == ConfigLoadProblem::WrongPassword) {
       SetRclonePassword("");
-      label = "Wrong password. " + label;
     }
     bool ok;
     QString password = QInputDialog::getText(
-        this, qApp->applicationDisplayName(), label, QLineEdit::Password,
-        QString(), &ok);
+        this, qApp->applicationDisplayName(),
+        configPasswordLabel(problem == ConfigLoadProblem::WrongPassword),
+        QLineEdit::Password, QString(), &ok);
     if (ok) {
       SetRclonePassword(password);
+      // a daemon that is already running has not seen this password yet
+      unlockDaemonSilently();
       return true;
     }
     return false;

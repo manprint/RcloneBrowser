@@ -2,6 +2,8 @@
 #include "global.h"
 #include "icon_cache.h"
 #include "lsjson_parser.h"
+#include "rc_client.h"
+#include "rclone_daemon.h"
 #include "rclone_format.h"
 #include "rclone_process.h"
 #include "utils.h"
@@ -17,6 +19,16 @@ static void advanceSpinner(QString &text) {
   size_t idx = found - spinner;
   size_t next = idx == spinnerCount - 1 ? 0 : idx + 1;
   text[spinnerPos] = spinner[next];
+}
+
+// The single warning row that replaces a failed listing (both paths).
+static Item *errorItem(Item *parent, const QString &msg) {
+  Item *error = new Item();
+  error->parent = parent;
+  error->state = Item::Special;
+  error->isFolder = false;
+  error->name = QString::fromUtf8("\xE2\x9A\xA0 ") + msg;
+  return error;
 }
 } // namespace
 
@@ -403,14 +415,14 @@ Item *ItemModel::get(const QModelIndex &index) const {
 }
 
 void ItemModel::load(const QPersistentModelIndex &parentIndex, Item *parent) {
-  // one lsjson process per folder: stdout carries the JSON listing, stderr the
-  // text log used for the error message
-  auto ls = new QProcess(this);
-  ls->setProcessChannelMode(QProcess::SeparateChannels);
+  // rc listing only while the private daemon runs and the user has no default
+  // rclone flags (arbitrary flags cannot be mapped to rc parameters)
+  const bool useRc = global.daemon &&
+                     global.daemon->state() == RcloneDaemon::State::Running &&
+                     GetDefaultOptionsList("defaultRcloneOptions").isEmpty();
+  mLastLoadUsedRc = useRc;
 
   auto cache = new QVector<Item *>();
-  auto parser = new LsjsonStreamParser();
-  auto errBytes = new QByteArray();
 
   Item *loading = new Item();
   loading->state = Item::Special;
@@ -425,8 +437,8 @@ void ItemModel::load(const QPersistentModelIndex &parentIndex, Item *parent) {
     emit dataChanged(loadingIndex, loadingIndex, QVector<int>{Qt::DisplayRole});
   });
 
+  // common to both listing paths: merges the cache into the tree
   auto rcloneFinished = [=]() {
-    ls->deleteLater();
     // free rclone ls count (global and local)
     mRcloneLsProcessCountMutex.lock();
     if (global.rcloneLsProcessCount > 0) {
@@ -520,6 +532,86 @@ void ItemModel::load(const QPersistentModelIndex &parentIndex, Item *parent) {
     }
   };
 
+  // a single load: Loading2 makes its finish take the Loading2 -> Ready path
+  parent->state = Item::Loading2;
+
+  emit beginInsertRows(parentIndex, 0, 0);
+  parent->childs.prepend(loading);
+  emit endInsertRows();
+
+  timer->start(100);
+
+  // keep track of number of lsjson rclone processes
+  mRcloneLsProcessCountMutex.lock();
+  global.rcloneLsProcessCount++;
+  mLocalRcloneLsProcessCount++;
+  mRcloneLsProcessCountMutex.unlock();
+
+  if (useRc) {
+    QJsonObject params;
+    params["fs"] = rcListFs(
+        mRemote, parent->path.path(),
+        GetSettings()->value("Settings/remoteMode", "main").toString());
+    params["remote"] = "";
+    params["opt"] = QJsonObject{{"noMimeType", true}};
+    if (!GetSettings()->value("Settings/showHidden", true).toBool()) {
+      // the same rules as GetShowHidden()'s --exclude flags
+      params["_filter"] = QJsonObject{
+          {"ExcludeRule", QJsonArray{QStringLiteral(".*/**"),
+                                     QStringLiteral(".*")}}};
+    }
+
+    // no timeout: rclone builds the whole reply before it sends it
+    global.daemon->client()->call(
+        "operations/list", params, this,
+        [=](const RcReply &r) {
+          bool locked = false;
+          if (r.ok && r.result.value("list").isArray()) {
+            for (const QJsonValue &v : r.result.value("list").toArray()) {
+              if (!v.isObject()) {
+                continue;
+              }
+              const auto e = lsjsonEntryFromObject(v.toObject());
+              if (e) {
+                cache->append(itemFromEntry(*e, parent));
+              }
+            }
+          } else {
+            qDeleteAll(*cache);
+            cache->clear();
+            QString msg;
+            if (r.ok) {
+              msg = "invalid rc listing reply";
+            } else {
+              const ConfigLoadProblem problem =
+                  classifyConfigLoadError(1, r.error.toUtf8());
+              locked = problem == ConfigLoadProblem::NeedsPassword ||
+                       problem == ConfigLoadProblem::WrongPassword;
+              msg = locked ? QString("configuration is locked")
+                           : (r.error.isEmpty()
+                                  ? QString("rc operations/list failed")
+                                  : r.error);
+            }
+            cache->append(errorItem(parent, msg));
+          }
+
+          rcloneFinished();
+          if (locked) {
+            emit configLocked();
+          }
+        },
+        0);
+    return;
+  }
+
+  // one lsjson process per folder: stdout carries the JSON listing, stderr the
+  // text log used for the error message
+  auto ls = new QProcess(this);
+  ls->setProcessChannelMode(QProcess::SeparateChannels);
+
+  auto parser = new LsjsonStreamParser();
+  auto errBytes = new QByteArray();
+
   // runs once per load: drains the parsers, turns a failure into the single
   // error row, then merges the result into the tree
   auto listingDone = [=](int exitCode, QProcess::ExitStatus exitStatus,
@@ -537,21 +629,16 @@ void ItemModel::load(const QPersistentModelIndex &parentIndex, Item *parent) {
 
       QString msg = startError.isEmpty() ? lastRcloneStderrMessage(*errBytes)
                                          : startError;
-      Item *error = new Item();
-      error->parent = parent;
-      error->state = Item::Special;
-      error->isFolder = false;
-      error->name =
-          QString::fromUtf8("\xE2\x9A\xA0 ") +
-          (msg.isEmpty()
-               ? QString("rclone lsjson failed (exit %1)").arg(exitCode)
-               : msg);
-      cache->append(error);
+      cache->append(errorItem(
+          parent, msg.isEmpty()
+                      ? QString("rclone lsjson failed (exit %1)").arg(exitCode)
+                      : msg));
     }
 
     delete parser;
     delete errBytes;
 
+    ls->deleteLater();
     rcloneFinished();
   };
 
@@ -584,21 +671,7 @@ void ItemModel::load(const QPersistentModelIndex &parentIndex, Item *parent) {
   QObject::connect(ls, &QProcess::readyReadStandardError, this,
                    [=]() { errBytes->append(ls->readAllStandardError()); });
 
-  // a single process: Loading2 makes its finish take the Loading2 -> Ready path
-  parent->state = Item::Loading2;
-
-  emit beginInsertRows(parentIndex, 0, 0);
-  parent->childs.prepend(loading);
-  emit endInsertRows();
-
-  timer->start(100);
   ApplyRcloneEnvironment(ls);
-
-  // keep track of number of lsjson rclone processes
-  mRcloneLsProcessCountMutex.lock();
-  global.rcloneLsProcessCount++;
-  mLocalRcloneLsProcessCount++;
-  mRcloneLsProcessCountMutex.unlock();
 
   ls->start(GetRclone(),
             QStringList() << "lsjson"
