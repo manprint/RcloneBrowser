@@ -115,7 +115,7 @@ Plan revision: 1.
 - **Done:** gates pass; CI debt recorded; unit closed; completion commit.
 
 ## Phase gates and closure (final)
-- Required gates: G-BUILD64, G-BUILD610 (required at final; BLOCKED until P-2 if the image is absent), G-UNIT, G-E2E, G-SMOKE, G-I18N, G-FINAL. G-CI is required for COMPLETE: the user pushes (P-4) and reports the run; the supervisor records the run ID and job conclusions.
+- Required gates: G-BUILD64, G-BUILD610 (required at final; BLOCKED until P-2 if the image is absent), G-UNIT, G-E2E, G-SMOKE, G-I18N, G-FINAL. G-SERVERS (revision 11). G-CI is required for COMPLETE: the supervisor pushes and dispatches (user authorization, STATE.md §3) and records the run ID and job conclusions.
 - G-FINAL (STATE.md §3) checks the reference scenario 1–7 from overview.md:
   1. both builds;
   2. both suites, with the discovered test count equal to STATE.md §11;
@@ -126,4 +126,5 @@ Plan revision: 1.
   7. each F3 e2e.
   Scenario item 8 is G-CI.
 - README obligation (P13): "Uploads: headers and S3 tags"; supported platforms including OpenBSD/NetBSD (from CI); a final full README read-through against behavior. Version rule: if `git tag -l v2.0.0` is non-empty or STATE.md §7 records a user-reported v2.0.0 tag, add CHANGELOG `## [2.1.0] - unreleased` for the P8–P13 changes and set VERSION to `2.1.0` (same strip check as 4.2); otherwise add the P8–P13 changes to the `## [2.0.0] - unreleased` section and keep VERSION `2.0.0`.
-- The supervisor reviews the whole feature and invariants I-1 … I-8. Close P13. The plan is COMPLETE only when G-CI has passed. Otherwise the final state is `BLOCKED (G-CI user push)` with all local gates green.
+- Revision 11, release and merge: after G-FINAL and G-CI pass on one HEAD, the supervisor fast-forwards the fork's `master` to it and tags `v2.1.0-beta.1` there (a prerelease: P8–P13 add large UI features with no real-machine checks; the final `v2.1.0` is the user's call).
+- The supervisor reviews the whole feature and invariants I-1 … I-9. Close P13. The plan is COMPLETE only when G-CI has passed. Otherwise the final state is `BLOCKED (G-CI user push)` with all local gates green.

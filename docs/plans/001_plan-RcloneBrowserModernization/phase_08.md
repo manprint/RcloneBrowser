@@ -5,7 +5,7 @@ Intent:
 - The tasks/queue/scheduler methods live in `main_window_tasks.cpp`.
 - Behavior is provably unchanged (golden widget-state snapshot, full suites, moved-code review).
 Prerequisites: P6.
-Phase closure: P7; review by agent-1:opus. P7 is the v2.0.0 readiness point. G-REL and the tag are user-requested (STATE.md §3).
+Phase closure: P7; review by agent-1:opus. Revision 11: the v2.0.0 readiness point moves to P14 (the issue sweep, phase_15.md), which runs right after P7.
 
 ## State and ownership contract
 Read STATE.md §0–1 first for scope, ownership, recovery, checks and commit rules. Open a unit before editing it. Checkpoint at recovery boundaries. Close with evidence. A delegated worker follows its assigned OPEN unit. Missing design decisions go to agent-1:opus. No network access (U6).
@@ -87,4 +87,4 @@ Plan revision: 1.
 ## Phase gates and closure
 - Required gates: G-BUILD64, G-UNIT, G-E2E, G-SMOKE. G-BUILD610 if the image is present. G-CI is debt: Windows/macOS compile the moved `#ifdef` code, and this is required before the v2.0.0 tag (G-REL).
 - README obligation: "Development" gains a short "Source layout" note (main window split, core library, tests). P7 owns it, together with a CHANGELOG section `## [2.0.0] - unreleased` listing the P5–P7 changes (rc backend, native config, mount credentials, refactor) above the beta.1 section.
-- After P7 the supervisor reports v2.0.0 readiness to the user (G-REL steps). There is no tag.
+- After P7 the next unit is 14.1 (revision 11). There is no tag at P7. G-SERVERS is a required gate (revision 11).

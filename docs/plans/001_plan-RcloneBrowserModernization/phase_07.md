@@ -3,6 +3,7 @@
 Intent:
 - "Config" opens a native dialog that creates or edits remotes through the rc config state machine, including OAuth providers, with cancel leaving no partial remote.
 - The terminal flow stays as "Advanced (terminal)" and as the fallback when the daemon is unavailable.
+- Revision 11: an isolated real-server harness (sftp, ftp, webdav, S3 on a per-run internal Docker network) checks config, listing, transfers and file operations against real protocol servers (6.3).
 Prerequisites: P5.
 Phase closure: P6; review by agent-1:opus.
 
@@ -10,7 +11,7 @@ Phase closure: P6; review by agent-1:opus.
 Read STATE.md §0–1 first for scope, ownership, recovery, checks and commit rules. Open a unit before editing it. Checkpoint at recovery boundaries. Close with evidence. A delegated worker follows its assigned OPEN unit. Missing design decisions go to agent-1:opus. No network access (U6); OAuth tests use only the local 127.0.0.1:53682 server and never complete a real authorization.
 
 ## Local design context
-Plan revision: 10 (R18 supersedes the R13 decision and removes "Show advanced options").
+Plan revision: 11 (10: R18 supersedes the R13 decision and removes "Show advanced options"; 11: sub-phase 6.3 and G-SERVERS, R19).
 - R5 (1.75.2):
   - `config/create {name, type, parameters, opt{nonInteractive, all, continue, state, result, obscure, noObscure}}` and `config/update {name, parameters, opt{…}}` both return `{State, Option, Error, Result}`; `State == ""` means done.
   - `Option` keys: `Name, FieldName, Help, Default, DefaultStr, Value, ValueStr, Required, IsPassword, Sensitive, Advanced, Exclusive, Hide, NoPrefix, Type, Examples[{Value, Help}]`.
@@ -195,7 +196,44 @@ Request rules:
 - **e2e tests:** T-E2E-CONFIG-SFTP / -UPDATE / -OAUTH-CANCEL in 6.1 cover the real flow. The dialog-to-daemon integration is covered by G-SMOKE plus T-RCD-FLOW. A dialog e2e against real rcd is N/A because it would duplicate 6.1 through UI automation without new observable behavior.
 - **Done:** G-U6.2 passes; smoke passes; unit closed; completion commit.
 
+### 6.3 Isolated real-server harness and protocol e2e (revision 11)
+- **Model:** agent-2:sonnet
+- **Assignment:** implementer. agent-1:opus reviews after the diff (I-9 and network isolation first).
+- **Files:**
+  - NEW `tests/servers/webdav/Dockerfile`, `tests/servers/webdav/httpd.conf`, `tests/servers/webdav/entry.sh` (contents below).
+  - WRITE `scripts/dev.sh`: new commands `server-images` and `servers`; usage text.
+  - NEW `tests/servers/tst_srv_protocols.cpp`, registered in `tests/CMakeLists.txt` inside `if(RB_TEST_RCLONE)` with the ctest label `servers` only (not `e2e`, not `unit`). The file lives outside the `tests/tst_*.cpp` glob, so the G-UNIT and G-E2E file counts do not change.
+- **Change:**
+  - Preconditions: 6.1 DONE (the tests create every remote through `ConfigFlow`).
+  - Evidence (R19, local probe 2026-10-21, rclone 1.75.2, isolated `--internal` network, scratchpad `servers/`):
+    - `atmoz/sftp:alpine` with the command `rb:rbpass:::upload` serves sftp; only `upload/` is writable.
+    - `delfer/alpine-ftp-server:latest` with `USERS="rb|rbpass|/home/rb|1000"` and `ADDRESS=ftp` refuses writes with `553 Could not create file.` unless the user is chrooted: start it with `--entrypoint /sbin/tini … -- sh -c 'printf "chroot_local_user=YES\nallow_writeable_chroot=YES\n" >> /etc/vsftpd/vsftpd.conf && exec /bin/start_vsftpd.sh'`.
+    - `httpd:2.4-alpine` with mod_dav needs `DavLockDB`; the image has no DBM driver (`DSO load failed`, every request 500). `RUN apk add --no-cache apr-util-dbm_gdbm` fixes it.
+    - `minio/minio` is no longer pullable (pull access denied). `ghcr.io/coollabsio/minio:RELEASE.2025-10-15T17-29-55Z` with `-e MINIO_ROOT_USER=rbadmin -e MINIO_ROOT_PASSWORD=rbpass1234 … server /data` works with `provider = Minio`, `endpoint = http://s3:9000`.
+    - With these four, `rclone mkdir`, `copy`, `lsjson -R`, `moveto` and `purge` all succeed (S3 `mkdir` of an empty directory is a no-op).
+  - `tests/servers/webdav/Dockerfile`: `FROM httpd:2.4-alpine` + `RUN apk add --no-cache apr-util-dbm_gdbm`. `httpd.conf`: `Listen 80`; modules mpm_event, authn_file, authn_core, authz_user, authz_core, auth_basic, dav, dav_fs, dav_lock, unixd, dir, mime, log_config; `User daemon`/`Group daemon`; `DavLockDB /usr/local/apache2/var/DavLock`; `DocumentRoot /usr/local/apache2/dav` with `Dav On`, Basic auth from `/usr/local/apache2/conf/htpasswd`, `Require valid-user`; logs to `/proc/self/fd/1` and `/proc/self/fd/2`. `entry.sh`: create and chown the dav and var dirs to daemon, `htpasswd -bc … rb rbpass`, `exec httpd -f /usr/local/apache2/conf/rb-httpd.conf -DFOREGROUND`.
+  - `scripts/dev.sh server-images` (needs network, like `image`): `docker pull atmoz/sftp:alpine delfer/alpine-ftp-server:latest ghcr.io/coollabsio/minio:RELEASE.2025-10-15T17-29-55Z` (one pull per image) and `docker build -t rb-srv-webdav:1 tests/servers/webdav`.
+  - `scripts/dev.sh servers [flavor] [-- <ctest args>]`:
+    1. Same rclone version check and build image check as the other commands. A missing server image exits 3 with `dev.sh: server image <img> missing; run scripts/dev.sh server-images (needs network)`.
+    2. `NET=rb-srv-$$`; `docker network create --internal "$NET"`; abort (exit 5) unless `docker network inspect -f '{{.Internal}}' "$NET"` prints `true`.
+    3. `trap` on EXIT removes the four containers and the network, whatever the outcome.
+    4. Start the servers detached on `$NET` only, with `--network-alias sftp|ftp|webdav|s3` and names `$NET-sftp` etc. No `-p`/`--publish`: nothing is reachable from the host or any other host. Credentials are fixed test strings (`rb`/`rbpass`, `rbadmin`/`rbpass1234`), never real ones.
+    5. Run the build image like `e2e`, with the same `--user`, `HOME`, `RCLONE_CONFIG` and mounts, but `--network "$NET"` instead of `--network none`, plus `-e RB_SRV=1`, and `ctest --test-dir $BDIR -L servers --output-on-failure` plus the passthrough args.
+  - I-9 extension (revision 11): real-protocol tests use only servers started by `dev.sh servers` on a per-run `--internal` Docker network with no published ports. The client container joins only that network. No test reaches another host or a real account.
+  - `tests/servers/tst_srv_protocols.cpp`:
+    - Without `RB_SRV=1` every function `QSKIP`s with "run through scripts/dev.sh servers" (a plain `ctest` outside the harness stays green; G-SERVERS forbids SKIP).
+    - `initTestCase`: `rbInitTestEnvironment()`; a real `RcloneDaemon` on an empty temp conf (I-9); for each backend wait up to 30 s for the server to answer (retry `rclone lsd <probe>` with a connection string, 1 s apart).
+    - Data rows `sftp`, `ftp`, `webdav`, `s3`. Each row has the remote type, the answers by option name, and the writable prefix: sftp `{host: sftp, user: rb, pass: rbpass}` prefix `upload/`; ftp `{host: ftp, user: rb, pass: rbpass}` prefix ``; webdav `{url: http://webdav/, vendor: other, user: rb, pass: rbpass}` prefix ``; s3 `{provider: Minio, env_auth: false, access_key_id: rbadmin, secret_access_key: rbpass1234, endpoint: http://s3:9000}` prefix `rbt/` (bucket created with `rclone mkdir`). Questions not in the map take `defaultStr`.
+- **Unit tests:** N/A (the parsers and the flow have their unit tests in 6.1; this unit adds protocol coverage).
+- **e2e tests:** `tests/servers/tst_srv_protocols.cpp`, one row per backend in each function:
+  - T-PROTO-CONFIG: `ConfigFlow::startCreate("rb-<row>", type)` answered from the map gives `finished(true)`; `config/listremotes` contains the name; for sftp, ftp and webdav the conf `pass` value is not `rbpass` and `rclone reveal` gives `rbpass`.
+  - T-PROTO-LISTING: seed `<prefix>rb-list/` from a temp dir with `a b.txt` (6 bytes), `[x] (y).txt`, `ümlaut.txt` and `sub/c.txt`. `ItemModel` listings of `rb-<row>:<prefix>rb-list` through rc and through lsjson (the two paths of `tst_e2e_rclisting`) give the same (name, isDir, size) set, equal to the seeded set.
+  - T-PROTO-TRANSFER: a 3 MiB random file is uploaded to `<prefix>rb-xfer/` through the job pipeline used by `tst_e2e_jobwidget` (`PrepareTransferArgs`, the Parsed environment, `TransferMonitor`): exit 0 and final stats bytes 3145728. A download into a new temp dir gives the same SHA-256.
+  - T-PROTO-OPS: with the Parsed environment, `mkdir <prefix>rb-ops/d1` (skip the empty-dir check on s3), `copyto` a file into `d1`, `moveto` it to a new name, `deletefile`, `purge <prefix>rb-ops`. After each step `lsjson` shows the expected state.
+  - Gate G-SERVERS (local only, never in CI): `scripts/dev.sh servers qt64 -- -V` exits 0 with `100% tests passed`, `Total Tests: 1`, PASS for the 4 functions with all 4 rows and no SKIP. Afterwards `docker ps -a --filter name=rb-srv- -q` and `docker network ls --filter name=rb-srv- -q` print nothing.
+- **Done:** G-SERVERS passes (twice in a row), plus G-UNIT and G-E2E counts unchanged; reviews recorded; unit closed; completion commit.
+
 ## Phase gates and closure
-- Required gates: G-BUILD64, G-UNIT, G-E2E, G-SMOKE. G-BUILD610 if the image is present.
-- README obligation (P6): replace the "Config opens a terminal" text with the native dialog (create/edit, OAuth sign-in in the browser, "Advanced (terminal)" fallback). Also state that advanced options are set only through "Advanced (terminal)…", and that a password left empty when editing stays unchanged. A stored password cannot be removed in the dialog (R18).
+- Required gates: G-BUILD64, G-UNIT, G-E2E, G-SMOKE, G-SERVERS (revision 11). G-BUILD610 if the image is present.
+- README obligation (P6): replace the "Config opens a terminal" text with the native dialog (create/edit, OAuth sign-in in the browser, "Advanced (terminal)" fallback). Also state that advanced options are set only through "Advanced (terminal)…", and that a password left empty when editing stays unchanged. A stored password cannot be removed in the dialog (R18). In the developer section, document `scripts/dev.sh server-images` and `scripts/dev.sh servers` (isolated servers, internal network, no published ports).
 - Supervisor agent-1:opus reviews. Close P6.

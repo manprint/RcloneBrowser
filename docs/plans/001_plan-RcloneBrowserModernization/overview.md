@@ -112,16 +112,17 @@ New modules are flat files in `src/` (the existing convention), all compiled int
 | 3 Tier-1 fixes and version policy | [phase_04.md](phase_04.md) | 3.1–3.3 | P1, P2 | agent-3, agent-2 |
 | 4 Fork integration, docs, beta readiness | [phase_05.md](phase_05.md) | 4.1, 4.2 | P3 | agent-2, agent-3 |
 | 5 rc backend core | [phase_06.md](phase_06.md) | 5.1–5.3 | P4 | agent-2 |
-| 6 Native remote configuration | [phase_07.md](phase_07.md) | 6.1, 6.2 | P5 | agent-2 |
+| 6 Native remote configuration | [phase_07.md](phase_07.md) | 6.1, 6.2, 6.3 | P5 | agent-2 |
 | 7 main_window scoped refactor | [phase_08.md](phase_08.md) | 7.1, 7.2 | P6 | agent-2, agent-3 |
-| 8 Bisync, copyurl, copyto | [phase_09.md](phase_09.md) | 8.1, 8.2 | P7 | agent-2 |
-| 9 Serve | [phase_10.md](phase_10.md) | 9.1 | P7 | agent-2 |
+| 14 Upstream issue sweep (revision 11; runs after P7) | [phase_15.md](phase_15.md) | 14.1–14.5 | P7 | agent-2 |
+| 8 Bisync, copyurl, copyto | [phase_09.md](phase_09.md) | 8.1, 8.2 | P14 | agent-2 |
+| 9 Serve | [phase_10.md](phase_10.md) | 9.1 | P14 | agent-2 |
 | 10 Navigation and productivity | [phase_11.md](phase_11.md) | 10.1–10.3 | P8, P9 | agent-2, agent-3 |
 | 11 Dual pane | [phase_12.md](phase_12.md) | 11.1, 11.2 | P10 | agent-2 |
 | 12 i18n Italian | [phase_13.md](phase_13.md) | 12.1–12.3 | P11 | agent-2, agent-3 |
 | 13 Ecosystem extras and final | [phase_14.md](phase_14.md) | 13.1, 13.2 | P12 | agent-2, agent-3 |
 
-No live status in this table. Phases run in ID order with one state writer. Phases 8 and 9 depend only on P7, so a blocked serve feature does not stall bisync/copyurl. From phase 10 on, each phase depends on its predecessor: they extend the same `remote_widget.ui`/`main_window.ui`, the shortcut map and T-MW-SNAPSHOT, and 12.2 must wrap the strings of every earlier feature.
+No live status in this table. Phases run in ID order with one state writer, except phase 14 (revision 11), which runs after P7 and before P8: the execution order is 0–7, 14, 8–13. Phases 8 and 9 depend only on P14, so a blocked serve feature does not stall bisync/copyurl. From phase 10 on, each phase depends on its predecessor: they extend the same `remote_widget.ui`/`main_window.ui`, the shortcut map and T-MW-SNAPSHOT, and 12.2 must wrap the strings of every earlier feature.
 
 ## Reuse map
 
@@ -156,6 +157,7 @@ Scope: the rclone CLI/rc behavior the design depends on, checked against rclone 
 | R12 | `operations/list` parameters, `_filter`, connection strings, error texts (required, 5.2) | CONFIRMED (local); Drive option names string-checked only | 5.2, T-E2E-RCLIST-* |
 | R13 | rc config answers must be echoed in `parameters` (required, 6.1) | CONFIRMED (local); its "echo all" decision superseded by R18 | D8, 6.1, T-E2E-CONFIG-SFTP |
 | R18 | rc config echo rules, Update password defaults, `config_fs_advanced` loop (required, 6.1; found in the 6.1 pre-dispatch review, revision 10) | CONFIRMED (local probes, isolated containers) | 6.1, 6.2, T-CFG-PARAMS, T-CFG-LOOP, T-E2E-CONFIG-SFTP, T-E2E-CONFIG-UPDATE |
+| R19 | isolated protocol servers for real-protocol e2e (required, 6.3; revision 11) | CONFIRMED (local probe, internal Docker network) | 6.3, 14.3, G-SERVERS |
 | R14 | bisync flags and exit codes; copyto/copyurl output (required, 8.x) | CONFIRMED (local) | D1 (`--color NEVER`), 8.1, 8.2 |
 | R15 | `serve/*` rc endpoints (required, 9.1) | CONFIRMED (local) | 9.1, T-E2E-SERVE-* |
 | R16 | `--header-upload` reaches the S3 PutObject request (required, 13.1); tag storage by a real S3 server (optional) | CONFIRMED on the wire (local `serve s3`); storage UNVERIFIED, optional G-S3-MINIO (P-3) | 13.1, T-E2E-S3-TAGS |
@@ -239,6 +241,7 @@ Scope: the rclone CLI/rc behavior the design depends on, checked against rclone 
 - R14 (phase_09): bisync without prior listings exits 7 and needs `--resync`; JSON messages carry ANSI codes unless `--color NEVER`; long absolute paths break bisync lock names (README note). Impact: D1 flag, 8.1 e2e with short relative paths.
 - R15 (phase_10): `serve/types`, `serve/start`, `serve/list`, `serve/stop`, `serve/stopall`; unknown types and params are rejected with HTTP 500 texts; `read_only` blocks webdav writes. Impact: ServeManager contract.
 - R16 (phase_14): `--header-upload "X-Amz-Tagging: …"` appears in the PutObject request headers dumped by `--dump headers` against an anonymous local `rclone serve s3`. `serve s3 --auth-key` returned `InvalidAccessKeyId` (unexplained), so tests use anonymous access. Impact: 13.1 builds tags as a header; storage on real S3 is optional evidence.
+- R19 (phase_07 6.3, revision 11): local isolated servers (internal Docker network): `atmoz/sftp:alpine`, `delfer/alpine-ftp-server` (needs a chroot to accept writes), `httpd:2.4-alpine` + `apr-util-dbm_gdbm` (mod_dav lock DB) and `ghcr.io/coollabsio/minio` (the `minio/minio` image is gone) pass mkdir/copy/lsjson/moveto/purge with rclone 1.75.2. Impact: 6.3 harness, G-SERVERS, 14.3.
 - Unresolved: R9 non-gnome terminals and R16 tag storage, both accepted as residual risk with the stated tests; neither blocks READY.
 
 ## Invariants
@@ -250,10 +253,10 @@ Scope: the rclone CLI/rc behavior the design depends on, checked against rclone 
 | I-3 | The parser never throws or crashes on arbitrary bytes. Non-JSON input is a Text event with the raw line. | T-LOG-GARBAGE |
 | I-4 | Progress values shown are clamped to 0–100. Unknown size (-1 or 0 with unknown total) shows an indeterminate bar. | T-MON-CLAMP |
 | I-5 | rc credentials never appear in the argv of rclone or rcd. The single exception is the user mount script's documented positional args (D7 refinement in phase_06, deprecated in the README). | T-DAEMON-ARGV, T-MOUNT-ARGV |
-| I-6 | The executor never pushes, tags, merges or performs network access (U5, U6). | review at every P<N> |
+| I-6 | The executor never pushes, tags, merges or performs network access (U5, U6), except what the user authorized on 2026-10-21 (STATE.md §3, revision 11): pushes, `gh`, releases and merges on manprint/RcloneBrowser, image pulls/builds, documentation. Never a write to kapitainsky/RcloneBrowser. | review at every P<N> |
 | I-7 | Task files of every earlier classVersion (≤ 8; ≤ 9 after 13.1) load with identical field values. | T-JO-COMPAT, T-JO-COMPAT-V9 |
 | I-8 | `-Werror`/`/WX` stays enabled for every target, including tests. | G-BUILD64 log grep |
-| I-9 | No test, gate, fixture recorder or probe uses the host's rclone configuration or remotes. Every rclone run uses a temporary config with isolated temporary remotes (temp local dirs, `memory`, 127.0.0.1 servers). Containers never mount the host `$HOME` or `~/.config/rclone`; dev.sh sets `RCLONE_CONFIG=/tmp/home/rclone-empty.conf`; `rbInitTestEnvironment()` sets `RCLONE_CONFIG` to a temp file. Host-side rclone runs only `version`. (User 2026-10-21, revision 2.) | G-U0.1 check (`docker run` args contain `-e RCLONE_CONFIG=` and no `.config/rclone`), review at every P<N> |
+| I-9 | No test, gate, fixture recorder or probe uses the host's rclone configuration or remotes. Every rclone run uses a temporary config with isolated temporary remotes (temp local dirs, `memory`, 127.0.0.1 servers). Containers never mount the host `$HOME` or `~/.config/rclone`; dev.sh sets `RCLONE_CONFIG=/tmp/home/rclone-empty.conf`; `rbInitTestEnvironment()` sets `RCLONE_CONFIG` to a temp file. Host-side rclone runs only `version`. (User 2026-10-21, revision 2.) Revision 11: real-protocol servers run only through `scripts/dev.sh servers` on a per-run `--internal` Docker network with no published ports; the client container joins only that network. | G-U0.1 check (`docker run` args contain `-e RCLONE_CONFIG=` and no `.config/rclone`), review at every P<N> |
 
 ## Risks
 
@@ -272,7 +275,7 @@ Scope: the rclone CLI/rc behavior the design depends on, checked against rclone 
 - G-BASE (before 0.1): the existing Docker build of the baseline.
 - Each sub-phase runs its focused G-U gate: the named ctest `-R` set with an expected test count.
 - P<N> runs the full local gates G-BUILD64, G-UNIT, G-E2E and G-SMOKE, plus G-BUILD610 when the image exists, and G-I18N from P12 on.
-- G-REL (user-requested, before tags v2.0.0-beta.1 after P4 and v2.0.0 after P7): local gates on both images plus G-CI.
+- G-REL (before tags v2.0.0-beta.1 after P4 and, revision 11, v2.0.0 after P14): local gates on both images plus G-CI. G-SERVERS (revision 11, local only) is required at P6 and every later P<N>.
 - G-FINAL at P13: all local gates on both images, G-CI, and the reference-scenario e2e checklist in STATE.md §3.
 
 STATE.md §3 is the command registry.
@@ -286,4 +289,5 @@ STATE.md §3 is the command registry.
 | 0.1, 0.3, 1.1, 1.3, 3.2, 3.3, 5.3, 6.2, 8.1, 8.2, 9.1, 10.1, 12.1, 13.1 | agent-2:sonnet | none (CI-compiled hunks of 0.3, 3.2, 5.3 in focus at P<N>) |
 | 7.2, 12.2 | agent-3:haiku | after the diff |
 | 0.4, 2.1, 3.1, 4.2, 10.2, 10.3, 12.3, 13.2 | agent-3:haiku | none (CI-compiled hunks of 3.1, 13.2 in focus at P<N>) |
-| P0–P13 | agent-1:opus | phase review |
+| 6.3, 14.1–14.5 (revision 11) | agent-2:sonnet | after the diff |
+| P0–P14 | agent-1:opus | phase review |

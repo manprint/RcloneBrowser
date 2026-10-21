@@ -4,7 +4,7 @@ Intent:
 - Transfers support `rclone bisync` as a fourth mode with its key options, persisted in tasks.
 - Users can copy a single file to an explicit destination name (`copyto`) and upload from a URL (`copyurl`).
 - All of them run through `addTransfer`, so the JSON engine monitors them.
-Prerequisites: P7.
+Prerequisites: P14 (revision 11; P14 follows P7).
 Phase closure: P8; review by agent-1:opus.
 
 ## State and ownership contract

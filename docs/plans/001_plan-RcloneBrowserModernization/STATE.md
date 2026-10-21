@@ -1,7 +1,7 @@
 # Rclone Browser modernization — Implementation state
 
 Read this file first in every session. Updated 2026-10-21 by agent-1:opus (execute session 1).
-Plan ID: 001_plan-RcloneBrowserModernization. Revision: 10. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
+Plan ID: 001_plan-RcloneBrowserModernization. Revision: 11. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
 Plan baseline: `0a57f4f` (HEAD of `ci/macos-arm64-dmg`, which is master `1551dbd` plus the PR #1 commits). Pre-existing changes at planning time:
 - untracked `.serena/`, which is unrelated: never stage or modify it;
 - untracked `docs/plans/001_plan-RcloneBrowserModernization/`, this plan, authored by this planning session (provenance established).
@@ -71,7 +71,7 @@ Recover an unresolved audit completion commit first, without finalizing the susp
 - Assigned: agent-1:opus (coordinator, implementer, reviewer, state writer).
 - File / unit heading: §9 B-CI1
 - Current step: done
-- Next action: push `dev/001-modernization` and the fixed `release/2.0.0-beta.1` (6d33a53 + the B-CI1 code fix), rerun G-CI on both; P-5; then 6.2.
+- Next action: 6.2 through the `pev-subphase` workflow, then 6.3 (P-6 images first), then P6 (with G-SERVERS). G-CI reruns are in flight: 39679424232 (`dev`, daf271c) and 39679736352 (`release/2.0.0-beta.1`, 1ebf1a3).
 - Next eligible plan unit: 6.2 (phase_07.md).
 - Unit base: unit:6.1:1; branch: `dev/001-modernization`; owned changes: `src/rclone_format.cpp`, `tests/tst_rclone_format.cpp`, `tests/support/rb_test_support.h`, `docker/qt610.Dockerfile`, STATE.md.
 - Repo state: HEAD = unit:B-CI1:1; untracked `.serena/` (unrelated).
@@ -161,9 +161,10 @@ A required supervisor review can never be replaced by a weaker agent's self-revi
 | G-YAML | units that edit `.github/` (0.3, 12.1, 13.2) | `python3 -I -c 'import sys,yaml; [yaml.safe_load(open(f)) for f in sys.argv[1:]]; print("yaml ok", len(sys.argv)-1)' .github/workflows/*.yml $(ls .github/dependabot.yml 2>/dev/null)` | prints `yaml ok <n>`, where n is the number of files | host PyYAML (present 2026-10-21) |
 | G-I18N | 12.3, P12, P13 (the variant without the flag at 12.1 and 12.2) | `scripts/dev.sh i18n qt64 -- --require-complete` (command created by 12.1) | exit 0; prints `contexts=<n> messages=<m>`; m ≥ the count recorded at 12.2. A refreshed `.ts` is an owned change. | P-5 image |
 | G-CI | debt from 0.3; required before any tag and at G-FINAL | The user pushes the execution branch to `origin` (P-4) and reports the GitHub Actions run ID. The supervisor records the run ID and the conclusion of every job. | every job triggered by the push on that HEAD concludes `success` (5 build jobs; plus OpenBSD and NetBSD from 13.2). From 0.3 on, one user `workflow_dispatch` run of CodeQL on that HEAD also concludes `success`. | user push |
-| G-REL | user-requested, before `v2.0.0-beta.1` (after P4) and `v2.0.0` (after P7) | G-BUILD64, G-BUILD610, G-UNIT, G-E2E and G-SMOKE on one HEAD, then G-CI on the same HEAD | all pass on the same HEAD. The supervisor reports readiness; the user tags. The executor never tags. | P-2, P-4 |
-| G-FINAL | P13 | G-BUILD64, G-BUILD610, G-UNIT, G-E2E, G-SMOKE and G-I18N on one HEAD, plus the checklist below, plus G-CI | Scenario checklist (overview.md items 1–7): (1) both builds; (2) both suites, with every §11 test ID executed: `scripts/dev.sh test qt64 -- -V` and `scripts/dev.sh e2e qt64 -- -V` show a `PASS` line for `T_<ID with _>()` for each ID, and no `FAIL!`; (3) T-E2E-JOB-STATS, T-E2E-JOB-ERRORS and T-E2E-JOB-LOGFILE with the polluted env (T-E2E-ENV-POLLUTED); (4) T-E2E-JOB-CANCEL; (5) T-E2E-LIST-NAMES and T-E2E-LIST-UNKNOWNSIZE; (6) T-E2E-DAEMON-*, T-E2E-RCLIST-* and T-E2E-CONFIG-*; (7) each F3 e2e: BISYNC, COPYTO, COPYURL, SERVE, PATH, FILTER, DRAG, DUAL and S3-TAGS. Item 8 is G-CI. | P-2, P-4 |
+| G-REL | before `v2.0.0-beta.1` (after P4) and, revision 11, `v2.0.0` (after P14) | G-BUILD64, G-BUILD610, G-UNIT, G-E2E, G-SMOKE (and G-SERVERS from P6 on) on one HEAD, then G-CI on the same HEAD | all pass on the same HEAD. With the user's release authorization (§3, 2026-10-21) the supervisor tags; the manual Windows/macOS checks are `waived (user)`. | P-2, P-4 |
+| G-FINAL | P13 | G-BUILD64, G-BUILD610, G-UNIT, G-E2E, G-SMOKE, G-I18N and G-SERVERS (revision 11) on one HEAD, plus the checklist below, plus G-CI | Scenario checklist (overview.md items 1–7): (1) both builds; (2) both suites, with every §11 test ID executed: `scripts/dev.sh test qt64 -- -V` and `scripts/dev.sh e2e qt64 -- -V` show a `PASS` line for `T_<ID with _>()` for each ID, and no `FAIL!`; (3) T-E2E-JOB-STATS, T-E2E-JOB-ERRORS and T-E2E-JOB-LOGFILE with the polluted env (T-E2E-ENV-POLLUTED); (4) T-E2E-JOB-CANCEL; (5) T-E2E-LIST-NAMES and T-E2E-LIST-UNKNOWNSIZE; (6) T-E2E-DAEMON-*, T-E2E-RCLIST-* and T-E2E-CONFIG-*; (7) each F3 e2e: BISYNC, COPYTO, COPYURL, SERVE, PATH, FILTER, DRAG, DUAL and S3-TAGS. Item 8 is G-CI. | P-2, P-4 |
 | G-S3-MINIO | optional, 13.1 | With the P-3 images: start MinIO bound to `127.0.0.1:9000`, run the T-E2E-S3-TAGS upload args against it (remote `provider = Minio`), then `mc tag list local/bkt/"t 1.txt"` | shows `proj : rb` and `env : test`. Not required; a missing image is `not-run (P-3)`. | P-3 |
+| G-SERVERS | 6.3 and every P<N> from P6 (revision 11); local only, never CI | `scripts/dev.sh servers qt64 -- -V 2>&1 \| tee "${RB_GATE_LOGS:-/tmp/rb-gates}/servers.log"` | exit 0; `100% tests passed`, `Total Tests: 1`; PASS for every `tst_srv_protocols` function with all 4 rows (sftp, ftp, webdav, s3); no SKIP; afterwards `docker ps -a --filter name=rb-srv- -q` and `docker network ls --filter name=rb-srv- -q` print nothing | P-6 images; after G-BUILD64 |
 
 ### Prefetch — user-run commands that need the network
 
@@ -176,6 +177,7 @@ The executor never runs these (U6). It only runs the local "verify" commands, an
 | P-3 | G-S3-MINIO (optional) | `docker pull minio/minio:<tag> && docker pull minio/mc:<tag>` (the user picks the tags and reports them; the executor records them in §7) | `docker image inspect minio/minio:<tag> minio/mc:<tag> >/dev/null` |
 | P-4 | G-CI | `git push -u origin <execution branch>`, then report the Actions run ID | the supervisor records the run and job results in §7 |
 | P-5 | 12.1 (LinguistTools, R6) | after 0.1 is DONE: `scripts/dev.sh image qt64` (rebuilds `rb-build:24.04` from `docker/qt64.Dockerfile`, which adds `qt6-tools-dev qt6-l10n-tools`) | `docker run --rm --network none rb-build:24.04 ls /usr/lib/x86_64-linux-gnu/cmake/Qt6LinguistTools`; then rerun G-BUILD64 on the new image |
+| P-6 | 6.3 and G-SERVERS (revision 11; the executor runs it under the user's authorization) | `scripts/dev.sh server-images` (pulls `atmoz/sftp:alpine`, `delfer/alpine-ftp-server:latest`, `ghcr.io/coollabsio/minio:RELEASE.2025-10-15T17-29-55Z`; builds `rb-srv-webdav:1`) | `docker image inspect` of the four images |
 
 ## 4. Work ledger
 
@@ -348,6 +350,7 @@ Cold-read note (1.4, agent-1:opus, 2026-10-21): every symbol 1.4 uses is defined
 | 8 | phase_06 5.2: `ensureRcUnlocked` treated a `config/unlock` error as a wrong password; no rule for restarting a Running daemon from Preferences, for a second prompt when the 3.3 prompt already supplied the password, for `remoteMode` on non-drive remotes, or for a malformed `operations/list` reply | R17 probe (isolated container): `config/unlock` returns `{}` even for a wrong password, so the unlock is verified with `config/listremotes` (still locked → re-prompt with the Wrong prefix); `stopDaemonAndWait()` before `rcloneGetVersion()` when the rclone or config path changed (`stop()` is async, `start()` while Running is a no-op); silent `config/unlock` with `GetRclonePassword()` on each transition to Running and after the 3.3 prompt; rc listing for every `remoteMode` (overrides ignored by non-drive backends, probed); non-array `list` → `⚠ invalid rc listing reply`; T-E2E-DAEMON-UNLOCK adds the R17 wrong-password check | agent-1:opus (5.2 pre-dispatch review) | phase_06 5.2 contract and T-E2E-DAEMON-UNLOCK updated; 5.2 not started before this revision |
 | 9 | R10 and phase_06 5.3: `vfs/refresh {"recursive":true}` (a JSON boolean) | `{"recursive":"true"}`: rclone rejects the boolean with `value must be string "recursive"=true`; the R10 probe used `rclone rc … recursive=true`, which sends a string. Found by the 5.3 implementer against local rclone 1.75.2 | agent-1:opus (5.3 final review) | phase_06 R10 and the 5.3 contract/oracle, overview R10 updated; 5.3 implemented and tested with the string; no later unit calls `vfs/refresh` |
 | 10 | R13 decision "ConfigFlow always sends the accumulated answers as `parameters`"; phase_07 advanced-options rule ("Show advanced options" answers advanced options unless checked), `setShowAdvanced`, T-CFG-ADVANCED, the 6.2 `showAdvanced` checkbox; no rule for an empty Update password, a looping flow, an existing name in Create, or a cancel during an in-flight step | R18 probes (isolated containers, temp configs, `--network none`, rcd `--rc-no-auth` on 127.0.0.1): echo-all writes every option (empty ones too) while echoing only non-default answers (passwords only when non-empty, never `config_*`) keeps passwords obscured and writes only non-default keys; an Update password answered `""` becomes an obscured empty string (password lost), answered with `DefaultStr` stays byte-identical; `config_fs_advanced=true` loops forever (exact `State` repeats; also with `all:true` on continue calls). New rules: the R18 echo rules, Update empty password → `DefaultStr`, `config_fs_advanced` auto-`false` (advanced options only via "Advanced (terminal)…"), loop guard on a repeated auto-answered `State` or 500 steps, Create refuses an existing name, cleanup waits for an in-flight step, async fake; new T-CFG-PARAMS and T-CFG-LOOP (G-U6.1 10 functions), stronger T-E2E-CONFIG-SFTP/UPDATE oracles, the `(unchanged)` placeholder in 6.2, README notes at P6 | agent-1:opus (6.1 pre-dispatch review, advisor-checked) | phase_07 R18, contract, request rules, 6.1 tests, 6.2 dialog, P6 README obligation; overview R13/R18; 6.1 not started before this revision |
+| 11 | (a) no real-protocol test (servers only via `rclone serve` on 127.0.0.1); (b) no plan unit for the open upstream issues beyond the 0.4 triage; (c) v2.0.0 readiness at P7, the user tags; (d) G-CI, tags and merges user-run (I-6) | (a) user, 2026-10-21: "puoi pullare minio, in locale puoi avviare anche webdav, un sftp, un ftp … Questi test puoi farli, anzi li devi fare": NEW 6.3 (isolated server harness, R19 probes, `dev.sh server-images`/`servers`, G-SERVERS local-only, required at P6 and later), I-9 extended; (b) user: "le issue upstream vanno verificate e risolte, se occorre": NEW phase 14 (`phase_15.md`, 14.1–14.5) after P7 and before P8, from the read-only sweep wf_7aa437c8-baa with the R-REPRO/R-ROW/R-DEDUP rules; P8 and P9 now depend on P14; (c) v2.0.0 readiness moves to P14 so the sweep ships in 2.0.0; P13 adds the `v2.1.0-beta.1` prerelease; (d) user authorizations (§3): the supervisor pushes, dispatches, tags and merges on manprint | agent-1:opus (advisor-checked) | phase_07 6.3 + closure gates; phase_08 closure; phase_09/10 prerequisites; phase_14 closure; NEW phase_15; overview phase map, I-6, I-9, R19, verification, model table; §3 G-SERVERS/G-REL/P-6; §11 boards and tests |
 
 Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 9.1 S2 (new `actionServes`) and 11.2 S2 (new `openDual` button). Each re-recording lists only the added lines here when it happens.
 
@@ -356,7 +359,7 @@ Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 9
 | ID | Affects | Evidence | Resolution owner | Next action |
 |----|---------|----------|------------------|-------------|
 | B-P1 (resolved 2026-10-21) | 0.3, 4.1, 13.2 | P-1 done with user authorization; verification pass (§7) | — | — |
-| B-P5 | 12.1 and later (G-I18N, G-BUILD64 with required translations) | R6 | user | after 0.1 DONE, run P-5 |
+| B-P5 (resolved 2026-10-21) | 12.1 | agent-1:opus rebuilt `rb-build:24.04` with the user's authorization; `Qt6LinguistToolsConfig.cmake` present; G-BUILD64 (clean, 0 `warning:`, I-8 `0`), G-UNIT `out of 13`, G-E2E `out of 11`, G-SMOKE alive on the new image (logs `/tmp/rb-gates/p5img-*.log`) | — | — |
 | B-P2 (resolved 2026-10-21) | G-BUILD610 | agent-1:opus built `rb-build:qt610` with the user's authorization ("1. autorizzato"); the aqt Multimedia libs also needed `libpulse0` (B-CI1) | — | — |
 | B-P4 (authorized 2026-10-21) | G-CI (debt from 0.3; required for tags and G-FINAL); G-REL for `v2.0.0-beta.1` | the user authorized the push, `gh`, the release and the merge (§3); first runs failed → B-CI1 | agent-1:opus | push `dev/001-modernization` and `release/2.0.0-beta.1` (6d33a53 + the B-CI1 code fix), dispatch `build.yml` on both, record every job; macOS arm64 runners can be cancelled for capacity, rerun those jobs |
 | B-CI1 (resolved by unit:B-CI1:1) | G-CI, G-REL | first G-CI runs (§7 "G-CI (first runs)") | agent-1:opus | — |
@@ -410,11 +413,17 @@ Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 9
 | 5.3 | phase_06.md | 5.2 | DONE | 1 | G-U5.3, G-U5.3e pass; unit:5.3:1 |
 | 6.1 | phase_07.md | P5 | DONE | 1 | G-U6.1, G-U6.1e pass; unit:6.1:1 |
 | 6.2 | phase_07.md | 6.1 | TODO | 1 | — |
+| 6.3 | phase_07.md | 6.1, P-6 | TODO | 1 | — |
 | 7.1 | phase_08.md | P6 | TODO | 1 | — |
 | 7.2 | phase_08.md | 7.1 | TODO | 1 | — |
-| 8.1 | phase_09.md | P7 | TODO | 1 | — |
+| 14.1 | phase_15.md | P7, 6.3 | TODO | 1 | — |
+| 14.2 | phase_15.md | 14.1 | TODO | 1 | — |
+| 14.3 | phase_15.md | 14.2 | TODO | 1 | — |
+| 14.4 | phase_15.md | 14.3 | TODO | 1 | — |
+| 14.5 | phase_15.md | 14.4 | TODO | 1 | — |
+| 8.1 | phase_09.md | P14 | TODO | 1 | — |
 | 8.2 | phase_09.md | 8.1 | TODO | 1 | — |
-| 9.1 | phase_10.md | P7 | TODO | 1 | — |
+| 9.1 | phase_10.md | P14 | TODO | 1 | — |
 | 10.1 | phase_11.md | P8, P9 | TODO | 1 | — |
 | 10.2 | phase_11.md | 10.1 | TODO | 1 | — |
 | 10.3 | phase_11.md | 10.2 | TODO | 1 | — |
@@ -439,6 +448,7 @@ Units run in ID order. A prerequisite must be DONE; SKIPPED never satisfies it i
 | 5 | phase_06.md | P5 | DONE | P5 review (§7); unit:P5:1 |
 | 6 | phase_07.md | P6 | IN_PROGRESS | — |
 | 7 | phase_08.md | P7 | TODO | — |
+| 14 | phase_15.md | P14 (runs after P7, before P8; v2.0.0 readiness) | TODO | — |
 | 8 | phase_09.md | P8 | TODO | — |
 | 9 | phase_10.md | P9 | TODO | — |
 | 10 | phase_11.md | P10 | TODO | — |
@@ -473,8 +483,14 @@ Every ID below is a QtTest function (or a named check) defined in its owning uni
 | 5.3 | G-U5.3, G-U5.3e | T-MOUNT-ARGV, T-MOUNT-NORC; e2e T-E2E-VFS-REFRESH |
 | 6.1 | G-U6.1, G-U6.1e | T-CFG-OPTION, T-CFG-STEP, T-CFG-PROVIDERS, T-CFG-NAME, T-CFG-ANSWER, T-CFG-ADVANCED, T-CFG-PARAMS, T-CFG-LOOP, T-CFG-OAUTH, T-CFG-CANCEL-EXISTING; e2e T-E2E-CONFIG-SFTP, T-E2E-CONFIG-UPDATE, T-E2E-CONFIG-OAUTH-CANCEL, T-E2E-CONFIG-BADTYPE |
 | 6.2 | G-U6.2 | T-RCD-PAGE1, T-RCD-EDITORS, T-RCD-REQUIRED, T-RCD-FLOW, T-RCD-CANCEL |
+| 6.3 | G-SERVERS | T-PROTO-CONFIG, T-PROTO-LISTING, T-PROTO-TRANSFER, T-PROTO-OPS (4 rows each: sftp, ftp, webdav, s3) |
 | 7.1 | G-U7.1 | T-MW-SNAPSHOT |
 | 7.2 | G-U7.1 (re-run), G-E2E, G-SMOKE | T-MW-SNAPSHOT unchanged |
+| 14.1 | G-U14.1, G-U14.1e | T-CMD-POSIX, T-CMD-WIN, T-CMD-ISSUE226, T-JW-STABLE, T-JW-OVERLAP; e2e T-E2E-CMD-ROUNDTRIP |
+| 14.2 | G-U14.2, G-U14.2e | T-TASK-DUP, T-TASK-MULTI, T-TASK-CONFIRM; e2e T-E2E-EXCLUDE, T-E2E-JOB-RESTART |
+| 14.3 | G-U14.3, G-U14.3e, G-SERVERS | T-OPS-MOVEARGS, T-OPS-MKDIRARGS; e2e T-E2E-OPS-MOVEFOLDER, T-PROTO-MOVEFOLDER |
+| 14.4 | G-U14.4, G-U14.4e | T-START-RCLONEPATH, T-START-TERMINAL, T-START-MINWIDTH, T-START-TABS; e2e T-E2E-START-BADRCLONE |
+| 14.5 | G-U14.5 | `scripts/check-triage.py` (`issues=129`) |
 | 8.1 | G-U8.1, G-U8.1e | T-JO-COMPAT, T-JO-ROUNDTRIP, T-JO-BISYNC-ARGS, T-JO-NEWER; e2e T-E2E-BISYNC-NEEDS-RESYNC, T-E2E-BISYNC-RESYNC, T-E2E-BISYNC-UPDATE |
 | 8.2 | G-U8.2, G-U8.2e | T-ACT-COPYTO, T-ACT-URL, T-ACT-COPYURL, T-ACT-JOIN; e2e T-E2E-COPYTO, T-E2E-COPYURL, T-E2E-COPYURL-NOCLOBBER |
 | 9.1 | G-U9.1, G-U9.1e | T-SRV-PARAMS, T-SRV-LIST, T-SRV-URL, T-SRV-FLOW; e2e T-E2E-SERVE-HTTP, T-E2E-SERVE-RO, T-E2E-SERVE-BADTYPE, T-E2E-SERVE-QUIT |

@@ -1,7 +1,7 @@
 # Phase 9 — Serve (#129)
 
 Intent: a folder of any remote can be served over http, webdav, ftp, sftp, dlna, nfs, restic or s3 through the app's rcd (`serve/start`). A modeless "Serves" window lists the running serves with their URL, Copy URL and Stop.
-Prerequisites: P7.
+Prerequisites: P14 (revision 11; P14 follows P7).
 Phase closure: P9; review by agent-1:opus.
 
 ## State and ownership contract
