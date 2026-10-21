@@ -1,7 +1,13 @@
 find_package(Qt6 REQUIRED COMPONENTS Test)
 
+# rb_add_test(<name> <label> [SOURCE <path>] [extra sources...])
+# SOURCE defaults to <name>.cpp (relative to this directory).
 function(rb_add_test name label)
-  add_executable(${name} ${name}.cpp ${ARGN})
+  cmake_parse_arguments(RBT "" "SOURCE" "" ${ARGN})
+  if(NOT RBT_SOURCE)
+    set(RBT_SOURCE ${name}.cpp)
+  endif()
+  add_executable(${name} ${RBT_SOURCE} ${RBT_UNPARSED_ARGUMENTS})
   # The test classes live in the .cpp (`#include "<name>.moc"`).
   # Keep test binaries out of build/build, which CI uploads as release artifacts.
   set_target_properties(${name} PROPERTIES AUTOMOC ON
@@ -41,4 +47,6 @@ if(RB_TEST_RCLONE AND UNIX AND NOT APPLE)
   rb_add_test(tst_e2e_terminal e2e)
   rb_add_test(tst_e2e_daemon e2e)
   rb_add_test(tst_e2e_vfs e2e)
+  # Real protocol servers: only through scripts/dev.sh servers (label servers).
+  rb_add_test(tst_srv_protocols servers SOURCE servers/tst_srv_protocols.cpp)
 endif()

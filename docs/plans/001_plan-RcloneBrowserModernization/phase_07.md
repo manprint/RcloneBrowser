@@ -230,7 +230,7 @@ Request rules:
   - T-PROTO-LISTING: seed `<prefix>rb-list/` from a temp dir with `a b.txt` (6 bytes), `[x] (y).txt`, `ümlaut.txt` and `sub/c.txt`. `ItemModel` listings of `rb-<row>:<prefix>rb-list` through rc and through lsjson (the two paths of `tst_e2e_rclisting`) give the same (name, isDir, size) set, equal to the seeded set.
   - T-PROTO-TRANSFER: a 3 MiB random file is uploaded to `<prefix>rb-xfer/` through the job pipeline used by `tst_e2e_jobwidget` (`PrepareTransferArgs`, the Parsed environment, `TransferMonitor`): exit 0 and final stats bytes 3145728. A download into a new temp dir gives the same SHA-256.
   - T-PROTO-OPS: with the Parsed environment, `mkdir <prefix>rb-ops/d1` (skip the empty-dir check on s3), `copyto` a file into `d1`, `moveto` it to a new name, `deletefile`, `purge <prefix>rb-ops`. After each step `lsjson` shows the expected state.
-  - Gate G-SERVERS (local only, never in CI): `scripts/dev.sh servers qt64 -- -V` exits 0 with `100% tests passed`, `Total Tests: 1`, PASS for the 4 functions with all 4 rows and no SKIP. Afterwards `docker ps -a --filter name=rb-srv- -q` and `docker network ls --filter name=rb-srv- -q` print nothing.
+  - Gate G-SERVERS (local only, never in CI): `scripts/dev.sh servers qt64 -- -V` exits 0 with `100% tests passed, 0 tests failed out of 1` (revision 12: `Total Tests:` is printed only by `ctest -N`), PASS for the 4 functions with all 4 rows and no SKIP. Afterwards `docker ps -a --filter name=rb-srv- -q` and `docker network ls --filter name=rb-srv- -q` print nothing.
 - **Done:** G-SERVERS passes (twice in a row), plus G-UNIT and G-E2E counts unchanged; reviews recorded; unit closed; completion commit.
 
 ## Phase gates and closure
