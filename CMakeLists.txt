@@ -10,6 +10,9 @@ endif()
 
 project(rclone-browser)
 
+option(RB_BUILD_TESTS "Build tests" ON)
+set(RB_TEST_RCLONE "" CACHE FILEPATH "rclone used by e2e tests")
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -56,4 +59,18 @@ file(READ "VERSION" RCLONE_BROWSER_VERSION)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${rclone-browser_BINARY_DIR}/build")
 
+# Warning flags shared by the core library, the executables and the tests.
+# Defined before add_subdirectory(src) so that tests can link it too.
+add_library(rb_warnings INTERFACE)
+if(MSVC)
+  target_compile_options(rb_warnings INTERFACE /W4 /WX /wd4100 /wd4189)
+else()
+  target_compile_options(rb_warnings INTERFACE -pedantic -Wall -Wextra -Werror)
+endif()
+
 add_subdirectory(src)
+
+if(RB_BUILD_TESTS)
+  enable_testing()
+  add_subdirectory(tests)
+endif()

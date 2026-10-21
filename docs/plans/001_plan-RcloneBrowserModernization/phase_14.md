@@ -86,7 +86,7 @@ Plan revision: 1.
   - WRITE the resource `.qrc` that lists remote icons.
   - WRITE `src/main_window.cpp`: an icon alias map in a NEW `src/remote_icons.h/.cpp`, registered.
   - WRITE `src/remote_widget.cpp` (macFUSE text).
-  - NEW `tests/tst_remote_icons.cpp` (unit).
+  - NEW `tests/tst_remote_icons.cpp` (unit). Qt resources are compiled only into the exe (D10), so this test adds `${CMAKE_SOURCE_DIR}/src/resources.qrc` to its own executable (`qt6_add_resources` in `tests/CMakeLists.txt`, passed through `rb_add_test`'s extra sources).
 - **Change:**
   - Preconditions: 13.1 DONE; P-1.
   - Contract:

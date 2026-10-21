@@ -2,12 +2,6 @@ if (NOT ${CMAKE_VERSION} VERSION_LESS "3.0.0")
 	cmake_policy(SET CMP0028 NEW)
 endif()
 
-if(WIN32)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /WX /wd4100 /wd4189")
-else()
-  add_definitions("-pedantic -Wall -Wextra -Werror")
-endif()
-
 if (APPLE)
   set(CMAKE_OSX_DEPLOYMENT_TARGET 12.0)
 endif()
@@ -15,14 +9,10 @@ endif()
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network)
 find_package(Qt6 QUIET OPTIONAL_COMPONENTS Multimedia)
 
-# Qt 6 makes the QFileInfo(const QString &) constructor explicit by default.
-# Keep the Qt 5 implicit behaviour to avoid churn across the codebase.
-add_definitions(-DQT_IMPLICIT_QFILEINFO_CONSTRUCTION)
-
 # Enable the notification sound only when the Multimedia module is available.
+# (RB_HAVE_MULTIMEDIA itself is defined on the core library below.)
 set(OPTIONAL_QT_LIBS "")
 if(TARGET Qt6::Multimedia)
-  add_definitions(-DRB_HAVE_MULTIMEDIA)
   list(APPEND OPTIONAL_QT_LIBS Qt6::Multimedia)
 endif()
 
@@ -111,9 +101,7 @@ set(SOURCE
   remote_folder_dialog.cpp
 )
 
-if(WIN32)
-  set(OTHER ${OTHER} resources.rc)
-elseif(APPLE)
+if(APPLE)
   set(OTHER ${OTHER} osx_helper.h)
   set(SOURCE ${SOURCE} osx_helper.mm)
 
@@ -126,14 +114,12 @@ endif()
 
 set(QRC resources.qrc)
 
-add_definitions(-DRCLONE_BROWSER_VERSION="${RCLONE_BROWSER_VERSION}")
-
 qt6_wrap_ui(UI_OUT ${UI})
 qt6_wrap_cpp(MOC_OUT ${MOC})
 qt6_add_resources(QRC_OUT ${QRC} OPTIONS "-no-compress")
 
 source_group("" FILES ${SOURCE} ${MOC} ${UI} ${QRC} ${OTHER})
-source_group("Generated" FILES ${MOC_OUT} ${UI_OUT} ${MOC_OUT} ${QRC_OUT})
+source_group("Generated" FILES ${MOC_OUT} ${UI_OUT} ${QRC_OUT})
 
 MACRO(ADD_MSVC_PRECOMPILED_HEADER PrecompiledHeader PrecompiledSource SourcesVar)
   IF(MSVC)
@@ -152,24 +138,42 @@ MACRO(ADD_MSVC_PRECOMPILED_HEADER PrecompiledHeader PrecompiledSource SourcesVar
   ENDIF(MSVC)
 ENDMACRO(ADD_MSVC_PRECOMPILED_HEADER)
 
-ADD_MSVC_PRECOMPILED_HEADER(pch.h pch.cpp SOURCE)
+# Everything except main.cpp goes into the core library; main.cpp is compiled
+# only in the executable, without PCH flags (it reaches pch.h via main_window.h).
+set(CORE_SOURCE ${SOURCE})
+list(REMOVE_ITEM CORE_SOURCE main.cpp)
+
+ADD_MSVC_PRECOMPILED_HEADER(pch.h pch.cpp CORE_SOURCE)
 ADD_MSVC_PRECOMPILED_HEADER(pch.h pch.cpp MOC_OUT)
 
-if(WIN32)
-  add_executable(RcloneBrowser WIN32 ${SOURCE} ${BACKEND} ${OTHER} ${MOC} ${MOC_OUT} ${UI_OUT} ${MOC_OUT} ${QRC_OUT})
-  target_link_libraries(RcloneBrowser Qt6::Widgets Qt6::Network ${OPTIONAL_QT_LIBS})
-elseif(APPLE)
-  set_source_files_properties(icon.icns PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
-  add_executable(rclone-browser MACOSX_BUNDLE ${SOURCE} ${BACKEND} ${OTHER} ${MOC} ${MOC_OUT} ${UI_OUT} ${MOC_OUT} ${QRC_OUT} icon.icns)
-  target_link_libraries(rclone-browser
-    Qt6::Widgets
-    Qt6::Network
-    ${OPTIONAL_QT_LIBS}
+add_library(rclone-browser-core STATIC ${CORE_SOURCE} ${OTHER} ${MOC} ${MOC_OUT} ${UI_OUT})
+target_include_directories(rclone-browser-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+target_link_libraries(rclone-browser-core PUBLIC Qt6::Widgets Qt6::Network ${OPTIONAL_QT_LIBS} rb_warnings)
+target_compile_definitions(rclone-browser-core PUBLIC
+  RCLONE_BROWSER_VERSION="${RCLONE_BROWSER_VERSION}"
+  # Qt 6 makes the QFileInfo(const QString &) constructor explicit by default.
+  # Keep the Qt 5 implicit behaviour to avoid churn across the codebase.
+  QT_IMPLICIT_QFILEINFO_CONSTRUCTION
+)
+if(TARGET Qt6::Multimedia)
+  target_compile_definitions(rclone-browser-core PUBLIC RB_HAVE_MULTIMEDIA)
+endif()
+if(APPLE)
+  target_link_libraries(rclone-browser-core PUBLIC
     ${COCOA_LIB}
     ${IOKKIT_LIB}
     ${USER_NOTIFICATIONS_LIB}
     ${UNIFORM_TYPE_IDENTIFIERS_LIB}
   )
+endif()
+
+if(WIN32)
+  add_executable(RcloneBrowser WIN32 main.cpp ${QRC_OUT} resources.rc)
+  target_link_libraries(RcloneBrowser PRIVATE rclone-browser-core)
+elseif(APPLE)
+  set_source_files_properties(icon.icns PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
+  add_executable(rclone-browser MACOSX_BUNDLE main.cpp ${QRC_OUT} icon.icns)
+  target_link_libraries(rclone-browser PRIVATE rclone-browser-core)
   # Info.plist is a template: CMake fills in the bundle identifier and version.
   # macOS user notifications need a valid reverse-DNS bundle identifier.
   set_target_properties(rclone-browser PROPERTIES
@@ -180,8 +184,8 @@ elseif(APPLE)
   )
 
 else()
-  add_executable(rclone-browser ${SOURCE} ${BACKEND} ${OTHER} ${MOC} ${MOC_OUT} ${UI_OUT} ${MOC_OUT} ${QRC_OUT})
-  target_link_libraries(rclone-browser Qt6::Widgets Qt6::Network ${OPTIONAL_QT_LIBS})
+  add_executable(rclone-browser main.cpp ${QRC_OUT})
+  target_link_libraries(rclone-browser PRIVATE rclone-browser-core)
 
   install(TARGETS rclone-browser RUNTIME DESTINATION bin)
   install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../assets/rclone-browser.svg" DESTINATION "share/icons/hicolor/scalable/apps" RENAME "rclone-browser.svg")
