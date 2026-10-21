@@ -84,7 +84,7 @@ QString formatPercent(qint64 part, qint64 total) {
     pct = 100;
   } else if (part <= 0) {
     pct = 0;
-  } else if (part > std::numeric_limits<qint64>::max() / 100) {
+  } else if (part > (std::numeric_limits<qint64>::max)() / 100) {  // () guards windows.h max
     pct = qint64(double(part) * 100.0 / double(total));
   } else {
     pct = part * 100 / total;
