@@ -1,0 +1,2 @@
+# Fixtures are byte-exact captures of rclone output; CRLF conversion on Windows checkouts breaks the parser tests.
+tests/fixtures/** -text
