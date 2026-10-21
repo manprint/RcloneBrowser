@@ -69,6 +69,8 @@ set(OTHER
   rclone_format.h
   lsjson_parser.h
   export_runner.h
+  instance_lock.h
+  terminal_command.h
   rclone_process.h
   job_options.h
   global.h
@@ -98,6 +100,8 @@ set(SOURCE
   rclone_format.cpp
   lsjson_parser.cpp
   export_runner.cpp
+  instance_lock.cpp
+  terminal_command.cpp
   rclone_process.cpp
   transfer_monitor.cpp
   job_options.cpp

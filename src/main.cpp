@@ -1,5 +1,10 @@
+#include "instance_lock.h"
 #include "main_window.h"
 #include "utils.h"
+
+#if defined(Q_OS_UNIX) && !defined(Q_OS_MACOS)
+#include <unistd.h>
+#endif
 
 #ifdef Q_OS_WIN
 // required by messageHandler
@@ -398,8 +403,16 @@ int main(int argc, char *argv[]) {
 
   // qDebug() << QString("main.cpp tmpDir:  " + tmpDir);
 
-  // not most elegant as fixed name but in reality not big deal
-  QLockFile lockFile(tmpDir + "/.RcloneBrowser_4q6RgLs2RpbJA.lock");
+  // one lock per user (#162): on Linux the name carries the uid, because
+  // /tmp is shared by all users; macOS and Windows temp dirs are per user
+#if defined(Q_OS_UNIX) && !defined(Q_OS_MACOS)
+  const bool perUser = !IsPortableMode();
+  const quint64 uid = static_cast<quint64>(getuid());
+#else
+  const bool perUser = false;
+  const quint64 uid = 0;
+#endif
+  QLockFile lockFile(tmpDir + "/" + instanceLockFileName(perUser, uid));
 
   if (!lockFile.tryLock(100)) {
     // if already running display warning and quit

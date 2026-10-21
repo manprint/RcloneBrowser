@@ -11,6 +11,7 @@
 #include "transfer_dialog.h"
 #include "lsjson_parser.h"
 #include "rclone_process.h"
+#include "terminal_command.h"
 #include "utils.h"
 #ifdef Q_OS_MACOS
 #include "global.h"
@@ -2842,16 +2843,6 @@ void MainWindow::rcloneGetVersion() {
 
 void MainWindow::rcloneConfig() {
 
-  // for macOS and Linux we have to take care of possible spaces in rclone and
-  // rclone.conf paths by using "" around them
-  QString terminalRcloneCmd;
-  if (!GetRcloneConf().isEmpty()) {
-    terminalRcloneCmd = "\"" + GetRclone() + "\"" + " config" + " --config " +
-                        "\"" + GetRcloneConf().at(1) + "\"";
-  } else {
-    terminalRcloneCmd = "\"" + GetRclone() + "\"" + " config";
-  }
-
 #if defined(Q_OS_WIN32) && (QT_VERSION < QT_VERSION_CHECK(5, 7, 0))
   QProcess::startDetached(GetRclone(), QStringList()
                                            << "config" << GetRcloneConf());
@@ -2863,10 +2854,9 @@ void MainWindow::rcloneConfig() {
   QObject::connect(p,
                    static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
                        &QProcess::finished),
-                   this, [=](int code, QProcess::ExitStatus) {
-                     if (code == 0) {
-                       emit rcloneListRemotes();
-                     }
+                   this, [=](int, QProcess::ExitStatus) {
+                     // the config may have changed even on a non-zero exit
+                     emit rcloneListRemotes();
                      p->deleteLater();
                    });
 #endif
@@ -2883,46 +2873,51 @@ void MainWindow::rcloneConfig() {
 #endif
 
 #elif defined(Q_OS_MACOS)
-  auto tmp = new QFile("/tmp/rclone_config.command");
-  if (tmp->open(QIODevice::WriteOnly)) {
-    QTextStream(tmp) << "#!/bin/sh\n" << terminalRcloneCmd << "\n";
-    tmp->close();
-    tmp->setPermissions(QFileDevice::ReadUser | QFileDevice::WriteUser |
-                        QFileDevice::ExeUser | QFileDevice::ReadGroup |
-                        QFileDevice::ExeGroup | QFileDevice::ReadOther |
-                        QFileDevice::ExeOther);
+  // unique file in the per-user temp dir instead of the shared /tmp path
+  QTemporaryFile tmp(QDir::tempPath() + "/rclone_config_XXXXXX.command");
+  tmp.setAutoRemove(false);
+  if (tmp.open()) {
+    QTextStream(&tmp) << "#!/bin/sh\n"
+                      << rcloneConfigShellCommand(GetRclone(), GetRcloneConf())
+                      << "\n";
+    tmp.close();
+    tmp.setPermissions(QFileDevice::ReadUser | QFileDevice::WriteUser |
+                       QFileDevice::ExeUser | QFileDevice::ReadGroup |
+                       QFileDevice::ExeGroup | QFileDevice::ReadOther |
+                       QFileDevice::ExeOther);
   }
   p->setProgram("open");
-  p->setArguments(QStringList() << tmp->fileName());
+  p->setArguments(QStringList() << tmp.fileName());
 #else
   QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-  QString terminal = env.value("TERMINAL");
-  if (terminal.isEmpty()) {
-    terminal = QStandardPaths::findExecutable("gnome-terminal");
-    if (terminal.isEmpty()) {
-      terminal = QStandardPaths::findExecutable("xfce4-terminal");
-      if (terminal.isEmpty()) {
-        terminal = QStandardPaths::findExecutable("xterm");
-        if (terminal.isEmpty()) {
-          terminal = QStandardPaths::findExecutable("x-terminal-emulator");
-          if (terminal.isEmpty()) {
-            terminal = QStandardPaths::findExecutable("konsole");
-            if (terminal.isEmpty()) {
-              QMessageBox::critical(this, "Error",
-                                    "Not sure how to launch terminal!\n"
-                                    "Please set path to terminal executable in "
-                                    "$TERMINAL environment variable.",
-                                    QMessageBox::Ok);
-              return;
-            }
-          }
-        }
+  QString terminalPath;
+  for (const QString &name : terminalCandidates(env)) {
+    QFileInfo info(name);
+    if (info.isAbsolute()) {
+      // $TERMINAL may hold a full path: use it as is when it is executable
+      if (info.isFile() && info.isExecutable()) {
+        terminalPath = name;
       }
+    } else {
+      terminalPath = QStandardPaths::findExecutable(name);
+    }
+    if (!terminalPath.isEmpty()) {
+      break;
     }
   }
+  if (terminalPath.isEmpty()) {
+    QMessageBox::critical(this, "Error",
+                          "Not sure how to launch terminal!\n"
+                          "Please set path to terminal executable in "
+                          "$TERMINAL environment variable.",
+                          QMessageBox::Ok);
+    return;
+  }
 
-  p->setArguments(QStringList() << "-e" << terminalRcloneCmd);
-  p->setProgram(terminal);
+  TerminalLaunch launch = buildTerminalLaunch(
+      terminalPath, rcloneConfigShellCommand(GetRclone(), GetRcloneConf()));
+  p->setProgram(launch.program);
+  p->setArguments(launch.args);
 #endif
 
 #if !defined(Q_OS_WIN32) || (QT_VERSION >= QT_VERSION_CHECK(5, 7, 0))
