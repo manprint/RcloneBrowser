@@ -25,6 +25,7 @@ Table of contents
     *   [macOS](https://github.com/kapitainsky/RcloneBrowser#macos)
     *   [Windows](https://github.com/kapitainsky/RcloneBrowser#windows)
 *   [Portable vs standard mode](https://github.com/kapitainsky/RcloneBrowser#portable-vs-standard-mode)
+*   [Transfers and logging](#transfers-and-logging)
 *   [History](https://github.com/kapitainsky/RcloneBrowser#history)
 *   [Code signing certificates donations](https://github.com/kapitainsky/RcloneBrowser#code-signing-certificates-donations)
 
@@ -295,6 +296,16 @@ In standard operations mode all configurations files are stored in the following
 Starting with version 1.7.0 of Rclone Browser portable mode is supported on all operating systems. To enable it you have to create .ini file (for Windows and macOS) next to executable with same name - e.g. if application name is `RcloneBrowser.exe` or `RcloneBrowser.app` create `RcloneBrowser.ini`. For Linux create a directory (not a file) with the same name as the AppImage plus the ".config" extension in the same directory as the AppImage file - e.g. if application name is `rclone-browser.AppImage` create folder `rclone-browser.AppImage.config` next to it. This is solution supported by [AppImage specification](https://docs.appimage.org/user-guide/portable-mode.html).
 
 In portable mode all configuration files will be stored in the same folder as application (in .config folder on Linux) and rclone and rclone.conf path can be relative to executable - so if in preferences in `rclone location` you put `rclone.exe` browser with look for it in folder where application resides. It means that you can put all required stuff including rclone binary itself and its config on e.g. memory stick and everything will be stored there.
+
+Transfers and logging
+---------------------
+
+Rclone Browser reads the progress of every transfer (stats, per-file progress and errors) from rclone's JSON log, so it works for any file name. To do that it manages rclone's logging options itself:
+
+*   Logging, stats and verbosity options typed into the extra options of a transfer (`-v`, `-vv`, `--verbose`, `-q`, `-P`/`--progress`, `--log-level`, `--log-format`, `--stats`, `--stats-one-line`, `--use-json-log`, `--color`, `--syslog`, ...) are removed. The job's output panel lists them as "ignored options". Transfers always run with `--use-json-log -v --stats 1s --stats-log-level NOTICE --stats-file-name-length 0 --color NEVER`; `-vv` or `--log-level DEBUG` in the extra options switches to debug output (`-vv`).
+*   `--log-file <path>` is honored: the job appends a readable text log to that file (the same lines as the output panel, followed by the final stats).
+*   rclone's logging environment variables (`RCLONE_VERBOSE`, `RCLONE_LOG_LEVEL`, `RCLONE_LOG_FILE`, `RCLONE_STATS*`, `RCLONE_USE_JSON_LOG`, `RCLONE_PROGRESS`, `RCLONE_QUIET`, `RCLONE_COLOR`, ...) are not passed to the rclone processes whose output the app reads. `RCLONE_LOG_FILE` and `RCLONE_LOG_LEVEL` still count as `--log-file` and `--log-level` for transfers. All other `RCLONE_*` settings apply as usual; the `rclone config` terminal keeps the full environment.
+*   Combined short flags such as `-vP` are passed to rclone unchanged; write logging flags separately.
 
 History
 --------

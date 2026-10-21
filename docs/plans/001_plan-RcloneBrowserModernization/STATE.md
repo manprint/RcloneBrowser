@@ -64,17 +64,17 @@ Recover an unresolved audit completion commit first, without finalizing the susp
 
 - Active scope: plan 001, all phases 0–13 (invocation `/plan-execute-verify-mid execute 001`, 2026-10-21).
 - Scope result: RUNNING
-- Type: sub-phase
-- ID / attempt: 1.4 / 1
-- Status: DONE (closed by the completion commit for unit:1.4:1)
-- Intent: JobWidget renders TransferMonitor signals (stats, per-file bars, errors, rendered log), optional `--log-file` text log, ignored-options note, unchanged cancel/finish lifecycle; `addTransfer` wiring (fixes #141, #142, #160; #117 verified).
-- Assigned: agent-2:sonnet; supervisor: agent-1:opus (reviews the diff: process deletion, finish ordering, stopped status, `sortJobs`/notification status strings)
-- File / unit heading: phase_02.md "1.4 JobWidget rendering, log file, cancel; addTransfer wiring" (revision 4)
+- Type: phase closure
+- ID / attempt: P1 / 1
+- Status: DONE (closed by the completion commit for unit:P1:1)
+- Intent: phase 1 integration: JSON transfer engine (parser, env/args ownership, TransferMonitor, JobWidget rendering); README "Transfers and logging".
+- Assigned: agent-1:opus (closure, README obligation, review)
+- File / unit heading: phase_02.md "Phase gates and closure"
 - Current step: closed
-- Next action: open P1 (phase_02.md "Phase gates and closure"): README "Transfers and logging", full gates, review.
-- Next eligible plan unit: P1 (phase closure).
-- Unit base: `1df14ab`; branch: `dev/001-modernization`; owned changes: `src/job_widget.h/.cpp`, `src/main_window.cpp` (`addTransfer`), NEW `tests/tst_jobwidget_render.cpp` (unit), `tests/tst_e2e_jobwidget.cpp` (e2e), `tests/CMakeLists.txt`.
-- Repo state: HEAD `1df14ab`; untracked `.serena/` (unrelated).
+- Next action: open 2.1 (phase_03.md); read phase_03.md local design context first.
+- Next eligible plan unit: 2.1.
+- Unit base: `c207ea7`; branch: `dev/001-modernization`; owned changes: `README.md` ("Transfers and logging" + TOC entry), STATE.md.
+- Repo state: HEAD `c207ea7` before the closure commit; untracked `.serena/` (unrelated).
 
 ## 2. Feature context and readiness
 
@@ -173,6 +173,7 @@ The executor never runs these (U6). It only runs the local "verify" commands, an
 | Type | ID / attempt | Plan revision | Agent | Changes | Evidence/review | Commit |
 |------|--------------|---------------|-------|---------|-----------------|--------|
 | plan | plan / 1 | 2 | agent-1:opus | `docs/plans/001_plan-RcloneBrowserModernization/` (overview, phase_01–14, STATE, inputs) | quality checklist; cold read of 1.4 (§7) | included in unit:0.1:1 |
+| phase | P1 / 1 | 4 | agent-1:opus | README "Transfers and logging" section + TOC entry; STATE.md: phase 1 gates, review, board | G-BUILD64, G-UNIT, G-E2E, G-SMOKE pass; all 33 phase-1 test IDs PASS; G-BUILD610 blocked (P-2); G-CI debt (§9); P1 review (§7) | unit:P1:1 |
 | sub-phase | 1.4 / 1 | 4 | agent-2:sonnet (worker); agent-1:opus (coordinator, reviewer) | `src/job_widget.h/.cpp`: regexes, `NormalizeRcloneStatsLine`, `mLines`, `mUpdated` removed; `TransferMonitor` rendering (stats fields, per-file bars with indeterminate state, errors text + tooltip, rendered log, `setMaximumBlockCount(10000)`), `setLogFile`, `noteIgnoredArgs`, finish steps 1–5; `addTransfer` calls `noteIgnoredArgs`/`setLogFile` before start; NEW `tests/tst_jobwidget_render.cpp` (unit), `tests/tst_e2e_jobwidget.cpp` (e2e) | G-U1.4, G-U1.4e pass; review (§7) | unit:1.4:1 |
 | sub-phase | 1.3 / 1 | 4 | agent-2:sonnet (worker); agent-1:opus (coordinator, reviewer) | NEW `src/transfer_monitor.h` (MOC) / `.cpp` (`TransferMonitor`, `clampedPercent`); NEW `tests/tst_transfer_monitor.cpp` (unit) | G-U1.3 pass; review (§7) | unit:1.3:1 |
 | sub-phase | 1.2 / 1 | 4 | agent-2:sonnet (worker); agent-1:opus (coordinator, reviewer) | NEW `src/rclone_process.h/.cpp` (`RcloneLoggingEnvVars`, `RcloneEnvironment`, `ApplyRcloneEnvironment`, `PrepareTransferArgs`); `GetRclonePassword()` added, `UseRclonePassword` deleted; 21 call sites → `ApplyRcloneEnvironment` (Interactive only in `MainWindow::rcloneConfig`); `JobOptions::getOptions` verbose/stats block removed; `addTransfer` uses `ta.args`; NEW `tests/tst_rclone_process.cpp` (unit), `tests/tst_e2e_env.cpp` (e2e) | G-U1.2, G-U1.2e pass; I-1 grep and S4 caller list (§7) | unit:1.2:1 |
@@ -213,6 +214,11 @@ Research checkpoint: N/A. Planning research is complete (R1–R16).
 | G-BASE | §3 | pass | exit 0; 90/90 ninja steps; `grep -c 'warning:'` = 0; `build-docker-base/build/rclone-browser` exists (3.5 MB) | 0a57f4f | 2026-10-21 |
 | G-U0.1 | `bash -n`; `dev.sh nosuch`; `dev.sh build qt64`; `dev.sh smoke qt64`; `RB_RCLONE=/bin/true dev.sh build`; `dev.sh build qt610` | pass | exit 64 with usage; build exit 0, 90/90, 0 `warning:` (`/tmp/rb-gates/u01-build.log`), exe present; `smoke: alive after 10s`; exit 2 with the rclone message; exit 3 with the image message; `-e RCLONE_CONFIG=/tmp/home/rclone-empty.conf` present, no `.config/rclone`, no host HOME mount; Dockerfiles match the contract byte-for-byte; `dev.sh test qt64 -- -N` passthrough works (0 tests before 0.2) | 0a57f4f + 0.1 diff | 2026-10-21 |
 | G-U0.2 | `dev.sh build qt64` (clean); `dev.sh test qt64 -- -V`; `dev.sh e2e qt64 -- -V`; `dev.sh smoke qt64`; I-8 ninja check | pass | build 99/99, 0 `warning:` (`/tmp/rb-gates/u02-build.log`), exe + `src/librclone-browser-core.a`; tst_utils PASS T_UTIL_SPLIT/EMPTY/PORTABLE, Totals 5 passed, 1/1; tst_e2e_rclone_smoke PASS T_E2E_SMOKE_VERSION/LSJSON, Totals 4 passed, 1/1; smoke alive; 55 compile commands, 0 without `-Werror`; version strings identical to the G-BASE binary (`GUI for rclone, v2.0`) | 649f6d6 + 0.2 diff | 2026-10-21 |
+| G-BUILD64 (P1) | §3 (clean; log `/tmp/rb-gates/p1-build64.log`) + I-8 ninja check | pass | exit 0; 133/133; 0 `warning:`; I-8 prints `0` | c207ea7 (+ README only) | 2026-10-21 |
+| G-UNIT (P1) | `scripts/dev.sh test qt64` (+ `-- -V`) | pass | `100% tests passed, 0 tests failed out of 6`; Total 6 = 6 non-e2e `tests/tst_*.cpp`; no SKIP | c207ea7 | 2026-10-21 |
+| G-E2E (P1) | `scripts/dev.sh e2e qt64` (+ `-- -V`) | pass | `100% tests passed, 0 tests failed out of 3`; Total 3 = 3 `tests/tst_e2e_*.cpp`; no SKIP. Every §11 test ID of 1.1–1.4 (33) has a `PASS` line for `T_<ID>()`, 0 `FAIL!` | c207ea7; host rclone 1.75.2 | 2026-10-21 |
+| G-SMOKE (P1) | `scripts/dev.sh smoke qt64` | pass | `smoke: alive after 10s` | c207ea7 | 2026-10-21 |
+| G-BUILD610 (P1) | §3 | blocked (P-2) | image `rb-build:qt610` absent | — | 2026-10-21 |
 | G-U1.4 / G-U1.4e | `scripts/dev.sh build qt64`; `scripts/dev.sh test qt64 -- -R tst_jobwidget_render -V`; `scripts/dev.sh e2e qt64 -- -R tst_e2e_jobwidget -V`; `--repeat until-fail:3`; worker: full unit 6/6, e2e 3/3, smoke alive | pass | build 0 `warning:`; S1 grep (`rxSize\|NormalizeRcloneStatsLine` in src) empty; unit: T_JOB_RENDER, T_JOB_RENDER_ERR (2 functions), 0 `FAIL!`; e2e: T_E2E_JOB_STATS/ERRORS/LOGFILE/CANCEL (4 functions), 0 `FAIL!`, Totals 6 passed, 14.7 s; 3 consecutive repeats passed (14.7 s each) | 1df14ab + 1.4 diff | 2026-10-21 |
 | G-U1.3 | `scripts/dev.sh build qt64`; `scripts/dev.sh test qt64 -- -R tst_transfer_monitor -V` | pass | build 0 `warning:`; 6 distinct functions T_MON_COPY/ERR/CRITICAL/CLAMP/STOP/TEXT, 0 `FAIL!`, 1/1; worker full unit suite 5/5 | 3c470e0 + 1.3 diff | 2026-10-21 |
 | G-U1.2 / G-U1.2e | `scripts/dev.sh build qt64`; `scripts/dev.sh test qt64 -- -R tst_rclone_process -V`; `scripts/dev.sh e2e qt64 -- -R tst_e2e_env -V`; worker also ran full unit (4/4), e2e (2/2), smoke | pass | build 0 `warning:`; 9 distinct T_ functions (T_ARGS_STRIP/DEFAULT/COLOR/LOGLEVEL/DASHDASH/MISSINGVALUE/ENVLOGFILE, T_ENV_STRIP/PASS), 0 `FAIL!`; T_E2E_ENV_POLLUTED PASS, 1/1. I-1: `git grep -n UseRclonePassword -- src tests` empty; `git grep -n systemEnvironment src/` → only `main_window.cpp:2897` (reads `TERMINAL` to pick a terminal program; not an rclone env; justified). S4 `JobOptions::getOptions` callers: `MainWindow::runItem` → `addTransfer`; `TransferDialog::getOptions` → `RemoteWidget` (3 sites) → signal `addTransfer`; `TransferDialog::rcloneCmdUpdate` → command preview text only (not run, not parsed); `mount_dialog.cpp:295` inside a block comment. No consumer parses rclone output | 8dca865 + 1.2 diff | 2026-10-21 |
@@ -237,6 +243,7 @@ Results are one of: pass, fail, blocked, not-run, not-applicable-yet. Only pass 
 | Plan readiness | agent-1:opus | revision 1 | quality checklist "Plan readiness" (every item); dependencies acyclic; every test ID has an owner and a gate | READY |
 | 0.2 design (before S2) | agent-1:opus | revision 2; worker S1 draft of root/src/tests CMakeLists on base 649f6d6 | D10 lists and targets; `rb_warnings` `if(MSVC)` form (I-8); PUBLIC definitions; MOC_OUT once; PCH on CORE_SOURCE/MOC_OUT; exe = main.cpp + QRC (+ rc/icns); tests registration | approved with changes: drop the empty `if(WIN32)` branch (use `if(APPLE)`); write S3/S4 test sources before the first build (configure needs them); verify the version string in the binary. Qt resources stay exe-only (D10); 13.2 adds the qrc to its own test. RB_BUILD_TESTS default ON kept (QtTest is part of qtbase everywhere). |
 | 0.2 diff (after S5) | agent-1:opus | revision 2; 0.2 working-tree diff on 649f6d6 | D10 targets/lists, MOC_OUT once, PCH macro on CORE_SOURCE/MOC_OUT, exe properties and install rules unchanged, I-8 (`rb_warnings` PUBLIC), I-9 (support header verbatim, `cleanEnv()` restores the temp `RCLONE_CONFIG`), naming rule | approved. Accepted deviation: `AUTOMOC ON` on test targets (test classes are declared in the .cpp; the project has no AUTOMOC). Windows/macOS link and MSVC PCH are CI-compiled → G-CI debt (§9). |
+| P1 closure | agent-1:opus | revision 4; 29172d0..c207ea7 (1.1–1.4) + README | integration: parser → TransferMonitor → JobWidget, `addTransfer` env/args/log file; I-1 grep `git grep -n systemEnvironment src/` → `rclone_process.h` default arguments (same module as `rclone_process.cpp`), `main_window.cpp:2897` (reads `TERMINAL`; recorded exception); I-2/I-3/I-4 covered by T-ENV-*, T-LOG-GARBAGE, T-MON-CLAMP; I-6 (no push/tag/network); I-8 (0 warnings, `-Werror` everywhere); I-9 (fixtures and e2e use temp configs; recorder exports a temp `RCLONE_CONFIG`); README matches `PrepareTransferArgs`/`RcloneEnvironment` behaviour | approved. Windows/macOS/FreeBSD compile of the new sources stays G-CI debt (§9). |
 | 1.4 diff | agent-1:opus | revision 4; 1.4 working-tree diff on 1df14ab | lifecycle: `deleteLater` ownership kept, drain before `finish`, final stats block once then log close, UI branch per `result()`, rows cleared, `emit finished(info, mJobFinalStatus)` unchanged; `cancel()` byte-identical; status strings `finished`/`error`/`stopped` and `1_transfer_finished`/`2_transfer_error`/`2_transfer_stopped` unchanged (used by `sortJobs`, notifications, schedulers); `mActive` keyed by full name (#160); render rules; tests own the QProcess via `QPointer` | approved. Accepted: `progress_info` red when `errorCount() > 0` (not only stats errors), so a later stats line cannot turn it green while error events exist; finish also clears `mActive`; `Result::Running` folds into the Error branch for switch exhaustiveness. MSVC note: Qt6::Platform adds `-utf-8` as an INTERFACE option (`QtFlagHandlingHelpers.cmake` `qt_enable_utf8_sources`), so UTF-8 literals are safe; the escapes used here are fine too. |
 | 1.3 diff | agent-1:opus | revision 4; 1.3 working-tree diff on 3c470e0 | D4 (pure model); semantics: Stats → statsUpdated, activeTransfersChanged, errorsChanged on change; Error/Critical → capped list (20) + errorsChanged; logEvent for Log/Text only; errorCount max rule counts all events; lastError precedence; finish once; clampedPercent in qint64 (I-4) | approved. Accepted: whitespace-only lines become Text events (only empty lines are ignored); `logEvent` is emitted before `errorsChanged`; no extra metatype declarations needed. |
 | 1.2 diff | agent-1:opus | revision 4; 1.2 working-tree diff on 8dca865 | I-1 at every call site (Parsed default; Interactive only for the `rcloneConfig` terminal); I-2 list exact; scan rules (bool/`=value`, verbosity, value flags, missing value, `--` tail, env fallbacks, appended order); `getOptions` block removal keeps `--dry-run`; `addTransfer` order `ta.args + GetRcloneConf()` unchanged; tests build envs explicitly and keep the temp `RCLONE_CONFIG` (I-9) | approved. Noted: mount (`main_window.cpp:4715`) and stream (`:5124`) now also strip I-2 variables (contract: every non-config site is Parsed); `--log-file --` consumes `--` as the value (literal rule); a user `--` in extra options still puts `GetRcloneConf()` after it (pre-existing order, contract S3 keeps it). GUI transfer stats are empty until 1.4 (§6). |
@@ -329,7 +336,7 @@ Units run in ID order. A prerequisite must be DONE; SKIPPED never satisfies it i
 | ID | File | Closure unit | Status | Review / commit reference |
 |----|------|--------------|--------|---------------------------|
 | 0 | phase_01.md | P0 | DONE | P0 review (§7); unit:P0:1 |
-| 1 | phase_02.md | P1 | IN_PROGRESS | — |
+| 1 | phase_02.md | P1 | DONE | P1 review (§7); unit:P1:1 |
 | 2 | phase_03.md | P2 | TODO | — |
 | 3 | phase_04.md | P3 | TODO | — |
 | 4 | phase_05.md | P4 | TODO | — |
@@ -392,7 +399,7 @@ Every ID below is a QtTest function (or a named check) defined in its owning uni
 | README "Development" (dev.sh, Docker, tests) | 0.1; checked at P0 | DONE | section added in 0.1; checked at P0 against dev.sh (`fixtures` documented in 1.1) |
 | README badges (Travis/AppVeyor removed, CI) | 0.3 | DONE | unit:0.3:1 |
 | `docs/triage/upstream-issues.md` | 0.4 (and the "Fork status" column in 3.3) | IN_PROGRESS | created in unit:0.4:1; 3.3 adds the column |
-| README "Transfers and logging" | P1 | TODO | — |
+| README "Transfers and logging" | P1 | DONE | section + TOC entry in unit:P1:1 |
 | README listing notes (special names) | P2 | TODO | — |
 | README "Requirements: rclone 1.75.0", Preferences Test, update repo, `RCLONE_PASSWORD_COMMAND` | P3 | TODO | — |
 | README fork identity, Requirements, macOS notes, Compatibility; CHANGELOG `2.0.0-beta.1`; VERSION | 4.2, checked at P4 | TODO | — |
