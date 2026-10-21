@@ -183,6 +183,10 @@ jobs:
           codesign --force --deep --sign - "Rclone Browser.app"
           codesign --verify --deep --strict --verbose=2 "Rclone Browser.app"
           lipo -archs "Rclone Browser.app/Contents/MacOS/rclone-browser"
+          plutil -lint "Rclone Browser.app/Contents/Info.plist"
+          plutil -p "Rclone Browser.app/Contents/Info.plist"
+          # minimum macOS required by the bundled Qt
+          vtool -show-build "Rclone Browser.app/Contents/Frameworks/QtCore.framework/QtCore" | grep -E 'platform|minos'
 
           # Ship a DMG: the artifact upload and the release zip would flatten
           # the framework symlinks and break the code signature.
@@ -197,6 +201,25 @@ jobs:
             sleep 5
           done
           test -f "$DMG"
+      - name: Smoke test DMG
+        run: |
+          cd build/build
+          MNT="$(mktemp -d)"
+          hdiutil attach -nobrowse -readonly -mountpoint "$MNT" rclone-browser-*-macos-arm64.dmg
+          # a missing framework or a broken signature kills the app at once
+          "$MNT/Rclone Browser.app/Contents/MacOS/rclone-browser" > smoke.log 2>&1 &
+          PID=$!
+          sleep 15
+          if kill -0 "$PID" 2>/dev/null; then
+            echo "Rclone Browser still running after 15s"
+            kill "$PID"
+            wait "$PID" 2>/dev/null || true
+          else
+            echo "Rclone Browser exited early:"
+            cat smoke.log
+            exit 1
+          fi
+          hdiutil detach "$MNT"
       - uses: actions/upload-artifact@v4
         with:
           name: macos-arm64
