@@ -1,24 +1,16 @@
 #include "job_widget.h"
+#include "rclone_format.h"
+#include "rclone_log.h"
+#include "transfer_monitor.h"
 #include "utils.h"
 
 namespace {
-QString NormalizeRcloneStatsLine(const QString &line) {
-  static const QStringList prefixes = {"Transferred:", "Errors:", "Checks:",
-                                       "Elapsed time:", "Transferring:", "* "};
-  qsizetype statsStart = -1;
-
-  for (const auto &prefix : prefixes) {
-    const qsizetype index = line.indexOf(prefix);
-    if (index >= 0 && (statsStart < 0 || index < statsStart)) {
-      statsStart = index;
-    }
-  }
-
-  if (statsStart > 0) {
-    return line.mid(statsStart).trimmed();
-  }
-
-  return line;
+QString transferTooltip(const RcloneTransferItem &item) {
+  return QStringLiteral("File name: %1\nSize: %2 / %3\nSpeed: %4 (avg %5)\nETA: %6")
+      .arg(item.name, formatBytes(item.bytes),
+           item.size >= 0 ? formatBytes(item.size) : QStringLiteral("unknown"),
+           formatRate(item.speed), formatRate(item.speedAvg),
+           formatDuration(item.eta));
 }
 } // namespace
 
@@ -76,7 +68,10 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
   font.setPointSize(font.pointSize() + fontsize);
 
   ui.output->setFont(font);
+  ui.output->setMaximumBlockCount(10000);
   ui.output->setVisible(false);
+
+  mMonitor = new TransferMonitor(this);
 
   QString iconsColour = settings->value("Settings/iconsColour").toString();
 
@@ -152,150 +147,108 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
     clipboard->setText(mArgs.join(" "));
   });
 
-  QObject::connect(mProcess, &QProcess::readyRead, this, [=]() {
-    // regex101.com great for testing regexp
-    QRegularExpression rxSize(QRegularExpression::anchoredPattern(
-        R"(Transferred:\s+(\S+ \S+) \(([^)]+)\))")); // Until rclone 1.42
-    QRegularExpression rxSize2(QRegularExpression::anchoredPattern(
-        R"(Transferred:\s+([0-9.]+)(\S)? \/ (\S+) (\S+), ([0-9%-]+), (\S+ \S+), (\S+) (\S+))")); // Starting with rclone 1.43
-    QRegularExpression rxSize3(QRegularExpression::anchoredPattern(
-        R"(Transferred:\s+([0-9.]+\s*\S+)\s*\/\s*([0-9.]+\s*\S+),\s*([0-9.%-]+),\s*((?:[0-9.]+\s*\S+\/s)|-),\s*ETA\s+(\S+))")); // Starting with rclone 1.57
-    QRegularExpression rxErrors(QRegularExpression::anchoredPattern(
-        R"(Errors:\s+(\d+)(.*))")); // captures also following variant:
-                                    // "Errors: 123 (bla bla bla)"
-    QRegularExpression rxChecks(QRegularExpression::anchoredPattern(
-        R"(Checks:\s+(\S+))")); // Until rclone 1.42
-    QRegularExpression rxChecks2(QRegularExpression::anchoredPattern(
-        R"(Checks:\s+(\S+) \/ (\S+), ([0-9%-]+))"));   // Starting with
-                                                       // rclone 1.43
-    QRegularExpression rxChecks3(QRegularExpression::anchoredPattern(
-    R"(Checks:\s+(\S+) \/ (\S+), ([0-9%-]+), Listed (\S+))")); // Starting with
-                                                                // rclone 1.70
-    QRegularExpression rxTransferred(QRegularExpression::anchoredPattern(
-        R"(Transferred:\s+(\S+))")); // Until rclone 1.42
-    QRegularExpression rxTransferred2(QRegularExpression::anchoredPattern(
-        R"(Transferred:\s+(\d+) \/ (\d+), ([0-9%-]+))")); // Starting with
-                                                          // rclone 1.43
-    QRegularExpression rxTime(
-        QRegularExpression::anchoredPattern(R"(Elapsed time:\s+(\S+))"));
-    QRegularExpression rxProgress(QRegularExpression::anchoredPattern(
-        R"(\*([^:]+):\s*([^%]+)% done.+(ETA: [^)]+))")); // Until rclone 1.38
-    QRegularExpression rxProgress2(QRegularExpression::anchoredPattern(
-        R"(\*([^:]+):\s*([^%]+)% \/[a-zA-z0-9.]+, [a-zA-z0-9.]+\/s, (\w+))")); // Starting with rclone 1.39
-    QRegularExpression rxProgress3(QRegularExpression::anchoredPattern(
-        R"(\*\s*(.+):\s*([0-9]+(?:\.[0-9]+)?)%\s*\/\s*([^,]+),\s*((?:[0-9.]+\s*\S+\/s)|-),\s*(\S+))")); // Starting with rclone 1.56
-    while (mProcess->canReadLine()) {
-      QString line = mProcess->readLine().trimmed();
-      if (++mLines == 10000) {
-        ui.output->clear();
-        mLines = 1;
-      }
-      ui.output->appendPlainText(line);
+  QObject::connect(mMonitor, &TransferMonitor::statsUpdated, this,
+                   [=](const RcloneStats &stats) {
+    const QString percent = formatPercent(stats.bytes, stats.totalBytes);
+    ui.size->setText(formatBytes(stats.bytes) + QStringLiteral(", ") + percent);
+    ui.totalsize->setText(formatBytes(stats.totalBytes));
+    ui.bandwidth->setText(formatRate(stats.speed));
+    ui.eta->setText(formatDuration(stats.eta));
+    ui.transferred->setText(
+        QStringLiteral("%1 / %2, %3")
+            .arg(stats.transfers)
+            .arg(stats.totalTransfers)
+            .arg(formatPercent(stats.transfers, stats.totalTransfers)));
+    QString checks = QStringLiteral("%1 / %2, %3")
+                         .arg(stats.checks)
+                         .arg(stats.totalChecks)
+                         .arg(formatPercent(stats.checks, stats.totalChecks));
+    if (stats.listed > 0) {
+      checks += QStringLiteral(", Listed %1").arg(stats.listed);
+    }
+    ui.checks->setText(checks);
+    ui.elapsed->setText(formatElapsed(stats.elapsedTime));
+    ui.progress_info->setText(QStringLiteral("(") + percent +
+                              QStringLiteral(")"));
+    ui.progress_info->setStyleSheet(
+        mMonitor->errorCount() > 0
+            ? "QLabel { color: red; font-weight: bold;}"
+            : "QLabel { color: green; font-weight: bold;}");
+  });
 
-      if (line.isEmpty()) {
-        for (auto it = mActive.begin(), eit = mActive.end(); it != eit;
-             /* empty */) {
-          auto label = it.value();
-          if (mUpdated.contains(label)) {
-            ++it;
-          } else {
-            it = mActive.erase(it);
-            ui.progress->removeWidget(label->buddy());
-            ui.progress->removeWidget(label);
-            delete label->buddy();
-            delete label;
-          }
-        }
-        mUpdated.clear();
-        continue;
-      }
-
-      QString statsLine = NormalizeRcloneStatsLine(line);
-      QRegularExpressionMatch m;
-      if ((m = rxSize.match(statsLine)).hasMatch()) {
-        ui.size->setText(m.captured(1));
-
-        ui.progress_info->setStyleSheet(
-            "QLabel { color: green; font-weight: bold;}");
-        ui.progress_info->setText("(" + m.captured(1) + ")");
-
-        ui.bandwidth->setText(m.captured(2));
-      } else if ((m = rxSize2.match(statsLine)).hasMatch()) {
-        ui.size->setText(m.captured(1) + " " + m.captured(2) + "B" + ", " +
-                         m.captured(5));
-        ui.bandwidth->setText(m.captured(6));
-        ui.eta->setText(m.captured(8));
-        ui.totalsize->setText(m.captured(3) + " " + m.captured(4));
-
-        ui.progress_info->setStyleSheet(
-            "QLabel { color: green; font-weight: bold;}");
-        ui.progress_info->setText("(" + m.captured(5) + ")");
-
-      } else if ((m = rxSize3.match(statsLine)).hasMatch()) {
-        ui.size->setText(m.captured(1) + ", " + m.captured(3));
-        ui.bandwidth->setText(m.captured(4));
-        ui.eta->setText(m.captured(5));
-        ui.totalsize->setText(m.captured(2));
-
-        ui.progress_info->setStyleSheet(
-            "QLabel { color: green; font-weight: bold;}");
-        ui.progress_info->setText("(" + m.captured(3) + ")");
-      } else if ((m = rxErrors.match(statsLine)).hasMatch()) {
-        ui.errors->setText(m.captured(1));
-
-        if (!(m.captured(1).toInt() == 0)) {
+  QObject::connect(
+      mMonitor, &TransferMonitor::errorsChanged, this,
+      [=](qint64 count, const QString &last) {
+        ui.errors->setText(count == 0 ? QStringLiteral("0")
+                                      : QStringLiteral("%1 \u2014 %2")
+                                            .arg(count)
+                                            .arg(last));
+        ui.errors->setToolTip(mMonitor->recentErrors().join(QLatin1Char('\n')));
+        if (count > 0) {
           ui.progress_info->setStyleSheet(
               "QLabel { color: red; font-weight: bold;}");
           ui.errors->setStyleSheet(
               "QLineEdit { color: red; font-weight: normal;}");
         }
-      } else if ((m = rxChecks.match(statsLine)).hasMatch()) {
-        ui.checks->setText(m.captured(1));
-      } else if ((m = rxChecks2.match(statsLine)).hasMatch()) {
-        ui.checks->setText(m.captured(1) + " / " + m.captured(2) + ", " +
-                           m.captured(3));
-      } else if ((m = rxChecks3.match(statsLine)).hasMatch()) {
-        ui.checks->setText(m.captured(1) + " / " + m.captured(2) + ", " +
-                           m.captured(3) + ", Listed " + m.captured(4));
-      } else if ((m = rxTransferred.match(statsLine)).hasMatch()) {
-        ui.transferred->setText(m.captured(1));
-      } else if ((m = rxTransferred2.match(statsLine)).hasMatch()) {
-        ui.transferred->setText(m.captured(1) + " / " + m.captured(2) + ", " +
-                                m.captured(3));
-      } else if ((m = rxTime.match(statsLine)).hasMatch()) {
-        ui.elapsed->setText(m.captured(1));
-      } else if ((m = rxProgress.match(statsLine)).hasMatch()) {
-        QString name = m.captured(1).trimmed();
-        updateProgress(name, m.captured(2).toInt(), m.captured(3));
-      } else if ((m = rxProgress2.match(statsLine)).hasMatch()) {
-        QString name = m.captured(1).trimmed();
-        updateProgress(name, m.captured(2).toInt(),
-                       "File name: " + name + "\nFile stats" +
-                           m.captured(0).mid(m.captured(0).indexOf(':')));
-      } else if ((m = rxProgress3.match(statsLine)).hasMatch()) {
-        QString name = m.captured(1).trimmed();
-        updateProgress(name, qRound(m.captured(2).toDouble()),
-                       "File name: " + name + "\nFile stats" +
-                           m.captured(0).mid(m.captured(0).indexOf(':')));
-      }
-    }
-  });
+      });
+
+  QObject::connect(
+      mMonitor, &TransferMonitor::activeTransfersChanged, this,
+      [=](const QVector<RcloneTransferItem> &items) {
+        QSet<QString> names;
+        for (const RcloneTransferItem &item : items) {
+          names.insert(item.name);
+          updateProgress(item.name, clampedPercent(item),
+                         transferTooltip(item));
+        }
+        for (auto it = mActive.begin(); it != mActive.end();) {
+          if (names.contains(it.key())) {
+            ++it;
+          } else {
+            QLabel *label = it.value();
+            it = mActive.erase(it);
+            removeProgressRow(label);
+          }
+        }
+      });
+
+  QObject::connect(mMonitor, &TransferMonitor::logEvent, this,
+                   [=](const RcloneLogEvent &e) {
+                     appendOutputLine(renderRcloneLogEvent(e));
+                   });
+
+  QObject::connect(mProcess, &QProcess::readyRead, this,
+                   [=]() { consumeProcessOutput(false); });
 
   QObject::connect(
       mProcess,
       static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
           &QProcess::finished),
-      this, [=](int status, QProcess::ExitStatus) {
+      this, [=](int code, QProcess::ExitStatus st) {
         mProcess->deleteLater();
-        for (auto label : mActive) {
-          ui.progress->removeWidget(label->buddy());
-          ui.progress->removeWidget(label);
-          delete label->buddy();
-          delete label;
+
+        // 1. Drain what is still buffered.
+        consumeProcessOutput(true);
+
+        // 2. Let the model decide the outcome.
+        mMonitor->finish(code, st, mJobFinalStatus == "stopped");
+
+        // 3. Final stats block, rendered once, then close the log file.
+        if (!mMonitor->lastStatsText().isEmpty()) {
+          RcloneLogEvent stats;
+          stats.kind = RcloneLogEvent::Kind::Stats;
+          stats.time = QDateTime::currentDateTime();
+          stats.level = RcloneLogLevel::Notice;
+          stats.msg = mMonitor->lastStatsText();
+          appendOutputLine(renderRcloneLogEvent(stats));
+        }
+        if (mLogFile) {
+          mLogFile->close();
         }
 
-        isRunning = false;
-        if (status == 0) {
+        // 4. UI branch.
+        switch (mMonitor->result()) {
+        case TransferMonitor::Result::Finished:
           if (iconsColour == "white") {
             ui.showDetails->setStyleSheet(
                 "QToolButton { border: 0; font-weight: bold;}");
@@ -307,25 +260,34 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
           mJobFinalStatus = "finished";
           mStatus = "1_transfer_finished";
           ui.progress_info->hide();
-        } else {
+          break;
+        case TransferMonitor::Result::Stopped:
+          ui.showDetails->setStyleSheet(
+              "QToolButton { border: 0; color: red; font-weight: bold;}");
+          ui.showDetails->setText("  Stopped");
+          ui.progress_info->hide();
+          break;
+        case TransferMonitor::Result::Error:
+        case TransferMonitor::Result::Running:
           ui.showDetails->setStyleSheet(
               "QToolButton { border: 0; color: red; font-weight: bold;}");
           ui.showDetails->setText("  Error");
-
-          if (mJobFinalStatus == "stopped") {
-          } else {
-            mJobFinalStatus = "error";
-            mStatus = "2_transfer_error";
-          }
-
+          mJobFinalStatus = "error";
+          mStatus = "2_transfer_error";
           ui.progress_info->hide();
+          break;
         }
 
+        // 5. Cleanup.
+        clearProgressRows();
+        isRunning = false;
         mFinishDateTime = QDateTime::currentDateTime();
         updateStartFinishInfo();
 
         ui.cancel->setToolTip("Close");
         ui.cancel->setStatusTip("Close");
+
+        // 6. Notify.
         emit finished(ui.info->text(), mJobFinalStatus);
       });
 
@@ -372,10 +334,80 @@ void JobWidget::updateProgress(const QString &name, int value,
     bar = static_cast<QProgressBar *>(label->buddy());
   }
 
-  bar->setValue(value);
+  if (value < 0) {
+    bar->setRange(0, 0);
+  } else {
+    bar->setRange(0, 100);
+    bar->setValue(value);
+  }
   bar->setToolTip(toolTip);
+}
 
-  mUpdated.insert(label);
+void JobWidget::removeProgressRow(QLabel *label) {
+  QWidget *bar = label->buddy();
+  ui.progress->removeWidget(bar);
+  ui.progress->removeWidget(label);
+  delete bar;
+  delete label;
+}
+
+void JobWidget::clearProgressRows() {
+  const auto labels = mActive.values();
+  mActive.clear();
+  for (QLabel *label : labels) {
+    removeProgressRow(label);
+  }
+}
+
+void JobWidget::appendOutputLine(const QString &text) {
+  ui.output->appendPlainText(text);
+  if (mLogFile && mLogFile->isOpen()) {
+    mLogFile->write((text + QLatin1Char('\n')).toUtf8());
+    mLogFile->flush();
+  }
+}
+
+void JobWidget::consumeProcessOutput(bool final) {
+  while (mProcess->canReadLine()) {
+    mMonitor->consumeLine(mProcess->readLine());
+  }
+  if (final) {
+    const QByteArray rest = mProcess->readAll();
+    if (!rest.isEmpty()) {
+      mMonitor->consumeLine(rest);
+    }
+  }
+}
+
+void JobWidget::setLogFile(const QString &path) {
+  if (mLogFile) {
+    delete mLogFile;
+    mLogFile = nullptr;
+  }
+  auto file = new QFile(path, this);
+  if (!file->open(QIODevice::Append | QIODevice::Text)) {
+    ui.output->appendPlainText(
+        QStringLiteral("Cannot write log file %1: %2")
+            .arg(path, file->errorString()));
+    delete file;
+    return;
+  }
+  mLogFile = file;
+  mLogFile->write((QStringLiteral("# Rclone Browser transfer log ") +
+                   QDateTime::currentDateTime().toString(Qt::ISODate) +
+                   QStringLiteral(": ") + mArgs.join(QLatin1Char(' ')) +
+                   QLatin1Char('\n'))
+                      .toUtf8());
+  mLogFile->flush();
+}
+
+void JobWidget::noteIgnoredArgs(const QStringList &ignored) {
+  if (ignored.isEmpty()) {
+    return;
+  }
+  ui.output->appendPlainText(
+      QStringLiteral("Rclone Browser manages rclone logging; ignored options: ") +
+      ignored.join(QLatin1Char(' ')));
 }
 
 void JobWidget::cancel() {

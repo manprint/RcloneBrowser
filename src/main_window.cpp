@@ -4237,11 +4237,14 @@ void MainWindow::addTransfer(const QString &message, const QString &source,
   transfer->setProcessChannelMode(QProcess::MergedChannels);
 
   // The app owns the logging flags and the environment (I-1).
-  // 1.4 wires ta.logFile / ta.ignored
   const TransferArgs ta = PrepareTransferArgs(args);
 
   auto widget = new JobWidget(transfer, message, ta.args, source, dest,
                               uniqueId, transferMode, requestId);
+  widget->noteIgnoredArgs(ta.ignored);
+  if (!ta.logFile.isEmpty()) {
+    widget->setLogFile(ta.logFile);
+  }
 
   auto line = new QFrame();
   line->setFrameShape(QFrame::HLine);

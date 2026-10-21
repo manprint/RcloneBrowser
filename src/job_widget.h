@@ -3,6 +3,8 @@
 #include "pch.h"
 #include "ui_job_widget.h"
 
+class TransferMonitor;
+
 class JobWidget : public QWidget {
   Q_OBJECT
 
@@ -18,6 +20,13 @@ public:
   QDateTime getStartDateTime();
   QString getStatus();
 
+  TransferMonitor *monitor() const { return mMonitor; }
+  // Writes a rendered text log of the job (rclone --log-file). Call before the
+  // process starts.
+  void setLogFile(const QString &path);
+  // Tells the user which logging options the app dropped from the command.
+  void noteIgnoredArgs(const QStringList &ignored);
+
 public slots:
   void cancel();
   QString getUniqueID();
@@ -32,11 +41,11 @@ private:
   Ui::JobWidget ui;
 
   QProcess *mProcess;
-  int mLines = 0;
+  TransferMonitor *mMonitor = nullptr;
+  QFile *mLogFile = nullptr;
 
   QStringList mArgs;
   QHash<QString, QLabel *> mActive;
-  QSet<QLabel *> mUpdated;
 
   QString mUniqueID = "";
   QString mTransferMode = "";
@@ -50,4 +59,8 @@ private:
   QDateTime mFinishDateTime;
   void updateProgress(const QString &name, int value, const QString &toolTip);
   void updateStartFinishInfo();
+  void appendOutputLine(const QString &text);
+  void consumeProcessOutput(bool final);
+  void removeProgressRow(QLabel *label);
+  void clearProgressRows();
 };
