@@ -760,7 +760,7 @@
        <item>
         <widget class="QLabel" name="label_8">
          <property name="text">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Script will be invoked with the following arguments:&lt;/p&gt;&lt;p&gt;$1 - rclone executable location&lt;br/&gt;$2 - RC port&lt;br/&gt;$3 - RC username&lt;br/&gt;$4 - RC password&lt;br/&gt;$5 - mount point&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Script will be invoked with the following arguments:&lt;/p&gt;&lt;p&gt;$1 - rclone executable location&lt;br/&gt;$2 - RC port&lt;br/&gt;$3 - RC username (deprecated)&lt;br/&gt;$4 - RC password (deprecated)&lt;br/&gt;$5 - mount point&lt;/p&gt;&lt;p&gt;The environment has RCLONE_RC_USER, RCLONE_RC_PASS and RB_RC_PORT.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
          </property>
         </widget>
        </item>

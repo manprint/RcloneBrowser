@@ -38,6 +38,7 @@ Table of contents
 *   [Portable vs standard mode](#portable-vs-standard-mode)
 *   [Transfers and logging](#transfers-and-logging)
 *   [rclone version, updates and config password](#rclone-version-updates-and-config-password)
+*   [Backend](#backend)
 *   [History](#history)
 
 Features
@@ -74,6 +75,7 @@ Compared with upstream, this fork includes the following. The full list is in [C
 *   New build targets: macOS Apple Silicon DMG and Windows ARM64; Docker development environment (`scripts/dev.sh`) and unit and end-to-end tests run in CI
 *   New in Preferences: a "Test" button for the selected rclone, a configurable rclone releases repository for update checks, and asynchronous update checks against manprint/RcloneBrowser
 *   Nicolaius's customizations (thanks @Nicolaius): remote icon size as a multiplier (0.5 to 20, default 4.0 - the old "M" size), options to hide the Tasks, Queue and Scheduler tabs and the remote icon row, and a player chooser for stream commands that list several players separated by `|`
+*   Folder listings go through a private `rclone rcd` backend (with `rclone lsjson` as the fallback), and mounts get their remote-control credentials through the environment instead of the command line, with a new "Refresh cache" button (see [Backend](#backend))
 *   Changed: minimum rclone is 1.75.0; remotes are listed case-sensitively (uppercase first); Travis CI and AppVeyor are removed and GitHub Actions builds every platform
 
 Sample screenshots
@@ -348,6 +350,15 @@ rclone version, updates and config password
 *   **Update checks** (enabled in Preferences, at most once a day, in the background): Rclone Browser looks for new releases of itself at [manprint/RcloneBrowser](https://github.com/manprint/RcloneBrowser/releases) and of rclone in the GitHub repository set in `rclone releases repository` (default `rclone/rclone`; any `owner/repo` with GitHub-style releases works, e.g. a fork). A failed check is only logged on stderr.
 *   **Encrypted rclone.conf**: when rclone needs the configuration password, Rclone Browser asks for it; a wrong password asks again. If `RCLONE_PASSWORD_COMMAND` is set in the environment Rclone Browser is started from, rclone gets the password from that command and no prompt is shown; if the command fails, a message shows rclone's error instead of a prompt.
 *   **Config button** (Linux): opens `rclone config` in `$TERMINAL` when set, otherwise the first of gnome-terminal, konsole, xfce4-terminal, xterm and x-terminal-emulator found in `PATH`. On macOS it opens Terminal through a temporary `.command` file. The remote list reloads when the terminal closes.
+
+Backend
+-------
+
+*   **Private rclone backend**: once a supported rclone is found, Rclone Browser starts its own `rclone rcd` on `127.0.0.1` with a random port and a random user name and password. The credentials reach rclone through its environment (`RCLONE_RC_USER`, `RCLONE_RC_PASS`), never through the command line, so other users cannot read them from the process list. The backend stops when Rclone Browser quits, and restarts when the rclone location or rclone.conf path changes in Preferences. If it cannot start, the status bar shows "rclone backend unavailable, using direct commands" and everything runs through rclone commands as before. With an encrypted rclone.conf the backend is unlocked with the same config password; if it is still locked when a folder is listed, the password prompt appears.
+*   **Listing fallback**: folder listings use the backend only while it runs and "Default rclone options" in Preferences is empty. Arbitrary rclone flags cannot be passed to the backend, so with default options set every listing runs `rclone lsjson` instead. Both ways give the same result.
+*   **Backend cache**: the backend keeps each listed remote location for 5 minutes (rclone's `--fs-cache-expire-duration`). On backends that look folders up by ID, such as Google Drive, a folder that was renamed or deleted outside Rclone Browser within that time can still be listed under its old path. Listings with "Default rclone options" set always run a fresh `rclone lsjson`.
+*   **Mount "Refresh cache"**: a mount started with a remote control port (the mount dialog's "Remote control port (RC)", 0 for automatic, the default on Windows) shows a "Refresh cache" button in its job panel. It calls rclone's `vfs/refresh` so the mount re-reads the remote's directory tree, and prints "Refresh cache: OK" or the error in the job output. Each mount gets its own random rc credentials through the environment; `--rc-user` and `--rc-pass` typed into the mount options are removed. On Windows, Unmount asks rclone to quit through the same remote control.
+*   **Mount script**: the script set in the mount dialog starts once rclone reports its remote control port. It still gets the positional arguments `$1` rclone executable, `$2` rc port, `$3` rc user, `$4` rc password and `$5` mount point, so existing scripts keep working, but `$3` and `$4` are deprecated because arguments are visible in the process list. New scripts should read the environment variables `RCLONE_RC_USER`, `RCLONE_RC_PASS` and `RB_RC_PORT` instead; with them `rclone rc --rc-addr localhost:$RB_RC_PORT vfs/stats` works without passing credentials on the command line.
 
 History
 --------
