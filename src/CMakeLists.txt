@@ -170,7 +170,14 @@ elseif(APPLE)
     ${USER_NOTIFICATIONS_LIB}
     ${UNIFORM_TYPE_IDENTIFIERS_LIB}
   )
-  set_target_properties(rclone-browser PROPERTIES MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/Info.plist")
+  # Info.plist is a template: CMake fills in the bundle identifier and version.
+  # macOS user notifications need a valid reverse-DNS bundle identifier.
+  set_target_properties(rclone-browser PROPERTIES
+    MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/Info.plist"
+    MACOSX_BUNDLE_GUI_IDENTIFIER "io.github.manprint.rclonebrowser"
+    MACOSX_BUNDLE_SHORT_VERSION_STRING "${RCLONE_BROWSER_VERSION}"
+    MACOSX_BUNDLE_BUNDLE_VERSION "${RCLONE_BROWSER_VERSION}"
+  )
 
 else()
   add_executable(rclone-browser ${SOURCE} ${BACKEND} ${OTHER} ${MOC} ${MOC_OUT} ${UI_OUT} ${MOC_OUT} ${QRC_OUT})
