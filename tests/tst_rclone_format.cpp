@@ -21,7 +21,7 @@ private slots:
     QTest::newRow("4500003") << qint64(4500003) << "4.292 MiB";
     QTest::newRow("1GiB") << qint64(1073741824) << "1.000 GiB";
     QTest::newRow("1TiB") << (qint64(1) << 40) << "1.000 TiB";
-    QTest::newRow("max") << std::numeric_limits<qint64>::max() << "8.000 EiB";
+    QTest::newRow("max") << (std::numeric_limits<qint64>::max)() << "8.000 EiB";
   }
   void T_FMT_BYTES() {
     QFETCH(qint64, value);

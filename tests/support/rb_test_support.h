@@ -12,7 +12,11 @@ inline void rbInitTestEnvironment() {
   // I-9: any rclone child started without --config uses an empty temp config, never the host one.
   // The file must exist: a missing RCLONE_CONFIG file makes rclone print a NOTICE line (local probe 2026-10-21).
   const QString emptyConf = QDir(rbTestDir().path()).filePath("rclone-empty.conf");
-  QFile f(emptyConf); f.open(QIODevice::WriteOnly); f.close();
+  QFile f(emptyConf);
+  if (!f.open(QIODevice::WriteOnly)) {
+    qFatal("rbInitTestEnvironment: cannot create %s", qPrintable(emptyConf));
+  }
+  f.close();
   qputenv("RCLONE_CONFIG", emptyConf.toUtf8());
 }
 inline QString rbFixture(const QString &rel) {   // RB_FIXTURES is set by CTest
