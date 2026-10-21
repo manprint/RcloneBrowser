@@ -70,7 +70,8 @@ Compared with upstream, this fork includes the following. The full list is in [C
 *   Transfers read progress, per-file stats and errors from rclone's JSON log, so they work for any file name; `--log-file` is honoured (see [Transfers and logging](#transfers-and-logging))
 *   Folder listings, exports and the remote list use `rclone lsjson` and `rclone listremotes --json`; a failed listing shows rclone's error in a warning row
 *   Fixes for empty error and size fields, sizes of Google Docs and other unknown sizes, names with special characters or a trailing space, and cancelled jobs that kept running
-*   The Config button on Linux opens a working terminal, the lock file is per user on Linux, and no password prompt is shown when `RCLONE_PASSWORD_COMMAND` is set
+*   Remotes are created and edited in a native dialog (provider list, one question per page, browser sign-in for OAuth backends) through the private backend; "Advanced (terminal)…" keeps `rclone config` in a terminal, which on Linux now opens reliably (see [rclone version, updates and config password](#rclone-version-updates-and-config-password))
+*   The lock file is per user on Linux, and no password prompt is shown when `RCLONE_PASSWORD_COMMAND` is set
 *   A wrong config password asks again, and a failing `RCLONE_PASSWORD_COMMAND` shows rclone's error
 *   New build targets: macOS Apple Silicon DMG and Windows ARM64; Docker development environment (`scripts/dev.sh`) and unit and end-to-end tests run in CI
 *   New in Preferences: a "Test" button for the selected rclone, a configurable rclone releases repository for update checks, and asynchronous update checks against manprint/RcloneBrowser
@@ -285,7 +286,7 @@ Build instructions
 Development (Docker)
 -----------------------
 
-`scripts/dev.sh` builds, tests and smoke-runs the app inside a Docker container, so no Qt toolchain is needed on the host. The containers run with `--network none`, as your uid:gid, with the repository mounted at `/src`. The host `$HOME` and your rclone configuration are never mounted: inside the container rclone only sees an empty temporary config.
+`scripts/dev.sh` builds, tests and smoke-runs the app inside a Docker container, so no Qt toolchain is needed on the host. The containers run with `--network none` (`servers` uses its own internal network, see below), as your uid:gid, with the repository mounted at `/src`. The host `$HOME` and your rclone configuration are never mounted: inside the container rclone only sees an empty temporary config.
 
 The host `rclone` (version 1.75 or newer, taken from `PATH` or from `RB_RCLONE=/path/to/rclone`) is mounted read-only at `/opt/rclone/rclone` for the end-to-end tests.
 
@@ -297,11 +298,15 @@ scripts/dev.sh smoke  [qt64|qt610]                 # start the app offscreen for
 scripts/dev.sh fixtures [qt64|qt610]               # record tests/fixtures/rclone-1.75/ with the host rclone (offline)
 scripts/dev.sh shell  [qt64|qt610]                 # interactive shell in the container
 scripts/dev.sh image  [qt64|qt610]                 # build the Docker image (needs network)
+scripts/dev.sh servers [qt64|qt610] [-- <ctest args>]  # protocol tests against isolated sftp/ftp/WebDAV/S3 servers
+scripts/dev.sh server-images                       # pull and build the server images (needs network)
 ```
 
 Flavors: `qt64` (default) uses the image `rb-build:24.04` (Ubuntu 24.04, distro Qt 6.4); `qt610` uses `rb-build:qt610` (Ubuntu 22.04, Qt 6.10.3, as in CI). Example: `scripts/dev.sh test qt64 -- -R 'tst_rclone_(log|format)'`.
 
-Building the images is the only step that needs network access: run `scripts/dev.sh image qt64` or `scripts/dev.sh image qt610` once. All other commands work offline and report a missing image with exit code 3.
+Building the images is the only step that needs network access: run `scripts/dev.sh image qt64` or `scripts/dev.sh image qt610` once, and `scripts/dev.sh server-images` for the protocol tests. All other commands work offline and report a missing image with exit code 3.
+
+`scripts/dev.sh servers` runs the protocol tests (`ctest -L servers`) against real sftp, FTP, WebDAV and S3 (MinIO) servers in local containers. Each run creates its own Docker network with `--internal`, starts the four servers and the test container on it, and removes all of them when the run ends, whatever the outcome. No port is published, so nothing is reachable from the host or the LAN, and the containers cannot reach any other host. The servers use fixed test credentials; your rclone configuration is never mounted. Outside this command the protocol tests skip themselves, and CI never runs them.
 
 Portable vs standard mode
 -----------------------
@@ -349,7 +354,8 @@ rclone version, updates and config password
 *   **Preferences, "Test" button**: runs the rclone selected in `rclone location` with `version` and shows its first line, followed by "OK" or "requires 1.75.0 or newer" (or the reason it cannot run). Saving Preferences checks the version again.
 *   **Update checks** (enabled in Preferences, at most once a day, in the background): Rclone Browser looks for new releases of itself at [manprint/RcloneBrowser](https://github.com/manprint/RcloneBrowser/releases) and of rclone in the GitHub repository set in `rclone releases repository` (default `rclone/rclone`; any `owner/repo` with GitHub-style releases works, e.g. a fork). A failed check is only logged on stderr.
 *   **Encrypted rclone.conf**: when rclone needs the configuration password, Rclone Browser asks for it; a wrong password asks again. If `RCLONE_PASSWORD_COMMAND` is set in the environment Rclone Browser is started from, rclone gets the password from that command and no prompt is shown; if the command fails, a message shows rclone's error instead of a prompt.
-*   **Config button** (Linux): opens `rclone config` in `$TERMINAL` when set, otherwise the first of gnome-terminal, konsole, xfce4-terminal, xterm and x-terminal-emulator found in `PATH`. On macOS it opens Terminal through a temporary `.command` file. The remote list reloads when the terminal closes.
+*   **Config button**: while the [private backend](#backend) runs, "Config" opens the remote configuration dialog instead of a terminal. Pick a provider (the filter matches its name or description) and a remote name, then answer one question per page. Each page shows the option name, rclone's help text and one field: a check box, a list, a password field or a text field. Backends that sign in through a browser (OAuth) open the sign-in page in your browser and wait until you finish there; "Cancel" stops the sign-in. Cancel while creating removes the half-created remote. Cancel while editing keeps the answers already confirmed with "Next", because rclone saves each answer as it is given. The remote list reloads afterwards.
+*   **Edit remote… and Advanced (terminal)…** (right-click a remote): "Edit remote…" runs the same dialog on the remote's current settings. A password field left empty keeps the stored password; a stored password cannot be removed in the dialog. Advanced options are not asked in the dialog: set them with "Advanced (terminal)…", which opens `rclone config` in a terminal. On Linux that is `$TERMINAL` when set, otherwise the first of gnome-terminal, konsole, xfce4-terminal, xterm and x-terminal-emulator found in `PATH`; on macOS it is Terminal, through a temporary `.command` file. Without a running backend the Config button opens the same terminal. The remote list reloads when the terminal closes.
 
 Backend
 -------
