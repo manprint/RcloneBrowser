@@ -1,36 +1,44 @@
 <img src="https://github.com/kapitainsky/RcloneBrowser/wiki/images/RcloneBrowserLongLogo1.png" width="80%" />
 
-[![Downloads][img3]][3] [![Release][img4]][4] <img src="https://img.shields.io/badge/Qt-cmake-green.svg"> [![Codacy Badge](https://api.codacy.com/project/badge/Grade/e22f828fc0c94dcf9ddb3d38701d177f)](https://www.codacy.com/manual/kapitainsky/RcloneBrowser?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=kapitainsky/RcloneBrowser&amp;utm_campaign=Badge_Grade) [![License][img5]][5] [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/kapitainsky)
+[![Downloads][img3]][3] [![Release][img4]][4] <img src="https://img.shields.io/badge/Qt-cmake-green.svg"> [![License][img5]][5]
 
-Rclone browser
-==============
+Rclone Browser (manprint fork)
+==============================
+Maintained fork of [kapitainsky/RcloneBrowser](https://github.com/kapitainsky/RcloneBrowser), modernized for current rclone and Qt 6. Rclone Browser was originally created by [Martins Mozeiko](https://github.com/mmozeiko/RcloneBrowser). Releases of this fork are on the [manprint releases page][3].
+
 Simple cross platform GUI for [rclone](https://rclone.org/) command line tool.
 
 Supports macOS, Windows, GNU/Linux and BSD family.
 
-**Requirements: rclone 1.75.0 or newer.** At startup Rclone Browser runs `rclone version`; with an older rclone (or output it cannot recognize) it shows a dialog that leads to Preferences, the rclone downloads page or Quit, and does not continue. See [rclone version, updates and config password](#rclone-version-updates-and-config-password).
+Requirements
+------------
+**rclone 1.75.0 or newer.** At startup Rclone Browser runs `rclone version`; with an older rclone (or output it cannot recognize) it shows a dialog that leads to Preferences, the rclone downloads page or Quit, and does not continue. See [rclone version, updates and config password](#rclone-version-updates-and-config-password).
+
+Building from source needs Qt 6.4 or newer, CMake and a C++17 compiler. The Windows, Linux AppImage and macOS release binaries bundle Qt 6.10.3; the FreeBSD build uses the Qt 6 packages installed with `pkg`.
 
 <img src="https://github.com/kapitainsky/RcloneBrowser/wiki/images/readme/osLogos.png" width="50%" />
 
 Table of contents
 -------------------
-*   [Features](https://github.com/kapitainsky/RcloneBrowser#features)
-*   [Sample screenshots](https://github.com/kapitainsky/RcloneBrowser#sample-screenshots)
-*   [How to get it](https://github.com/kapitainsky/RcloneBrowser#how-to-get-it)
-*   [Compatibility](https://github.com/kapitainsky/RcloneBrowser#compatibility)
-*   [Why AppImage only for Linux](https://github.com/kapitainsky/RcloneBrowser#why-appimage-only-for-linux)
-*   [Build instructions](https://github.com/kapitainsky/RcloneBrowser#build-instructions)
-    *   [Linux](https://github.com/kapitainsky/RcloneBrowser#linux)
-    *   [FreeBSD](https://github.com/kapitainsky/RcloneBrowser#freebsd)
-    *   [OpenBSD](https://github.com/kapitainsky/RcloneBrowser#openbsd)
-    *   [NetBSD](https://github.com/kapitainsky/RcloneBrowser#netbsd)
-    *   [macOS](https://github.com/kapitainsky/RcloneBrowser#macos)
-    *   [Windows](https://github.com/kapitainsky/RcloneBrowser#windows)
-*   [Portable vs standard mode](https://github.com/kapitainsky/RcloneBrowser#portable-vs-standard-mode)
+*   [Requirements](#requirements)
+*   [Features](#features)
+*   [Fork changes](#fork-changes)
+*   [Sample screenshots](#sample-screenshots)
+*   [How to get it](#how-to-get-it)
+*   [Compatibility](#compatibility)
+*   [Why AppImage only for Linux](#why-appimage-only-for-linux)
+*   [Build instructions](#build-instructions)
+    *   [Linux](#linux)
+    *   [FreeBSD](#freebsd)
+    *   [OpenBSD](#openbsd)
+    *   [NetBSD](#netbsd)
+    *   [macOS](#macos)
+    *   [Windows](#windows)
+*   [Development (Docker)](#development-docker)
+*   [Portable vs standard mode](#portable-vs-standard-mode)
 *   [Transfers and logging](#transfers-and-logging)
 *   [rclone version, updates and config password](#rclone-version-updates-and-config-password)
-*   [History](https://github.com/kapitainsky/RcloneBrowser#history)
-*   [Code signing certificates donations](https://github.com/kapitainsky/RcloneBrowser#code-signing-certificates-donations)
+*   [History](#history)
 
 Features
 --------
@@ -53,6 +61,20 @@ Features
 *   For remotes supporting public link sharing has an option (right-click menu) to fetch it
 *   Supports tasks. Created jobs can be saved and run or edited later.
 *   Configurable dark mode for all systems
+
+Fork changes
+------------
+Compared with upstream, this fork includes the following. The full list is in [CHANGELOG.md](CHANGELOG.md).
+
+*   Transfers read progress, per-file stats and errors from rclone's JSON log, so they work for any file name; `--log-file` is honoured (see [Transfers and logging](#transfers-and-logging))
+*   Folder listings, exports and the remote list use `rclone lsjson` and `rclone listremotes --json`; a failed listing shows rclone's error in a warning row
+*   Fixes for empty error and size fields, sizes of Google Docs and other unknown sizes, names with special characters or a trailing space, and cancelled jobs that kept running
+*   The Config button on Linux opens a working terminal, the lock file is per user on Linux, and no password prompt is shown when `RCLONE_PASSWORD_COMMAND` is set
+*   A wrong config password asks again, and a failing `RCLONE_PASSWORD_COMMAND` shows rclone's error
+*   New build targets: macOS Apple Silicon DMG and Windows ARM64; Docker development environment (`scripts/dev.sh`) and unit and end-to-end tests run in CI
+*   New in Preferences: a "Test" button for the selected rclone, a configurable rclone releases repository for update checks, and asynchronous update checks against manprint/RcloneBrowser
+*   Nicolaius's customizations (thanks @Nicolaius): remote icon size as a multiplier (0.5 to 20, default 4.0 - the old "M" size), options to hide the Tasks, Queue and Scheduler tabs and the remote icon row, and a player chooser for stream commands that list several players separated by `|`
+*   Changed: minimum rclone is 1.75.0; remotes are listed case-sensitively (uppercase first); Travis CI and AppVeyor are removed and GitHub Actions builds every platform
 
 Sample screenshots
 -------------------
@@ -85,7 +107,19 @@ Sample screenshots
 
 How to get it
 --------------
-Get binaries for Windows, macOS, Linux and Raspbian on [releases][3]' page.
+Get binaries of this fork on the [manprint releases][3] page. Each release has:
+
+*   `windows.zip` - Windows x64
+*   `windows-arm64.zip` - Windows ARM64
+*   `rclone-browser-<version>-<commit>-linux-x86_64.AppImage` - Linux x86_64
+*   `rclone-browser-<version>-<commit>-macos-arm64.dmg` - macOS on Apple Silicon
+*   `freebsd.zip` - FreeBSD (Qt 6 is not bundled; install `qt6-base` and `qt6-multimedia` with `pkg`)
+
+Tags with a suffix such as `v2.0.0-beta.1` are published as pre-releases.
+
+**macOS first launch:** the DMG build is ad-hoc signed and not notarized, so macOS Gatekeeper may refuse to open it. After copying *Rclone Browser.app* from the image to `/Applications`, run `xattr -dr com.apple.quarantine "/Applications/Rclone Browser.app"` once, or right-click the app and choose **Open**. Install rclone with Homebrew (`brew install rclone`); on first launch Rclone Browser finds it at `/opt/homebrew/bin/rclone`.
+
+Distribution packages (ArchLinux AUR, Fedora, FreeBSD ports, the packages listed on repology and the docker image by [@romancin](https://github.com/romancin)) may still ship upstream 1.8 or older, so check the version before you use one. The releases above are the builds of this fork.
 
 More and more operating systems include Rclone Browser in their offical distribution channels. You can check availibility for example [here](https://repology.org/project/rclone-browser/packages) or directly in your distribution repository. If not there yet give a shout to your system maintainers.
 
@@ -99,19 +133,20 @@ There is docker version provided by [@romancin](https://github.com/romancin) - h
 
 Compatibility
 --------------
-Windows installers (64-bit and 32-bit) are compatible with all x86 based Windows OS starting with Windows 7. If for whatever reason somebody would prefer not to run installer all files can be extracted using [innoextract](https://constexpr.org/innoextract/).
+Release binaries are built by GitHub Actions for these targets:
 
-Mac version is compiled with options making it compatible with any macOS starting with 10.9.
+*   **Windows x64 and ARM64**: built with Qt 6.10.3, which needs Windows 10 or newer; the ARM64 build is for Windows on ARM devices.
+*   **Linux x86_64**: an [AppImage](https://appimage.org/) built on Ubuntu 22.04 (glibc 2.35). Systems with an older glibc may not run it.
+*   **macOS**: Apple Silicon (arm64) only, built with Qt 6.10.3. The lowest macOS release it runs on is the one Qt 6.10.3 supports.
+*   **FreeBSD**: built on FreeBSD with the Qt 6 packages from `pkg`.
+
+No 32-bit Windows or Linux binaries, Raspberry Pi builds or Intel Mac builds are published any more. On other systems build from source, see [Build instructions](#build-instructions); Qt 6 has no 32-bit Windows kits.
 
 Situation with Linux is a bit fuzzier...
 
-Linux binary ([AppImage](https://appimage.org/)) for armhf architecture runs on any Raspberry Pi hardware using Raspbian based on Stretch or Buster.
-
-Linux binaries (AppImage) for x86_64 and i386 architectures should run on systems using distributions released in the last few years. x86_64 one is built on CentOS 7 (released in 2014) and i386 on Ubuntu 16.04 LTS (released in 2016).
-
 The whole idea with AppImage is to build it on the oldest still supported LTS distro – and it should work on all newer OS releases. AppImage contains an aplication and all the files the app needs to run. In other words, each AppImage has no dependencies other than what is included in the base operating system.
 
-In practical terms it means that for example for Ubuntu Rclone Browser AppImage works on all versions starting with 16.04 LTS and for Debian starting with Stretch. With other distributions YMMV but I test major ones like Suse or Fedora. This is Linux. 10000 different distributions… with changes and customizations often only their authors are aware of. I would be happy to hear what distribution it does not work for.
+In practical terms it means that the x86_64 AppImage is expected to work on distributions with glibc 2.35 or newer, for example Ubuntu 22.04 and later. With other distributions YMMV. This is Linux. 10000 different distributions… with changes and customizations often only their authors are aware of. I would be happy to hear what distribution it does not work for.
 
 To make life easier when using AppImages on Linux, you can use [AppImageLauncher](https://github.com/TheAssassin/AppImageLauncher) which monitors your system for downloaded AppImages and provides several useful benefits including:
 
@@ -120,10 +155,6 @@ To make life easier when using AppImages on Linux, you can use [AppImageLauncher
 *   **Update management** - AppImageLauncher provides a simple to use update mechanism. After desktop integration, the context menu of the AppImage's entry in the application launcher will have an entry for updating that launches a little helper tool that uses AppImageUpdate internally. Just click the entry and have the tool search and apply updates.
 
 *   **Easy removal of AppImages from system** - Removing integrated AppImages is pretty simple, too. Similar to updating AppImages, you will find an entry in the context menu in the application launcher that triggers a removal tool. You will be asked to confirm the removal. If you choose to do so, the desktop integration is undone, and the file is removed from your system.
-
-For all released binaries file with hashes signed with my [PGP key](https://github.com/kapitainsky/RcloneBrowser/wiki/PGP-key) is provided. It allows to verify that provided binaries were created by myself (authenticity) and are unchanged (integrity). If you would like to have properly signed releases with code signing certificates please see note at the end of this section.
-
-*Note: For Windows and macOS it would be much nicer (to avoid pop ups about unknown software origin) to properly sign released packages with code signing certificates however it does not come free even for open source software. I looked at it and it seems that to get keys for both systems for the next three years would cost about $500 (3x$99 for [Apple developer account](https://developer.apple.com/support/purchase-activation/) and $200 for cheapest Comodo [code signing certificate](https://comodosslstore.com/uk/code-signing). I am not prepared to budget it as I do this only as a hobby and I am entirely happy with this software as it is. If Rclone Browser users think that properly signed software would be beneficial for them they can [chip in](https://www.paypal.me/kapitainsky) some cash for it. If I raise required amount I will get keys. If not I will give money to some charity.*
 
 Why AppImage only for Linux
 ----------------------------
@@ -163,7 +194,7 @@ Build instructions
     *   **RHEL/CentOS**: `sudo yum -y install git gcc-c++ cmake make qt6-qtbase-devel qt6-qtmultimedia-devel`
     *   **Fedora**: `sudo dnf -y install git g++ cmake make qt6-qtbase-devel qt6-qtmultimedia-devel`
     *   **Arch/Manjaro**: `sudo pacman -Sy --noconfirm --needed git gcc cmake make qt6-base qt6-multimedia`
-2.  Clone source code from this repo `git clone https://github.com/kapitainsky/RcloneBrowser.git`
+2.  Clone source code from this repo `git clone https://github.com/manprint/RcloneBrowser.git`
 3.  Go to source folder `cd RcloneBrowser`
 4.  Create new build folder - `mkdir build && cd build`
 5.  Run `cmake ..` from build folder to create makefile
@@ -172,7 +203,7 @@ Build instructions
 
 ### FreeBSD
 1.  Install dependencies `sudo pkg install git cmake qt6-base qt6-multimedia`
-2.  Clone source code from this repo `git clone https://github.com/kapitainsky/RcloneBrowser.git`
+2.  Clone source code from this repo `git clone https://github.com/manprint/RcloneBrowser.git`
 3.  Go to source folder `cd RcloneBrowser`
 4.  Create new build folder - `mkdir build && cd build`
 5.  Run `cmake ..` from build folder to create makefile
@@ -183,7 +214,7 @@ Build instructions
 
 ### OpenBSD
 1.  Install dependencies `sudo pkg_add git cmake qt6`
-2.  Clone source code from this repo `git clone https://github.com/kapitainsky/RcloneBrowser.git`
+2.  Clone source code from this repo `git clone https://github.com/manprint/RcloneBrowser.git`
 3.  Go to source folder `cd RcloneBrowser`
 4.  Create new build folder - `mkdir build && cd build`
 5.  Run `cmake .. -DCMAKE_PREFIX_PATH:PATH=/usr/local/lib/qt6/cmake` from build folder to create makefile
@@ -194,7 +225,7 @@ Build instructions
 
 ### NetBSD
 1.  Install dependencies `sudo pkgin install git cmake qt6-qtbase qt6-qtmultimedia`
-2.  Clone source code from this repo `git clone https://github.com/kapitainsky/RcloneBrowser.git`
+2.  Clone source code from this repo `git clone https://github.com/manprint/RcloneBrowser.git`
 3.  Go to source folder `cd RcloneBrowser`
 4.  Create new build folder - `mkdir build && cd build`
 5.  Run `cmake .. -DCMAKE_PREFIX_PATH:PATH=/usr/pkg/qt6` from build folder to create makefile
@@ -207,7 +238,7 @@ Build instructions
 1.  If you don't have [Homebrew](https://brew.sh/) yet install it `/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"`
 2.  You might be asked to install xcode command line tools - do it. This is actuall macOS SDK, headers, and build tools. You don't need full xcode IDE.
 3.  Install dependencies `brew install git cmake rclone qt` (Homebrew's `qt` formula is Qt 6, and builds natively for Apple Silicon and Intel)
-4.  Clone source code from this repo `git clone https://github.com/kapitainsky/RcloneBrowser.git`
+4.  Clone source code from this repo `git clone https://github.com/manprint/RcloneBrowser.git`
 5.  Go to source folder `cd RcloneBrowser`
 6.  Create new build folder - `mkdir build && cd build`
 7.  Run `cmake .. -DCMAKE_PREFIX_PATH:PATH="$(brew --prefix qt)"` from build folder to create makefile (on Apple Silicon this is `/opt/homebrew/opt/qt`, on Intel `/usr/local/opt/qt`)
@@ -328,22 +359,15 @@ I used DinCahill's [fork](https://github.com/DinCahill/RcloneBrowser) as a base 
 
 I fixed whatever I found not working and added various tweaks enhancing functionality. I recompiled and repackaged everything using latest Qt (5.13.1) and latest platforms' compilers. This on its own fixed some issues and added new features like support for dark mode in macOS. Then followed with more fixes and more features. Rclone Browser was great again:) and is getting better.
 
-Code signing certificates donations 
----------------------------
-
-If you would like to donate towards code signing keys please feel free to [do it](https://www.paypal.me/kapitainsky). If I don't raise required $500 I will give all money to some charity. Please see my note regarding it at the end of [How to get it](https://github.com/kapitainsky/RcloneBrowser#how-to-get-it) section. I will keep all updated with amount raised.
-
-Raised so far: 7.82 USD (1.6% of the required target)
-
-[3]: https://github.com/kapitainsky/RcloneBrowser/releases
-[4]: https://github.com/kapitainsky/RcloneBrowser/releases/latest
-[5]: https://github.com/kapitainsky/RcloneBrowser/blob/master/LICENSE
+[3]: https://github.com/manprint/RcloneBrowser/releases
+[4]: https://github.com/manprint/RcloneBrowser/releases/latest
+[5]: https://github.com/manprint/RcloneBrowser/blob/master/LICENSE
 [6]: https://www.videolan.org
 [7]: https://aur.archlinux.org/packages/rclone-browser
 [8]: https://docs.microsoft.com/en-us/visualstudio/releases/2019/release-notes
 [9]: http://www.cmake.org/
 [10]: https://www.qt.io/download-open-source/
-[img3]: https://img.shields.io/github/downloads/kapitainsky/RcloneBrowser/total.svg?maxAge=3600
-[img4]: https://img.shields.io/github/release/kapitainsky/RcloneBrowser.svg?maxAge=3600
-[img5]: https://img.shields.io/github/license/kapitainsky/RcloneBrowser.svg?maxAge=3600
+[img3]: https://img.shields.io/github/downloads/manprint/RcloneBrowser/total.svg?maxAge=3600
+[img4]: https://img.shields.io/github/release/manprint/RcloneBrowser.svg?maxAge=3600
+[img5]: https://img.shields.io/github/license/manprint/RcloneBrowser.svg?maxAge=3600
 [billziss-gh_cgofuse_i18]: https://github.com/billziss-gh/cgofuse/issues/18

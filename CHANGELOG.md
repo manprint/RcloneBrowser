@@ -1,5 +1,36 @@
 # Change Log
 
+## [2.0.0-beta.1] - unreleased
+Rclone Browser 2.x by the manprint fork. The [2.0.0] section below is upstream's unreleased development history that this fork builds on.
+
+-   NEW: transfers read progress, per-file stats and errors from rclone's JSON log, so they work for any file name; `--log-file` is honoured
+-   NEW: folder listings, export and the remote list use `rclone lsjson` and `rclone listremotes --json`; a failed listing shows a warning row with rclone's error
+-   NEW: Docker development environment (`scripts/dev.sh`); unit and end-to-end test suites run in CI
+-   NEW: macOS Apple Silicon (arm64) DMG and Windows ARM64 build
+-   NEW: "Test" button in Preferences checks the selected rclone
+-   NEW: configurable rclone releases repository for the update check (default `rclone/rclone`)
+-   NEW: asynchronous update checks
+-   NEW: a wrong config password asks again; a failing `RCLONE_PASSWORD_COMMAND` shows rclone's error
+-   NEW: Nicolaius's customizations (thanks @Nicolaius): remote icon size as a multiplier (0.5 to 20, default 4.0), options to hide the Tasks, Queue and Scheduler tabs and the remote icon row, and a player chooser when the stream command lists several players separated by `|`
+-   FIXED: error field always empty - #141
+-   FIXED: size, bandwidth and remaining time empty with `--log-file` - #142
+-   FIXED: file names with slashes and special characters in transfer output - #160 (progress is now read from rclone's JSON log)
+-   FIXED: folder names ending with a space - #107
+-   FIXED: names with `[ ]`, `( )` and other characters - #130
+-   FIXED: sizes of Google Docs and other unknown sizes - #140 (listing via `rclone lsjson`)
+-   FIXED: cancelled jobs kept running - #117
+-   FIXED: lock file shared by all users; the lock is now per user on Linux - #162
+-   FIXED: "Config" button opening an empty or broken terminal on Linux - #163, #172, #239
+-   FIXED: config password prompt shown although `RCLONE_PASSWORD_COMMAND` is set - #79
+-   CHANGED: minimum rclone is 1.75.0; older versions get a blocking dialog at startup
+-   CHANGED: the update check for Rclone Browser targets manprint/RcloneBrowser
+-   CHANGED: remotes are listed by name, case-sensitively (uppercase first)
+-   CHANGED: tighter rows in the long list view of remotes
+-   CHANGED: the remote icon size setting is a number; the old XS to XXL values convert automatically
+-   CHANGED: logging and stats options in a transfer's extra options are ignored (see "Transfers and logging" in README)
+-   CHANGED: Travis CI and AppVeyor removed; GitHub Actions builds every platform
+-   CHANGED: no 32-bit, i386, armhf/Raspbian or Intel Mac builds are published any more
+
 ## [2.0.0][2.0.0] - 2020-03-
 -   NEW: interface look and feel redisign - more space, more flexible and dynamic, more information, more cutomizations
 -   NEW: added queueing functionality. Tasks can be queued for later excecution. Queue itself can be rearranged and edidted. It is persistent between application restart. And in addition user defined script can be run when all queued tasks are processed.
