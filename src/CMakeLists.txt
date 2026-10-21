@@ -46,6 +46,7 @@ set(MOC
   dedupe_dialog.h
   progress_dialog.h
   job_widget.h
+  transfer_monitor.h
   mount_widget.h
   stream_widget.h
   preferences_dialog.h
@@ -94,6 +95,7 @@ set(SOURCE
   rclone_log.cpp
   rclone_format.cpp
   rclone_process.cpp
+  transfer_monitor.cpp
   job_options.cpp
   list_of_job_options.cpp
   qcron.cpp
