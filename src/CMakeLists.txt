@@ -67,6 +67,7 @@ set(OTHER
   utils.h
   rclone_log.h
   rclone_format.h
+  lsjson_parser.h
   rclone_process.h
   job_options.h
   global.h
@@ -94,6 +95,7 @@ set(SOURCE
   utils.cpp
   rclone_log.cpp
   rclone_format.cpp
+  lsjson_parser.cpp
   rclone_process.cpp
   transfer_monitor.cpp
   job_options.cpp

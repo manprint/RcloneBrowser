@@ -1,7 +1,7 @@
 # Rclone Browser modernization — Implementation state
 
 Read this file first in every session. Updated 2026-10-21 by agent-1:opus (execute session 1).
-Plan ID: 001_plan-RcloneBrowserModernization. Revision: 4. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
+Plan ID: 001_plan-RcloneBrowserModernization. Revision: 5. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
 Plan baseline: `0a57f4f` (HEAD of `ci/macos-arm64-dmg`, which is master `1551dbd` plus the PR #1 commits). Pre-existing changes at planning time:
 - untracked `.serena/`, which is unrelated: never stage or modify it;
 - untracked `docs/plans/001_plan-RcloneBrowserModernization/`, this plan, authored by this planning session (provenance established).
@@ -64,17 +64,17 @@ Recover an unresolved audit completion commit first, without finalizing the susp
 
 - Active scope: plan 001, all phases 0–13 (invocation `/plan-execute-verify-mid execute 001`, 2026-10-21).
 - Scope result: RUNNING
-- Type: phase closure
-- ID / attempt: P1 / 1
-- Status: DONE (closed by the completion commit for unit:P1:1)
-- Intent: phase 1 integration: JSON transfer engine (parser, env/args ownership, TransferMonitor, JobWidget rendering); README "Transfers and logging".
-- Assigned: agent-1:opus (closure, README obligation, review)
-- File / unit heading: phase_02.md "Phase gates and closure"
+- Type: sub-phase
+- ID / attempt: 2.1 / 1
+- Status: DONE (closed by the completion commit for unit:2.1:1)
+- Intent: pure lsjson (line + stream), listremotes JSON and stderr-message parsers; `formatNiceSize` (0–9 bug fix).
+- Assigned: agent-3:haiku; supervisor: agent-1:opus (reviews at P2)
+- File / unit heading: phase_03.md "2.1 lsjson / listremotes parsers"
 - Current step: closed
-- Next action: open 2.1 (phase_03.md); read phase_03.md local design context first.
-- Next eligible plan unit: 2.1.
-- Unit base: `c207ea7`; branch: `dev/001-modernization`; owned changes: `README.md` ("Transfers and logging" + TOC entry), STATE.md.
-- Repo state: HEAD `c207ea7` before the closure commit; untracked `.serena/` (unrelated).
+- Next action: open 2.2 (phase_03.md "2.2 ItemModel, export and remote list on JSON").
+- Next eligible plan unit: 2.2 (phase_03.md).
+- Unit base: `682a29e`; branch: `dev/001-modernization`; owned changes: NEW `src/lsjson_parser.h/.cpp`, `src/CMakeLists.txt`, `src/rclone_format.h/.cpp` (`formatNiceSize`), NEW `tests/tst_lsjson_parser.cpp`, `tests/CMakeLists.txt`, NEW `tests/fixtures/synthetic/lsjson_variants.jsonl` + README entry.
+- Repo state: HEAD `682a29e`; untracked `.serena/` (unrelated).
 
 ## 2. Feature context and readiness
 
@@ -173,6 +173,7 @@ The executor never runs these (U6). It only runs the local "verify" commands, an
 | Type | ID / attempt | Plan revision | Agent | Changes | Evidence/review | Commit |
 |------|--------------|---------------|-------|---------|-----------------|--------|
 | plan | plan / 1 | 2 | agent-1:opus | `docs/plans/001_plan-RcloneBrowserModernization/` (overview, phase_01–14, STATE, inputs) | quality checklist; cold read of 1.4 (§7) | included in unit:0.1:1 |
+| sub-phase | 2.1 / 1 | 5 | agent-3:haiku (worker); agent-1:opus (coordinator, reviewer) | NEW `src/lsjson_parser.h/.cpp` (`ListEntry`, `lsjsonEntryFromObject`, `parseLsjsonLine`, `lsjsonModifiedText`, `LsjsonStreamParser`, `RemoteInfo`, `parseListRemotesJson`, `lastRcloneStderrMessage`); `formatNiceSize` in `src/rclone_format.h/.cpp`; NEW `tests/tst_lsjson_parser.cpp` (unit); NEW `tests/fixtures/synthetic/lsjson_variants.jsonl` + README entry | G-U2.1 pass; revision 5; review (§7) | unit:2.1:1 |
 | phase | P1 / 1 | 4 | agent-1:opus | README "Transfers and logging" section + TOC entry; STATE.md: phase 1 gates, review, board | G-BUILD64, G-UNIT, G-E2E, G-SMOKE pass; all 33 phase-1 test IDs PASS; G-BUILD610 blocked (P-2); G-CI debt (§9); P1 review (§7) | unit:P1:1 |
 | sub-phase | 1.4 / 1 | 4 | agent-2:sonnet (worker); agent-1:opus (coordinator, reviewer) | `src/job_widget.h/.cpp`: regexes, `NormalizeRcloneStatsLine`, `mLines`, `mUpdated` removed; `TransferMonitor` rendering (stats fields, per-file bars with indeterminate state, errors text + tooltip, rendered log, `setMaximumBlockCount(10000)`), `setLogFile`, `noteIgnoredArgs`, finish steps 1–5; `addTransfer` calls `noteIgnoredArgs`/`setLogFile` before start; NEW `tests/tst_jobwidget_render.cpp` (unit), `tests/tst_e2e_jobwidget.cpp` (e2e) | G-U1.4, G-U1.4e pass; review (§7) | unit:1.4:1 |
 | sub-phase | 1.3 / 1 | 4 | agent-2:sonnet (worker); agent-1:opus (coordinator, reviewer) | NEW `src/transfer_monitor.h` (MOC) / `.cpp` (`TransferMonitor`, `clampedPercent`); NEW `tests/tst_transfer_monitor.cpp` (unit) | G-U1.3 pass; review (§7) | unit:1.3:1 |
@@ -214,6 +215,7 @@ Research checkpoint: N/A. Planning research is complete (R1–R16).
 | G-BASE | §3 | pass | exit 0; 90/90 ninja steps; `grep -c 'warning:'` = 0; `build-docker-base/build/rclone-browser` exists (3.5 MB) | 0a57f4f | 2026-10-21 |
 | G-U0.1 | `bash -n`; `dev.sh nosuch`; `dev.sh build qt64`; `dev.sh smoke qt64`; `RB_RCLONE=/bin/true dev.sh build`; `dev.sh build qt610` | pass | exit 64 with usage; build exit 0, 90/90, 0 `warning:` (`/tmp/rb-gates/u01-build.log`), exe present; `smoke: alive after 10s`; exit 2 with the rclone message; exit 3 with the image message; `-e RCLONE_CONFIG=/tmp/home/rclone-empty.conf` present, no `.config/rclone`, no host HOME mount; Dockerfiles match the contract byte-for-byte; `dev.sh test qt64 -- -N` passthrough works (0 tests before 0.2) | 0a57f4f + 0.1 diff | 2026-10-21 |
 | G-U0.2 | `dev.sh build qt64` (clean); `dev.sh test qt64 -- -V`; `dev.sh e2e qt64 -- -V`; `dev.sh smoke qt64`; I-8 ninja check | pass | build 99/99, 0 `warning:` (`/tmp/rb-gates/u02-build.log`), exe + `src/librclone-browser-core.a`; tst_utils PASS T_UTIL_SPLIT/EMPTY/PORTABLE, Totals 5 passed, 1/1; tst_e2e_rclone_smoke PASS T_E2E_SMOKE_VERSION/LSJSON, Totals 4 passed, 1/1; smoke alive; 55 compile commands, 0 without `-Werror`; version strings identical to the G-BASE binary (`GUI for rclone, v2.0`) | 649f6d6 + 0.2 diff | 2026-10-21 |
+| G-U2.1 | `scripts/dev.sh build qt64`; `scripts/dev.sh test qt64 -- -R tst_lsjson_parser -V` | pass | build 0 `warning:`; 8 distinct functions T_LSJ_TREE/CHUNKS/RECURSIVE/VARIANTS/MODTEXT/MISSING/REMOTES, T_FMT_NICESIZE (7 rows), 0 `FAIL!`, Totals 16 passed; worker full unit 7/7; the CHUNKS split falls between bytes C3 and B1 of `ñ` | 682a29e + 2.1 diff | 2026-10-21 |
 | G-BUILD64 (P1) | §3 (clean; log `/tmp/rb-gates/p1-build64.log`) + I-8 ninja check | pass | exit 0; 133/133; 0 `warning:`; I-8 prints `0` | c207ea7 (+ README only) | 2026-10-21 |
 | G-UNIT (P1) | `scripts/dev.sh test qt64` (+ `-- -V`) | pass | `100% tests passed, 0 tests failed out of 6`; Total 6 = 6 non-e2e `tests/tst_*.cpp`; no SKIP | c207ea7 | 2026-10-21 |
 | G-E2E (P1) | `scripts/dev.sh e2e qt64` (+ `-- -V`) | pass | `100% tests passed, 0 tests failed out of 3`; Total 3 = 3 `tests/tst_e2e_*.cpp`; no SKIP. Every §11 test ID of 1.1–1.4 (33) has a `PASS` line for `T_<ID>()`, 0 `FAIL!` | c207ea7; host rclone 1.75.2 | 2026-10-21 |
@@ -243,6 +245,7 @@ Results are one of: pass, fail, blocked, not-run, not-applicable-yet. Only pass 
 | Plan readiness | agent-1:opus | revision 1 | quality checklist "Plan readiness" (every item); dependencies acyclic; every test ID has an owner and a gate | READY |
 | 0.2 design (before S2) | agent-1:opus | revision 2; worker S1 draft of root/src/tests CMakeLists on base 649f6d6 | D10 lists and targets; `rb_warnings` `if(MSVC)` form (I-8); PUBLIC definitions; MOC_OUT once; PCH on CORE_SOURCE/MOC_OUT; exe = main.cpp + QRC (+ rc/icns); tests registration | approved with changes: drop the empty `if(WIN32)` branch (use `if(APPLE)`); write S3/S4 test sources before the first build (configure needs them); verify the version string in the binary. Qt resources stay exe-only (D10); 13.2 adds the qrc to its own test. RB_BUILD_TESTS default ON kept (QtTest is part of qtbase everywhere). |
 | 0.2 diff (after S5) | agent-1:opus | revision 2; 0.2 working-tree diff on 649f6d6 | D10 targets/lists, MOC_OUT once, PCH macro on CORE_SOURCE/MOC_OUT, exe properties and install rules unchanged, I-8 (`rb_warnings` PUBLIC), I-9 (support header verbatim, `cleanEnv()` restores the temp `RCLONE_CONFIG`), naming rule | approved. Accepted deviation: `AUTOMOC ON` on test targets (test classes are declared in the .cpp; the project has no AUTOMOC). Windows/macOS link and MSVC PCH are CI-compiled → G-CI debt (§9). |
+| 2.1 diff | agent-1:opus | revision 5; 2.1 working-tree diff on 682a29e | R3 shapes vs the recorded fixtures; line trim and one trailing `,` only (names keep trailing spaces); byte-buffered stream (UTF-8 split safe); listremotes element filter; stderr prefix regex; `formatNiceSize` (0–9 fix, `quint64` loop) | approved. Accepted: `Path` defaults to `Name` when absent; a non-numeric `Size` gives -1; `lastRcloneStderrMessage` returns an unprefixed last line unchanged; all new sources ASCII-only. `skippedLines` semantics → revision 5. |
 | P1 closure | agent-1:opus | revision 4; 29172d0..c207ea7 (1.1–1.4) + README | integration: parser → TransferMonitor → JobWidget, `addTransfer` env/args/log file; I-1 grep `git grep -n systemEnvironment src/` → `rclone_process.h` default arguments (same module as `rclone_process.cpp`), `main_window.cpp:2897` (reads `TERMINAL`; recorded exception); I-2/I-3/I-4 covered by T-ENV-*, T-LOG-GARBAGE, T-MON-CLAMP; I-6 (no push/tag/network); I-8 (0 warnings, `-Werror` everywhere); I-9 (fixtures and e2e use temp configs; recorder exports a temp `RCLONE_CONFIG`); README matches `PrepareTransferArgs`/`RcloneEnvironment` behaviour | approved. Windows/macOS/FreeBSD compile of the new sources stays G-CI debt (§9). |
 | 1.4 diff | agent-1:opus | revision 4; 1.4 working-tree diff on 1df14ab | lifecycle: `deleteLater` ownership kept, drain before `finish`, final stats block once then log close, UI branch per `result()`, rows cleared, `emit finished(info, mJobFinalStatus)` unchanged; `cancel()` byte-identical; status strings `finished`/`error`/`stopped` and `1_transfer_finished`/`2_transfer_error`/`2_transfer_stopped` unchanged (used by `sortJobs`, notifications, schedulers); `mActive` keyed by full name (#160); render rules; tests own the QProcess via `QPointer` | approved. Accepted: `progress_info` red when `errorCount() > 0` (not only stats errors), so a later stats line cannot turn it green while error events exist; finish also clears `mActive`; `Result::Running` folds into the Error branch for switch exhaustiveness. MSVC note: Qt6::Platform adds `-utf-8` as an INTERFACE option (`QtFlagHandlingHelpers.cmake` `qt_enable_utf8_sources`), so UTF-8 literals are safe; the escapes used here are fine too. |
 | 1.3 diff | agent-1:opus | revision 4; 1.3 working-tree diff on 3c470e0 | D4 (pure model); semantics: Stats → statsUpdated, activeTransfersChanged, errorsChanged on change; Error/Critical → capped list (20) + errorsChanged; logEvent for Log/Text only; errorCount max rule counts all events; lastError precedence; finish once; clampedPercent in qint64 (I-4) | approved. Accepted: whitespace-only lines become Text events (only empty lines are ignored); `logEvent` is emitted before `errorsChanged`; no extra metatype declarations needed. |
@@ -263,6 +266,7 @@ Cold-read note (1.4, agent-1:opus, 2026-10-21): every symbol 1.4 uses is defined
 | 2 | no explicit rule on the host rclone config | I-9: never use host rclone remotes/config; temp config with isolated temporary remotes everywhere; dev.sh `-e RCLONE_CONFIG=/tmp/home/rclone-empty.conf`; `rbInitTestEnvironment()` sets `RCLONE_CONFIG`. User 2026-10-21: "non devi assolutamente usare i remote configurati sull host. mai", "se hai bisogno di test, crea dei remote isolati e temporanei", "mai quelli sull'host". | agent-1:opus | phase_01 0.1 (dev.sh creates an existing empty `/tmp/home/rclone-empty.conf`, because a missing file makes rclone print a NOTICE), 0.2 (test support creates the empty file and sets `RCLONE_CONFIG`; the smoke-test env lambda restores `RCLONE_CONFIG` after stripping `RCLONE_*`; 0.2 slot names aligned with the test naming rule, e.g. `T_UTIL_SPLIT()`); review at every P<N>. Applied before 0.1 attempt 1 was dispatched. |
 | 3 | (a) phase_01 0.4 known mapping `#117 → 3.3`; (b) G-U0.4 "rows starting with `\| #`"; (c) phase_02 1.1 recorder scenarios `lsjson_recursive`/`lsjson_missing` without `--config`; (d) README `dev.sh fixtures` line owned by no unit | (a) `#117 → fixed-by 1.4`: T-E2E-JOB-CANCEL is owned by 1.4 and phase_04 3.3 records #117 as fixed in P1; (b) count data rows `^\| #\d` (the header row also starts with `\| #`); (c) both scenarios pass `--config $W/empty.conf`: the recorder unsets `RCLONE_CONFIG`, so they would read the container default config and ship a `NOTICE: Config file … not found` line in `lsjson_missing.stderr` (I-9 spirit: temp config everywhere); (d) 1.1 owns the README command-list line; 1.1 S2 also checks `grep -rl '/tmp/' tests/fixtures/rclone-1.75` is empty | agent-1:opus | (a), (b) applied in unit:0.4:1 (§7); (c), (d) phase_02 1.1 before dispatch; T-LSJ-MISSING (phase_03 2.2) reads the last stderr message and is unaffected |
 | 4 | phase_02 oracles: T-LOG-COPY "first Stats has `eta == std::nullopt`"; T-LOG-ERRORS last Stats `lastError` contains "permission denied"; T-JOB-RENDER-ERR and T-E2E-JOB-ERRORS `errors` text contains `permission denied` | recorded 1.75.2 fixtures (1.1 S2): with `--bwlimit 1M` the stats-level `eta` is known from the first tick (copy_ok etas 3,2,1,0,0), and `lastError` is rclone's most recent error, the directory-modtime failure (`chtimes …: no such file or directory`) that follows the 6 per-file `permission denied` errors. Replacement: T-LOG-COPY every Stats `eta` nullopt or ≥ 0; T-LOG-CHECKS every Stats `eta == nullopt`; T-LOG-ERRORS ≥ 6 Error events with an object whose msg contains `permission denied`, last Stats `errors ≥ 1` + non-empty `lastError`; T-JOB-RENDER-ERR/T-E2E-JOB-ERRORS check `permission denied` in the `errors` tooltip (`recentErrors`). Fixtures and the TransferMonitor semantics are unchanged (escalated by the 1.1 worker per "report, don't adapt") | agent-1:opus | 1.1 tests updated before G-U1.1; 1.4 contract updated before dispatch; T-MON-ERR (1.3) checked: `recentErrors().first()` is `a:b.txt: Failed to copy: … permission denied`, `lastError()` equals the final stats lastError — unaffected |
+| 5 | phase_03 `LsjsonStreamParser::skippedLines` comment "not an entry" (would count synthetic (c), a JSON object without Name) vs the T-LSJ-VARIANTS oracle (2 entries, `skippedLines() == 1`) | the oracle wins: skipped = non-empty lines that are not `[`/`]` and not a JSON object; an object without a string Name is dropped silently. Reason: such objects are well-formed rclone output for an unexpected shape, not garbage | agent-1:opus | 2.1 implemented to the oracle (unit:2.1:1); no later unit reads `skippedLines` |
 
 Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 9.1 S2 (new `actionServes`) and 11.2 S2 (new `openDual` button). Each re-recording lists only the added lines here when it happens.
 
@@ -302,7 +306,7 @@ Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 9
 | 1.2 | phase_02.md | 1.1 | DONE | 1 | G-U1.2, G-U1.2e pass; unit:1.2:1 |
 | 1.3 | phase_02.md | 1.1 | DONE | 1 | G-U1.3 pass; unit:1.3:1 |
 | 1.4 | phase_02.md | 1.2, 1.3 | DONE | 1 | G-U1.4, G-U1.4e pass; unit:1.4:1 |
-| 2.1 | phase_03.md | P1 | TODO | 1 | — |
+| 2.1 | phase_03.md | P1 | DONE | 1 | G-U2.1 pass; unit:2.1:1 |
 | 2.2 | phase_03.md | 2.1 | TODO | 1 | — |
 | 3.1 | phase_04.md | P2 | TODO | 1 | — |
 | 3.2 | phase_04.md | 3.1 | TODO | 1 | — |
@@ -337,7 +341,7 @@ Units run in ID order. A prerequisite must be DONE; SKIPPED never satisfies it i
 |----|------|--------------|--------|---------------------------|
 | 0 | phase_01.md | P0 | DONE | P0 review (§7); unit:P0:1 |
 | 1 | phase_02.md | P1 | DONE | P1 review (§7); unit:P1:1 |
-| 2 | phase_03.md | P2 | TODO | — |
+| 2 | phase_03.md | P2 | IN_PROGRESS | — |
 | 3 | phase_04.md | P3 | TODO | — |
 | 4 | phase_05.md | P4 | TODO | — |
 | 5 | phase_06.md | P5 | TODO | — |

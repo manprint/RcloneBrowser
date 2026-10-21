@@ -24,3 +24,18 @@ One case per line, in this order (line N = case N):
 | (g) | error with object | `{"level":"error","msg":"e","object":"o"}` | Log, Error, object `o` |
 | (h) | truncated JSON | `{"level":"info","msg":"x` | Text |
 | (i) | ANSI colors (bisync, R14) | msg `\u001b[32mBisync successful\u001b[0m`, object `\u001b[36mp\u001b[0m` | Log, Info, msg `Bisync successful`, object `p` |
+
+## lsjson_variants.jsonl
+
+Input for `lsjson` line parsing (`src/lsjson_parser`), one case per line, in this order (line N = case N).
+The file ends with an empty line after (f), so it is `...something\n\n`.
+
+| Line | Case | Content | Expected parse |
+|---|---|---|---|
+| (a) | unknown size, with a MIME type | lsjson entry `Size:-1`, trailing `,` | entry `Doc`; size -1; modTime valid |
+| (b) | no ModTime | entry `x`, `Size:12`, no `ModTime` | entry `x`; size 12; modTime invalid |
+| (c) | no Name | `{"Path":"y","Size":1}` | nullopt; valid JSON object, not counted as skipped |
+| (d) | array open | `[` | nullopt; not counted as skipped |
+| (e) | array close | `]` | nullopt; not counted as skipped |
+| (f) | rclone log text on stdout | `2026/10/21 10:00:00 NOTICE: something` | nullopt; counted as 1 skipped |
+| (g) | empty line | (empty) | nullopt; not counted as skipped |

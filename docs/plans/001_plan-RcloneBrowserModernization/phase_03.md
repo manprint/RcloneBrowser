@@ -8,7 +8,7 @@ Phase closure: P2; review by agent-1:opus.
 Read STATE.md §0–1 first for scope, ownership, recovery, checks and commit rules. Open a unit before editing it. Checkpoint at recovery boundaries. Close with evidence. A delegated worker follows its assigned OPEN unit. Missing design decisions go to agent-1:opus. No network access (U6).
 
 ## Local design context
-Plan revision: 1.
+Plan revision: 5.
 - R3 (rclone 1.75.2, local probes):
   - `lsjson <dir>` writes to stdout `[`, then one object per line (`,`-terminated except the last), then `]`.
   - Fields: `Path, Name, Size, MimeType, ModTime, IsDir`. `ModTime` is RFC3339 with nanoseconds and an offset. Size -1 means unknown.
@@ -54,7 +54,7 @@ public:
   void feed(QByteArrayView chunk);      // appends; parses every complete '\n'-terminated line
   void finish();                        // parses the buffered remainder (no trailing newline)
   QVector<ListEntry> takeEntries();     // returns and clears the parsed entries
-  int skippedLines() const;             // non-empty lines that are not "[", "]" and not an entry
+  int skippedLines() const;             // non-empty lines that are not "[", "]" and not a JSON object (an object without a string Name is dropped, not counted; revision 5)
 };
 
 struct RemoteInfo { QString name, type, source, description; };

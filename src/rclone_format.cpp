@@ -53,6 +53,28 @@ QString formatElapsed(double seconds) {
   return formatDuration(qint64(seconds));
 }
 
+QString formatNiceSize(qint64 size) {
+  if (size < 0) {
+    return QString();
+  }
+  if (size < 10) {
+    return QString::number(size);
+  }
+  // Largest unit with size >= 10 * base. quint64 keeps 10 * 2^60 from overflowing.
+  static const char prefix[] = " KMGTPE";
+  const quint64 u = quint64(size);
+  for (int i = int(sizeof(prefix)) - 2; i >= 0; --i) {
+    const quint64 base = quint64(1) << (i * 10);
+    if (u >= 10 * base) {
+      return QStringLiteral("%1 %2")
+          .arg(u / base)
+          .arg(QChar(prefix[i]))
+          .trimmed();
+    }
+  }
+  return QString::number(size);
+}
+
 QString formatPercent(qint64 part, qint64 total) {
   if (total <= 0) {
     return QStringLiteral("-");
