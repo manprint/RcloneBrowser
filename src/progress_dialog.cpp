@@ -4,7 +4,8 @@
 ProgressDialog::ProgressDialog(const QString &title, const QString &operation,
                                const QString &message, QProcess *process,
                                QWidget *parent, bool close, bool trim,
-                               QString toolTip)
+                               QString toolTip,
+                               QProcess::ProcessChannelMode channelMode)
     : QDialog(parent) {
 
   ui.setupUi(this);
@@ -161,7 +162,10 @@ ProgressDialog::ProgressDialog(const QString &title, const QString &operation,
                    });
 
   QObject::connect(process, &QProcess::readyRead, this, [=]() {
-    QString output = process->readAll();
+    QByteArray raw = process->readAll();
+    emit rawOutputAvailable(raw);
+
+    QString output = QString::fromUtf8(raw);
     if (trim) {
       output = output.trimmed();
     }
@@ -170,7 +174,15 @@ ProgressDialog::ProgressDialog(const QString &title, const QString &operation,
     emit outputAvailable(output);
   });
 
-  process->setProcessChannelMode(QProcess::MergedChannels);
+  if (channelMode == QProcess::SeparateChannels) {
+    // stderr is not part of readyRead() (stdout channel) in this mode
+    QObject::connect(process, &QProcess::readyReadStandardError, this, [=]() {
+      ui.output->appendPlainText(
+          QString::fromUtf8(process->readAllStandardError()));
+    });
+  }
+
+  process->setProcessChannelMode(channelMode);
   process->start(QIODevice::ReadOnly);
 }
 

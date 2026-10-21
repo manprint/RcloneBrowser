@@ -1,6 +1,8 @@
 #include "item_model.h"
 #include "global.h"
 #include "icon_cache.h"
+#include "lsjson_parser.h"
+#include "rclone_format.h"
 #include "rclone_process.h"
 #include "utils.h"
 #include <algorithm>
@@ -15,17 +17,6 @@ static void advanceSpinner(QString &text) {
   size_t idx = found - spinner;
   size_t next = idx == spinnerCount - 1 ? 0 : idx + 1;
   text[spinnerPos] = spinner[next];
-}
-
-QString getNiceSize(quint64 size) {
-  static const char prefix[] = " KMGTPE";
-  for (int i = sizeof(prefix) - 2; i >= 0; i--) {
-    quint64 base = quint64(1) << (i * 10);
-    if (size >= 10 * base) {
-      return QString("%1 %2").arg(size / base).arg(QChar(prefix[i])).trimmed();
-    }
-  }
-  return "0";
 }
 } // namespace
 
@@ -82,11 +73,7 @@ private:
 
 ItemModel::ItemModel(IconCache *icons, const QString &remote, QObject *parent)
     : QAbstractItemModel(parent), mRemote(remote),
-      mFixedFont(QFontDatabase::systemFont(QFontDatabase::FixedFont)),
-      mRegExpFolder(QRegularExpression::anchoredPattern(
-          R"(\s*[\d-]+ (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d) \s*[\d-]+ (.+))")),
-      mRegExpFile(QRegularExpression::anchoredPattern(
-          R"(\s*(\d+) (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)\.\d+ (.+))")) {
+      mFixedFont(QFontDatabase::systemFont(QFontDatabase::FixedFont)) {
   QStyle *style = qApp->style();
   mDriveIcon = style->standardIcon(QStyle::SP_DriveNetIcon);
   mFolderIcon = style->standardIcon(QStyle::SP_DirIcon);
@@ -156,6 +143,9 @@ void ItemModel::refresh(const QModelIndex &index) {
 
 void ItemModel::rename(const QModelIndex &index, const QString &name) {
   Item *item = get(index);
+  if (item->state == Item::Special) {
+    return;
+  }
   item->name = name;
   item->path.setPath(item->parent->path.filePath(item->name));
   emit dataChanged(index, index, QVector<int>{Qt::DisplayRole});
@@ -167,6 +157,20 @@ bool ItemModel::isTopLevel(const QModelIndex &index) const {
 
 bool ItemModel::isFolder(const QModelIndex &index) const {
   return get(index)->isFolder;
+}
+
+bool ItemModel::isSpecial(const QModelIndex &index) const {
+  return index.isValid() && get(index)->state == Item::Special;
+}
+
+Item *ItemModel::itemFromEntry(const ListEntry &e, Item *parent) {
+  Item *item = new Item();
+  item->parent = parent;
+  item->isFolder = e.isDir;
+  item->name = e.name;
+  item->modified = lsjsonModifiedText(e.modTime);
+  item->size = e.isDir ? -1 : e.size;
+  return item;
 }
 
 QModelIndex ItemModel::addRoot(const QString &name, const QString &path) {
@@ -286,7 +290,7 @@ QVariant ItemModel::data(const QModelIndex &index, int role) const {
       if (item->isFolder || item->state == Item::Special) {
         return QString();
       } else {
-        return getNiceSize(item->size);
+        return formatNiceSize(item->size);
       }
     case 2:
       return item->modified;
@@ -346,6 +350,11 @@ Qt::ItemFlags ItemModel::flags(const QModelIndex &index) const {
     return defaultFlags;
   }
 
+  // the loading / error rows are not a drop target
+  if (get(index)->state == Item::Special) {
+    return defaultFlags;
+  }
+
   return Qt::ItemIsDropEnabled | defaultFlags;
 }
 
@@ -354,7 +363,10 @@ bool ItemModel::canDropMimeData(const QMimeData *data, Qt::DropAction action,
                                 const QModelIndex &parent) const {
   Q_UNUSED(row);
   Q_UNUSED(column);
-  Q_UNUSED(parent);
+
+  if (get(parent)->state == Item::Special) {
+    return false;
+  }
 
   if (action != Qt::CopyAction && action != Qt::MoveAction) {
     return false;
@@ -391,10 +403,14 @@ Item *ItemModel::get(const QModelIndex &index) const {
 }
 
 void ItemModel::load(const QPersistentModelIndex &parentIndex, Item *parent) {
-  auto lsd = new QProcess(this);
-  auto lsl = new QProcess(this);
+  // one lsjson process per folder: stdout carries the JSON listing, stderr the
+  // text log used for the error message
+  auto ls = new QProcess(this);
+  ls->setProcessChannelMode(QProcess::SeparateChannels);
 
   auto cache = new QVector<Item *>();
+  auto parser = new LsjsonStreamParser();
+  auto errBytes = new QByteArray();
 
   Item *loading = new Item();
   loading->state = Item::Special;
@@ -410,7 +426,7 @@ void ItemModel::load(const QPersistentModelIndex &parentIndex, Item *parent) {
   });
 
   auto rcloneFinished = [=]() {
-    sender()->deleteLater();
+    ls->deleteLater();
     // free rclone ls count (global and local)
     mRcloneLsProcessCountMutex.lock();
     if (global.rcloneLsProcessCount > 0) {
@@ -451,7 +467,8 @@ void ItemModel::load(const QPersistentModelIndex &parentIndex, Item *parent) {
       auto it = existing.find(item->name);
       if (it == existing.end()) {
         item->path.setPath(parent->path.filePath(item->name));
-        if (!item->isFolder && mFileIcons) {
+        // the error row is Special: it keeps its state and has no icon
+        if (!item->isFolder && item->state != Item::Special && mFileIcons) {
           QString ext = QFileInfo(item->name).suffix();
           if (!mLoadedIcons.contains(ext)) {
             item->state = Item::LoadingIcon;
@@ -503,88 +520,93 @@ void ItemModel::load(const QPersistentModelIndex &parentIndex, Item *parent) {
     }
   };
 
-  QObject::connect(lsd,
+  // runs once per load: drains the parsers, turns a failure into the single
+  // error row, then merges the result into the tree
+  auto listingDone = [=](int exitCode, QProcess::ExitStatus exitStatus,
+                         const QString &startError) {
+    parser->feed(ls->readAllStandardOutput());
+    parser->finish();
+    for (const ListEntry &e : parser->takeEntries()) {
+      cache->append(itemFromEntry(e, parent));
+    }
+    errBytes->append(ls->readAllStandardError());
+
+    if (exitCode != 0 || exitStatus == QProcess::CrashExit) {
+      qDeleteAll(*cache);
+      cache->clear();
+
+      QString msg = startError.isEmpty() ? lastRcloneStderrMessage(*errBytes)
+                                         : startError;
+      Item *error = new Item();
+      error->parent = parent;
+      error->state = Item::Special;
+      error->isFolder = false;
+      error->name =
+          QString::fromUtf8("\xE2\x9A\xA0 ") +
+          (msg.isEmpty()
+               ? QString("rclone lsjson failed (exit %1)").arg(exitCode)
+               : msg);
+      cache->append(error);
+    }
+
+    delete parser;
+    delete errBytes;
+
+    rcloneFinished();
+  };
+
+  QObject::connect(ls,
                    static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
                        &QProcess::finished),
-                   this, rcloneFinished);
-  QObject::connect(lsl,
-                   static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
-                       &QProcess::finished),
-                   this, rcloneFinished);
+                   this, [=](int exitCode, QProcess::ExitStatus exitStatus) {
+                     listingDone(exitCode, exitStatus, QString());
+                   });
 
-  QObject::connect(lsd, &QProcess::readyRead, this, [=]() {
-    while (lsd->canReadLine()) {
+  // a process that cannot be started never emits finished()
+  QObject::connect(ls, &QProcess::errorOccurred, this,
+                   [=](QProcess::ProcessError error) {
+                     if (error == QProcess::FailedToStart) {
+                       // deferred: the signal may be emitted inside start()
+                       const QString startError = ls->errorString();
+                       QTimer::singleShot(0, this, [=]() {
+                         listingDone(-1, QProcess::NormalExit, startError);
+                       });
+                     }
+                   });
 
-      QString line = lsd->readLine();
-      line.replace("\n", "");
-
-      QRegularExpressionMatch match = mRegExpFolder.match(line);
-      if (match.hasMatch()) {
-        QStringList cap = match.capturedTexts();
-
-        Item *child = new Item();
-        child->isFolder = true;
-        child->parent = parent;
-        child->name = cap[2];
-        child->modified = cap[1];
-
-        cache->append(child);
-      }
+  QObject::connect(ls, &QProcess::readyReadStandardOutput, this, [=]() {
+    parser->feed(ls->readAllStandardOutput());
+    for (const ListEntry &e : parser->takeEntries()) {
+      cache->append(itemFromEntry(e, parent));
     }
   });
 
-  QObject::connect(lsl, &QProcess::readyRead, this, [=]() {
-    while (lsl->canReadLine()) {
+  QObject::connect(ls, &QProcess::readyReadStandardError, this,
+                   [=]() { errBytes->append(ls->readAllStandardError()); });
 
-      QString line = lsl->readLine();
-      line.replace("\n", "");
-
-      QRegularExpressionMatch match = mRegExpFile.match(line);
-      if (match.hasMatch()) {
-        QStringList cap = match.capturedTexts();
-
-        Item *child = new Item();
-        child->parent = parent;
-        child->name = cap[3];
-        child->modified = cap[2];
-        child->size = cap[1].toULongLong();
-
-        cache->append(child);
-      }
-    }
-  });
-
-  parent->state = Item::Loading1;
+  // a single process: Loading2 makes its finish take the Loading2 -> Ready path
+  parent->state = Item::Loading2;
 
   emit beginInsertRows(parentIndex, 0, 0);
   parent->childs.prepend(loading);
   emit endInsertRows();
 
   timer->start(100);
-  ApplyRcloneEnvironment(lsd);
-  ApplyRcloneEnvironment(lsl);
+  ApplyRcloneEnvironment(ls);
 
-  // keep track of number of lsl and lsd rclone processes
+  // keep track of number of lsjson rclone processes
   mRcloneLsProcessCountMutex.lock();
   global.rcloneLsProcessCount++;
-  global.rcloneLsProcessCount++;
-  mLocalRcloneLsProcessCount++;
   mLocalRcloneLsProcessCount++;
   mRcloneLsProcessCountMutex.unlock();
 
-  lsd->start(GetRclone(),
-             QStringList() << "lsd" << GetRcloneConf()
-                           << GetRemoteModeRcloneOptions() << GetShowHidden()
-                           << GetDefaultOptionsList("defaultRcloneOptions")
-                           << mRemote + ":" + parent->path.path(),
-             QIODevice::ReadOnly);
-  lsl->start(
-      GetRclone(),
-      QStringList() << "lsl" << GetRcloneConf() << GetRemoteModeRcloneOptions()
-                    << GetShowHidden() << "--max-depth"
-                    << "1" << GetDefaultOptionsList("defaultRcloneOptions")
-                    << mRemote + ":" + parent->path.path(),
-      QIODevice::ReadOnly);
+  ls->start(GetRclone(),
+            QStringList() << "lsjson"
+                          << "--no-mimetype" << GetRcloneConf()
+                          << GetRemoteModeRcloneOptions() << GetShowHidden()
+                          << GetDefaultOptionsList("defaultRcloneOptions")
+                          << mRemote + ":" + parent->path.path(),
+            QIODevice::ReadOnly);
 }
 
 void ItemModel::sortRecursive(Item *item, const ItemSorter &sorter) {

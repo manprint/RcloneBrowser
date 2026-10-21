@@ -67,7 +67,7 @@ bool ExportDialog::onlyFilenames() const { return ui.rbText->isChecked(); }
 
 QStringList ExportDialog::getOptions() const {
   QStringList list;
-  list << "lsl";
+  list << "lsjson" << "-R" << "--files-only" << "--no-mimetype";
   if (ui.checkSameFilesystem->isChecked()) {
     list << "--one-file-system";
   }

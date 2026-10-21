@@ -9,6 +9,7 @@
 #include "scheduler_widget.h"
 #include "stream_widget.h"
 #include "transfer_dialog.h"
+#include "lsjson_parser.h"
 #include "rclone_process.h"
 #include "utils.h"
 #ifdef Q_OS_MACOS
@@ -2944,11 +2945,12 @@ void MainWindow::rcloneListRemotes() {
       static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
           &QProcess::finished),
       this, [=](int code, QProcess::ExitStatus) {
+        std::optional<QVector<RemoteInfo>> remotes;
         if (code == 0) {
+          remotes = parseListRemotesJson(p->readAllStandardOutput());
+        }
+        if (remotes) {
           QStyle *style = qApp->style();
-
-          QString bytes = p->readAllStandardOutput().trimmed();
-          QStringList items = bytes.split('\n');
 
           auto settings = GetSettings();
           bool darkModeIni = settings->value("Settings/darkModeIni").toBool();
@@ -2956,19 +2958,13 @@ void MainWindow::rcloneListRemotes() {
           QString iconsColour =
               settings->value("Settings/iconsColour").toString();
 
-          for (const QString &line : items) {
-            if (line.isEmpty()) {
-              continue;
-            }
-
-            QStringList parts = line.split(':');
-            if (parts.count() != 2) {
-              continue;
-            }
-
-            QString name = parts[0].trimmed();
-            QString type = parts[1].trimmed();
+          for (const RemoteInfo &ri : *remotes) {
+            QString name = ri.name;
+            QString type = ri.type;
             QString tooltip = "type: " + type + "\n\nname: " + name;
+            if (!ri.description.isEmpty()) {
+              tooltip += "\n\ndescription: " + ri.description;
+            }
 
             QString img_add = "";
             int size;
@@ -3135,6 +3131,7 @@ void MainWindow::rcloneListRemotes() {
            QStringList() << "listremotes" << GetRcloneConf()
                          << GetDefaultOptionsList("defaultRcloneOptions")
                          << "--long"
+                         << "--json"
                          << "--ask-password=false",
            QIODevice::ReadOnly);
 }

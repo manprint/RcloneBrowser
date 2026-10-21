@@ -32,13 +32,14 @@ struct Item {
   QString name;
   QDir path;
   QString modified;
-  quint64 size = 0;
+  qint64 size = -1; // -1 = unknown (folders, backends without sizes)
 
   QVector<Item *> childs;
 };
 
 class IconCache;
 class ItemSorter;
+struct ListEntry;
 
 class ItemModel : public QAbstractItemModel {
   Q_OBJECT
@@ -52,6 +53,12 @@ public:
   void rename(const QModelIndex &index, const QString &name);
   bool isTopLevel(const QModelIndex &index) const;
   bool isFolder(const QModelIndex &index) const;
+  // true for rows that are neither a file nor a folder: the loading spinner
+  // and the warning row shown when a listing failed (Item::Special)
+  bool isSpecial(const QModelIndex &index) const;
+
+  // Converts one parsed lsjson entry into a child Item of parent.
+  static Item *itemFromEntry(const ListEntry &e, Item *parent);
 
   QModelIndex addRoot(const QString &name, const QString &path);
 
@@ -95,11 +102,8 @@ private:
 
   QFont mFixedFont;
 
-  int mSortColumn;
-  Qt::SortOrder mSortOrder;
-
-  QRegularExpression mRegExpFolder;
-  QRegularExpression mRegExpFile;
+  int mSortColumn = 0;
+  Qt::SortOrder mSortOrder = Qt::AscendingOrder;
 
   QMutex mRcloneLsProcessCountMutex;
 
@@ -109,6 +113,6 @@ private:
   void sortRecursive(Item *item, const ItemSorter &sorter);
   void sort(const QModelIndex &parent, Item *item);
 
-  // rclone lsl/lsd processes count;
+  // rclone lsjson processes count;
   int mLocalRcloneLsProcessCount = 0;
 };

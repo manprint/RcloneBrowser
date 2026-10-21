@@ -10,7 +10,9 @@ public:
   ProgressDialog(const QString &title, const QString &operation,
                  const QString &message, QProcess *process,
                  QWidget *parent = nullptr, bool close = true,
-                 bool trim = false, QString toolTip = "");
+                 bool trim = false, QString toolTip = "",
+                 QProcess::ProcessChannelMode channelMode =
+                     QProcess::MergedChannels);
   ~ProgressDialog();
 
   void expand();
@@ -18,6 +20,8 @@ public:
 
 signals:
   void outputAvailable(const QString &output) const;
+  // the bytes exactly as read from the process (no decoding or trimming)
+  void rawOutputAvailable(const QByteArray &raw) const;
 
 private:
   void closeEvent(QCloseEvent *ev) override;

@@ -3,6 +3,7 @@
 #include "dedupe_dialog.h"
 #include "delete_progress_dialog.h"
 #include "export_dialog.h"
+#include "export_runner.h"
 #include "global.h"
 #include "icon_cache.h"
 #include "item_model.h"
@@ -443,6 +444,20 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
           ui.download->setDisabled(false);
           ui.getSize->setDisabled(false);
           ui.getInfo->setDisabled(false);
+
+          // the loading / listing error rows are not files: no action may
+          // use them (refresh only reloads their parent folder)
+          for (const QModelIndex &selected : selection) {
+            if (model->isSpecial(selected)) {
+              ui.purge->setDisabled(true);
+              ui.copy->setDisabled(true);
+              ui.move->setDisabled(true);
+              ui.download->setDisabled(true);
+              ui.getSize->setDisabled(true);
+              break;
+            }
+          }
+
           ui.path->clear();
           return;
         }
@@ -482,8 +497,11 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
           isNotMountable = true;
         }
 
-        if (model->isLoading(index)) {
-          ui.refresh->setDisabled(true);
+        // the loading spinner and the listing error row (Item::Special) are
+        // no file or folder: every action is off, except refresh on the error
+        // row (it reloads the parent folder = retry)
+        if (model->isLoading(index) || model->isSpecial(index)) {
+          ui.refresh->setDisabled(model->isLoading(index));
 
           ui.mkdir->setDisabled(true);
           ui.copy->setDisabled(true);
@@ -1298,12 +1316,6 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
   QObject::connect(ui.export_, &QAction::triggered, this, [=]() {
     setRemoteMode(ui.cb_GoogleDriveMode->currentIndex(), remoteType);
 
-    // Elided....Text base measure
-    // progress dialog uses the same fonts
-    QFontMetrics metrix(ui.elidedMeasure->font());
-
-    QString toolTip;
-
     QModelIndex index = ui.tree->selectionModel()->selectedRows().front();
 
     QString path_info = model->path(index).path();
@@ -1314,70 +1326,13 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
     ExportDialog e(remote, path, this);
 
     if (e.exec() == QDialog::Accepted) {
-      QString dst = e.getDestination();
-      bool txt = e.onlyFilenames();
-
-      QFile *file = new QFile(dst);
-      if (!file->open(QFile::WriteOnly)) {
-        QMessageBox::warning(
-            this, "Error",
-            QString("Cannot open file '%1' for writing!").arg(dst));
-        delete file;
+      // opens the destination, runs lsjson and streams the entries to it
+      ProgressDialog *progress =
+          startExport(remote, pathMsg, e.getOptions(), e.getDestination(),
+                      e.onlyFilenames(), this);
+      if (!progress) {
         return;
       }
-
-      QRegularExpression re(QRegularExpression::anchoredPattern(
-          R"(\s*(\d+) (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)\.\d+ (.+))"));
-
-      QProcess *process = new QProcess;
-      ApplyRcloneEnvironment(process);
-      process->setProgram(GetRclone());
-      process->setArguments(QStringList()
-                            << GetRcloneConf() << GetRemoteModeRcloneOptions()
-                            << GetDefaultOptionsList("defaultRcloneOptions")
-                            << e.getOptions());
-      process->setProcessChannelMode(QProcess::MergedChannels);
-
-      toolTip =
-          "\"" + remote + ":" + pathMsg + "\"" + "\nto " + "\"" + dst + "\"";
-
-      ProgressDialog *progress = new ProgressDialog(
-          "Export", "Running... ",
-          QString("Exporting content of ") + "\"" +
-              metrix.elidedText(remote, Qt::ElideMiddle, 150) + ":" +
-              metrix.elidedText(pathMsg, Qt::ElideMiddle, 500) + "\"" +
-              "\nto " + "\"" + metrix.elidedText(dst, Qt::ElideMiddle, 500) +
-              "\"",
-          process, NULL, false, false, toolTip);
-
-      file->setParent(progress);
-
-      QObject::connect(progress, &ProgressDialog::outputAvailable, this,
-                       [=](const QString &output) {
-                         QTextStream out(file);
-                         out.setEncoding(QStringConverter::Utf8);
-
-                         for (const auto &line : output.split('\n')) {
-
-                           QString lineTmp = line;
-                           lineTmp.replace("\n", "");
-
-                           QRegularExpressionMatch reMatch = re.match(lineTmp);
-                           if (reMatch.hasMatch()) {
-                             QStringList cap = reMatch.capturedTexts();
-
-                             if (txt) {
-                               out << "\"" << cap[3] << "\"" << '\n';
-                             } else {
-                               QString name = cap[3];
-                               out << "\"" << name << "\""
-                                   << ","
-                                   << "\"" << cap[2] << "\""
-                                   << "," << cap[1].toULongLong() << '\n';
-                             }
-                           }
-                         }
-                       });
 
       progress->allowToClose();
       progress->show();
@@ -1805,7 +1760,11 @@ void RemoteWidget::initialModelLoading() {
   // model and mRootIndex in private
   QModelIndex index = mRootIndex;
 
-  if (model->rowCount(index) == 1) {
+  // rowCount() starts the root listing; while it runs the only child is the
+  // loading row. A finished root may also hold a single folder or the listing
+  // error row, so test the loading state, not the row count.
+  model->rowCount(index);
+  if (model->isLoading(model->index(0, 0, index))) {
     // try again later
     QTimer::singleShot(200, Qt::CoarseTimer, this, SLOT(initialModelLoading()));
   } else {
@@ -1883,7 +1842,7 @@ void RemoteWidget::preemptiveLoadingProcessor() {
         tmpIndex = mPreemptiveLoadingListPending.takeAt(i);
         // preload children
         for (int j = 0; j < model->rowCount(tmpIndex); ++j) {
-          if (model->isFolder(model->index(i, 0, tmpIndex))) {
+          if (model->isFolder(model->index(j, 0, tmpIndex))) {
             mPreemptiveLoadingList.append(model->index(j, 0, tmpIndex));
             mPreemptiveLoadingListDups = true;
           }
@@ -1910,9 +1869,9 @@ void RemoteWidget::preemptiveLoadingProcessor() {
         mPreemptiveLoadingListDups = false;
       }
 
-      // one refresh will trigger two rclone processes - lsl and lsd
+      // one refresh starts one rclone lsjson process
       int rcloneLsProcessesFreeCount =
-          (mMaxRcloneLsProcessCount - global.rcloneLsProcessCount) / 2;
+          mMaxRcloneLsProcessCount - global.rcloneLsProcessCount;
 
       for (int i = 0; i < rcloneLsProcessesFreeCount; ++i) {
         if (rcloneLsProcessesFreeCount <= 0) {
