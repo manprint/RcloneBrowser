@@ -64,7 +64,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${rclone-browser_BINARY_DIR}/build")
 # Defined before add_subdirectory(src) so that tests can link it too.
 add_library(rb_warnings INTERFACE)
 if(MSVC)
-  target_compile_options(rb_warnings INTERFACE /W4 /WX /wd4100 /wd4189)
+  # C4702 (unreachable code) fires in Qt headers during link-time code generation.
+  target_compile_options(rb_warnings INTERFACE /W4 /WX /wd4100 /wd4189 /wd4702)
 else()
   target_compile_options(rb_warnings INTERFACE -pedantic -Wall -Wextra -Werror)
 endif()
