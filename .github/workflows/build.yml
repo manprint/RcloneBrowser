@@ -43,6 +43,7 @@ jobs:
           # the test executables load the Qt DLLs from the Qt install
           $env:PATH = "$env:QT_ROOT_DIR\bin;$env:PATH"
           ctest --test-dir build -L unit --output-on-failure -C Release
+          if ($LASTEXITCODE -ne 0) { & ./scripts/ci-rerun-failed.ps1 -BuildDir build; exit 1 }
       - uses: actions/upload-artifact@v4
         with:
           name: windows
@@ -80,6 +81,7 @@ jobs:
           # the test executables load the Qt DLLs from the Qt install
           $env:PATH = "$env:QT_ROOT_DIR\bin;$env:PATH"
           ctest --test-dir build -L unit --output-on-failure -C Release
+          if ($LASTEXITCODE -ne 0) { & ./scripts/ci-rerun-failed.ps1 -BuildDir build; exit 1 }
       - uses: actions/upload-artifact@v4
         with:
           name: windows-arm64
