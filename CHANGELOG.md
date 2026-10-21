@@ -1,6 +1,6 @@
 # Change Log
 
-## [2.0.0-beta.1] - unreleased
+## [2.0.0-beta.1] - 2026-10-22
 Rclone Browser 2.x by the manprint fork. The [2.0.0] section below is upstream's unreleased development history that this fork builds on.
 
 -   NEW: transfers read progress, per-file stats and errors from rclone's JSON log, so they work for any file name; `--log-file` is honoured
