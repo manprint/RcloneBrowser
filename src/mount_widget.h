@@ -1,6 +1,7 @@
 #pragma once
 
 #include "pch.h"
+#include "rc_client.h"
 #include "ui_mount_widget.h"
 
 class MountWidget : public QWidget {
@@ -15,6 +16,9 @@ public:
   bool isRunning = true;
   QDateTime getStartDateTime();
   QString getStatus();
+  // The credentials the mount process got through its environment (I-5) and
+  // whether it runs with --rc. Call before the mount prints its rc endpoint.
+  void setRcCredentials(const RcCredentials &creds, bool rcEnabled);
 
 public slots:
   void cancel();
@@ -36,6 +40,10 @@ private:
 
   QString mUnmountingError = "0";
   QString mRcPort = "0";
+  RcCredentials mRcCredentials;
+  bool mRcEnabled = false;
+  RcClient *mRc;
+  QUrl mRcUrl;
   QStringList mArgs;
   QString mUniqueID = "";
 
@@ -46,4 +54,7 @@ private:
   QDateTime mStartDateTime = QDateTime::currentDateTime();
   QDateTime mFinishDateTime;
   void updateStartFinishInfo();
+  // the unmount failed with `code` (exit status of umount/fusermount, or an
+  // rc error on Windows)
+  void showUnmountFailed(const QString &code);
 };

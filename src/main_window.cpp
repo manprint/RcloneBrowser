@@ -7,6 +7,7 @@
 #include "job_widget.h"
 #include "list_of_job_options.h"
 #include "mount_dialog.h"
+#include "mount_launch.h"
 #include "mount_widget.h"
 #include "preferences_dialog.h"
 #include "rc_client.h"
@@ -4054,40 +4055,6 @@ void MainWindow::runItem(JobOptionsListWidgetItem *item,
       args << "--rc";
       args << "--rc-addr";
       args << "localhost:" + jo->mountRcPort;
-
-      // generate random username and password
-      const QString possibleCharacters(
-          "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
-
-      QString rcUser;
-      for (int i = 0; i < 10; ++i) {
-
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 1)
-        int index = QRandomGenerator::global()->generate() %
-                    possibleCharacters.length();
-#else
-        int index = qrand() % possibleCharacters.length();
-#endif
-        QChar nextChar = possibleCharacters.at(index);
-        rcUser.append(nextChar);
-      }
-
-      QString rcPass;
-      for (int i = 0; i < 22; ++i) {
-
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 1)
-        int index = QRandomGenerator::global()->generate() %
-                    possibleCharacters.length();
-#else
-        int index = qrand() % possibleCharacters.length();
-#endif
-
-        QChar nextChar = possibleCharacters.at(index);
-        rcPass.append(nextChar);
-      }
-
-      args << "--rc-user=" + rcUser;
-      args << "--rc-pass=" + rcPass;
     }
     if (jo->remoteType == "drive") {
       if (jo->remoteMode == "shared") {
@@ -4838,8 +4805,14 @@ void MainWindow::addNewMount(const QString &remote, const QString &folder,
 
   argsFinal << GetRcloneConf();
 
+  // the rc credentials go through the environment, never through an argv
+  const MountLaunch ml = buildMountLaunch(
+      argsFinal, RcloneEnvironment(RcloneEnvMode::Parsed),
+      generateRcCredentials());
+
   auto widget =
-      new MountWidget(mount, remote, folder, argsFinal, script, uniqueId, info);
+      new MountWidget(mount, remote, folder, ml.args, script, uniqueId, info);
+  widget->setRcCredentials(ml.creds, ml.rcEnabled);
 
   auto line = new QFrame();
   line->setFrameShape(QFrame::HLine);
@@ -4898,8 +4871,8 @@ void MainWindow::addNewMount(const QString &remote, const QString &folder,
     setTasksButtons();
   });
 
-  ApplyRcloneEnvironment(mount);
-  mount->start(GetRclone(), argsFinal, QIODevice::ReadOnly);
+  mount->setProcessEnvironment(ml.env);
+  mount->start(GetRclone(), ml.args, QIODevice::ReadOnly);
 
   ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);
   ui.buttonCleanNotRunning->setEnabled(mJobCount != (ui.jobs->count() - 2) / 2);

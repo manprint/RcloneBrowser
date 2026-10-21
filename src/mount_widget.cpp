@@ -1,12 +1,13 @@
 #include "mount_widget.h"
 #include "global.h"
+#include "rclone_process.h"
 #include "utils.h"
 
 MountWidget::MountWidget(QProcess *process, const QString &remote,
                          const QString &folder, const QStringList &args,
                          const QString &script, const QString &uniqueID,
                          const QString &info, QWidget *parent)
-    : QWidget(parent), mProcess(process) {
+    : QWidget(parent), mProcess(process), mRc(new RcClient(this)) {
   ui.setupUi(this);
 
   updateStartFinishInfo();
@@ -178,6 +179,20 @@ MountWidget::MountWidget(QProcess *process, const QString &remote,
         }
       });
 
+  QObject::connect(ui.refreshCache, &QToolButton::clicked, this, [this]() {
+    // rclone's vfs/refresh rejects a JSON boolean for "recursive" (it wants
+    // the string, as `rclone rc vfs/refresh recursive=true` sends it)
+    mRc->call("vfs/refresh", QJsonObject{{"recursive", "true"}}, this,
+              [this](const RcReply &reply) {
+                if (reply.ok) {
+                  ui.output->appendPlainText("Refresh cache: OK");
+                } else {
+                  ui.output->appendPlainText("Refresh cache failed: " +
+                                             reply.error);
+                }
+              });
+  });
+
   QObject::connect(ui.copy, &QToolButton::clicked, this, [=]() {
     QClipboard *clipboard = QGuiApplication::clipboard();
     clipboard->setText(mArgs.join(" "));
@@ -235,14 +250,24 @@ MountWidget::MountWidget(QProcess *process, const QString &remote,
     QString line;
     QRegularExpression rx(QRegularExpression::anchoredPattern(
         "^.+Serving\\sremote\\scontrol\\son\\s\\S+$"));
+    QRegularExpression rxUrl("Serving\\sremote\\scontrol\\son\\s(\\S+)$");
 
     while (mProcess->canReadLine()) {
       line = mProcess->readLine().trimmed();
       ui.output->appendPlainText(line);
       // we capture RC port here from rclone output
       if (rx.match(line).hasMatch()) {
+        // the URL as printed by rclone (it binds the --rc-addr host as given)
+        QUrl url(rxUrl.match(line).captured(1));
         line.replace("/", "");
         mRcPort = line.right(line.length() - line.lastIndexOf(":") - 1);
+
+        if (!url.isValid() || url.scheme() != "http" || url.host().isEmpty()) {
+          url = QUrl("http://127.0.0.1:" + mRcPort + "/");
+        }
+        mRcUrl = url;
+        mRc->setEndpoint(mRcUrl, mRcCredentials);
+        ui.refreshCache->setEnabled(mRcEnabled);
       }
 
       // we only start custome script when rclone reports RC port
@@ -254,21 +279,16 @@ MountWidget::MountWidget(QProcess *process, const QString &remote,
         sargs << GetRclone();
         sargs << mRcPort;
 
-        QString user;
-        QString password;
-        int index;
-
-        index = mArgs.indexOf(QRegularExpression("^--rc-user\\S+"));
-        user = mArgs.at(index);
-        user.replace("--rc-user=", "");
-
-        index = mArgs.indexOf(QRegularExpression("^--rc-pass\\S+"));
-        password = mArgs.at(index);
-        password.replace("--rc-pass=", "");
-
-        sargs << user;
-        sargs << password;
+        // positional credentials are the one I-5 exception (D7), kept for
+        // existing scripts; the environment carries them as well
+        sargs << mRcCredentials.user;
+        sargs << mRcCredentials.pass;
         sargs << folder;
+
+        QProcessEnvironment env = RcloneEnvironment(RcloneEnvMode::Parsed);
+        applyRcCredentials(env, mRcCredentials);
+        env.insert("RB_RC_PORT", mRcPort);
+        mScriptProcess->setProcessEnvironment(env);
 
         mScriptProcess->start(QDir::toNativeSeparators(script), sargs,
                               QIODevice::ReadOnly);
@@ -283,6 +303,8 @@ MountWidget::MountWidget(QProcess *process, const QString &remote,
       this, [=](int status, QProcess::ExitStatus) {
         mProcess->deleteLater();
         isRunning = false;
+        ui.refreshCache->setEnabled(false);
+        mRc->clearEndpoint();
 
         // we terminate script as well
         if (mScriptRunning) {
@@ -339,9 +361,22 @@ void MountWidget::cancel() {
     return;
   }
 
-  QString cmd;
   mUnmountingError = "0";
 
+#if defined(Q_OS_WIN32)
+  // requires rclone version at least 1.50
+  mRc->call("core/quit", QJsonObject(), this, [this](const RcReply &reply) {
+    if (!reply.ok) {
+      ui.output->appendPlainText("core/quit error: " + reply.error);
+      // the process may already have exited: do not revert the final state
+      if (isRunning) {
+        showUnmountFailed(reply.httpStatus != 0
+                              ? QString::number(reply.httpStatus)
+                              : QString("1"));
+      }
+    }
+  });
+#else
   QProcess *pUnmount = new QProcess();
 
   QObject::connect(
@@ -351,17 +386,7 @@ void MountWidget::cancel() {
       this, [=](int status, QProcess::ExitStatus) {
         if (status != 0) {
           // unmounting failed
-          mUnmountingError = QString::number(status);
-          ui.cancel->setEnabled(true);
-          ui.showDetails->setStyleSheet(
-              "QToolButton { border: 0; color: red; font-weight: bold;}");
-          ui.showDetails->setText("  Mounted");
-          mStatus = "0_zmount_mounted";
-          ui.showDetails->setToolTip("Unmounting failed - check if mount"
-                                     " is not used by other programs");
-          ui.showDetails->setStatusTip("Unmounting failed - check if mount"
-                                       " is not used by other programs");
-
+          showUnmountFailed(QString::number(status));
         } else {
           mUnmountingError = "0";
         }
@@ -369,34 +394,6 @@ void MountWidget::cancel() {
 
 #if defined(Q_OS_MACOS) || defined(Q_OS_FREEBSD)
   pUnmount->start("umount", QStringList() << ui.folder->text());
-#else
-#if defined(Q_OS_WIN32)
-  QStringList unmountArgs;
-  unmountArgs << "rc";
-
-  // requires rlone version at least 1.50
-  unmountArgs << "core/quit";
-
-  // get RC parameters from mArgs
-  int index = 0;
-  QString user;
-  QString password;
-
-  unmountArgs << "--rc-addr";
-
-  unmountArgs << "localhost:" + mRcPort;
-
-  index = mArgs.indexOf(QRegularExpression("^--rc-user\\S+"));
-  user = mArgs.at(index);
-
-  index = mArgs.indexOf(QRegularExpression("^--rc-pass\\S+"));
-  password = mArgs.at(index);
-
-  unmountArgs << user << password;
-
-  //  ApplyRcloneEnvironment(pUnmount);
-  pUnmount->start(GetRclone(), unmountArgs, QIODevice::ReadOnly);
-
 #else
   pUnmount->start("fusermount", QStringList() << "-u" << ui.folder->text());
 #endif
@@ -409,6 +406,25 @@ void MountWidget::cancel() {
   ui.showDetails->setText("  Unmounting");
   ui.cancel->setEnabled(false);
   //  ui.cancel->setStatusTip("Close");
+}
+
+void MountWidget::showUnmountFailed(const QString &code) {
+  mUnmountingError = code;
+  ui.cancel->setEnabled(true);
+  ui.showDetails->setStyleSheet(
+      "QToolButton { border: 0; color: red; font-weight: bold;}");
+  ui.showDetails->setText("  Mounted");
+  mStatus = "0_zmount_mounted";
+  ui.showDetails->setToolTip("Unmounting failed - check if mount"
+                             " is not used by other programs");
+  ui.showDetails->setStatusTip("Unmounting failed - check if mount"
+                               " is not used by other programs");
+}
+
+void MountWidget::setRcCredentials(const RcCredentials &creds,
+                                   bool rcEnabled) {
+  mRcCredentials = creds;
+  mRcEnabled = rcEnabled;
 }
 
 QString MountWidget::getUniqueID() { return mUniqueID; }

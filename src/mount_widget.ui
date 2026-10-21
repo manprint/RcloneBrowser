@@ -90,6 +90,32 @@
        </spacer>
       </item>
       <item>
+       <widget class="QToolButton" name="refreshCache">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string>Refresh the rclone VFS directory cache (vfs/refresh)</string>
+        </property>
+        <property name="statusTip">
+         <string>Refresh the rclone VFS directory cache (vfs/refresh)</string>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">QToolButton { border: 0; }
+
+QToolButton:pressed {
+ border: 4;
+ border-radius: 10px;
+ border-style: inset;
+ border-color: rgba(1, 1, 1, 0);
+}</string>
+        </property>
+        <property name="text">
+         <string>Refresh cache</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QToolButton" name="copy">
         <property name="toolTip">
          <string>Copy rclone command to clipboard</string>
@@ -312,6 +338,7 @@ QToolButton:pressed {
  </widget>
  <tabstops>
   <tabstop>showDetails</tabstop>
+  <tabstop>refreshCache</tabstop>
   <tabstop>cancel</tabstop>
  </tabstops>
  <resources/>

@@ -76,6 +76,7 @@ set(OTHER
   instance_lock.h
   terminal_command.h
   rclone_process.h
+  mount_launch.h
   job_options.h
   global.h
   qcronfield.h
@@ -111,6 +112,7 @@ set(SOURCE
   instance_lock.cpp
   terminal_command.cpp
   rclone_process.cpp
+  mount_launch.cpp
   transfer_monitor.cpp
   job_options.cpp
   list_of_job_options.cpp

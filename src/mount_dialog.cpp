@@ -434,41 +434,6 @@ QStringList MountDialog::getOptions() {
     list << "localhost:" + QVariant(ui.le_rcPort->text().toInt()).toString();
     mJobOptions->mountRcPort =
         QVariant(ui.le_rcPort->text().toInt()).toString();
-
-    // generate random username and password
-    const QString possibleCharacters(
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
-
-    QString rcUser;
-    for (int i = 0; i < 10; ++i) {
-
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 1)
-      int index =
-          QRandomGenerator::global()->generate() % possibleCharacters.length();
-#else
-      int index = qrand() % possibleCharacters.length();
-#endif
-
-      QChar nextChar = possibleCharacters.at(index);
-      rcUser.append(nextChar);
-    }
-
-    QString rcPass;
-    for (int i = 0; i < 22; ++i) {
-
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 1)
-      int index =
-          QRandomGenerator::global()->generate() % possibleCharacters.length();
-#else
-      int index = qrand() % possibleCharacters.length();
-#endif
-
-      QChar nextChar = possibleCharacters.at(index);
-      rcPass.append(nextChar);
-    }
-
-    list << "--rc-user=" + rcUser;
-    list << "--rc-pass=" + rcPass;
   }
 
   if (mRemoteType == "drive") {

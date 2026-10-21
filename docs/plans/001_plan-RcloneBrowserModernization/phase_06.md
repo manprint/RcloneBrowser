@@ -26,7 +26,7 @@ Plan revision: 8 (STATE.md §8: revision 7 rc timeout, proxy, env, endpoint and 
   - errors: a missing dir gives `error in ListJSON: directory not found`; an unknown remote gives `didn't find section in config file ("nope")`.
   - Drive `remoteMode` maps to `<remote>,shared_with_me=true:` and `<remote>,trashed_only=true:`. These are the documented option names of `--drive-shared-with-me`/`--drive-trashed-only`; they are not locally testable, so a unit test checks the string only.
 - R17 (local probe 2026-10-21, rcd 1.75.2, isolated container): `config/unlock` returns `{}` for a wrong password too; the next config-using call still fails with `not allowed to ask for password` (NeedsPassword). `config/listremotes` fails while locked and returns `{remotes:[…]}` once unlocked, so it verifies an unlock. Connection-string options unknown to a backend are ignored (`loc,shared_with_me=true:` and `loc,trashed_only=true:` list normally).
-- R10 (local probe): with `rclone serve webdav <dir> --rc --rc-addr 127.0.0.1:0` (the same VFS layer as mount), `vfs/list` gives `{"vfses":[…]}` and `vfs/refresh {"recursive":true}` gives `{"result":{"":"OK"}}`. Tests use serve webdav as the VFS host because Docker has no FUSE.
+- R10 (local probe): with `rclone serve webdav <dir> --rc --rc-addr 127.0.0.1:0` (the same VFS layer as mount), `vfs/list` gives `{"vfses":[…]}` and `vfs/refresh {"recursive":"true"}` gives `{"result":{"":"OK"}}`. The value is the JSON string `"true"`, as `rclone rc vfs/refresh recursive=true` sends it: a JSON boolean is rejected with `value must be string "recursive"=true` (revision 9, found in 5.3). Tests use serve webdav as the VFS host because Docker has no FUSE.
 - D6: transport and lifecycle (port from the log line, `core/quit`, then kill after 3 s).
 - D7: mounts stay separate processes, with rc credentials in the env.
   - Refinement (supervisor, revision 1): the user mount script keeps its documented positional args `rclone port user password folder` for compatibility. That is the single I-5 exception. The script also gets `RCLONE_RC_USER`/`RCLONE_RC_PASS`/`RB_RC_PORT` in its env. The README marks the positional credentials as deprecated.
@@ -228,7 +228,7 @@ signals:
       - Remove the existing `UseRclonePassword`/`ApplyRcloneEnvironment` call there, since the env is now set explicitly.
     - `MountWidget`:
       - the script launch keeps positional `rclone port user password folder`, with user/password from the stored credentials (D7 exception), and its env = `RcloneEnvironment(Parsed)` + `applyRcCredentials` + `RB_RC_PORT=<port>`;
-      - `refreshCache` (text "Refresh cache") is enabled once the port is known and `rcEnabled`. Click: `RcClient` (a member, endpoint `http://127.0.0.1:<port>/` with the credentials) calls `vfs/refresh {"recursive": true}`. ok appends `Refresh cache: OK`, otherwise `Refresh cache failed: <error>`, to `ui.output`.
+      - `refreshCache` (text "Refresh cache") is enabled once the port is known and `rcEnabled`. Click: `RcClient` (a member, endpoint `http://127.0.0.1:<port>/` with the credentials) calls `vfs/refresh {"recursive": "true"}` (R10: a string). ok appends `Refresh cache: OK`, otherwise `Refresh cache failed: <error>`, to `ui.output`.
       - Windows unmount (CI-compiled): replace the `rclone rc core/quit …` process with `RcClient::call("core/quit", {})`. On a callback error, set `mUnmountingError` the way the old process's non-zero exit did.
   - Steps:
     1. S1 — `mount_launch` plus the unit tests.
@@ -243,7 +243,7 @@ signals:
 - **e2e tests:** `tests/tst_e2e_vfs.cpp`, T-E2E-VFS-REFRESH (R10):
   - start `rbRclone() serve webdav <tmp> --addr 127.0.0.1:0 --rc --rc-addr 127.0.0.1:0 --use-json-log --config <empty>` with env from `buildMountLaunch` (the mount stand-in);
   - read the rc port with `parseRcServingPort` on stderr events;
-  - `RcClient` `vfs/refresh {"recursive":true}` is ok with `result["result"]` an object;
+  - `RcClient` `vfs/refresh {"recursive":"true"}` is ok with `result["result"]` an object;
   - `/proc/<pid>/cmdline` contains no credentials;
   - stop the server with `core/quit`.
   - Gate G-U5.3e: `scripts/dev.sh e2e qt64 -- -R tst_e2e_vfs` passes.
