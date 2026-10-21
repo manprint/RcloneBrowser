@@ -60,6 +60,7 @@ set(MOC
   delete_progress_dialog.h
   file_dialog.h
   remote_folder_dialog.h
+  update_check.h
 )
 
 set(OTHER
@@ -68,6 +69,7 @@ set(OTHER
   rclone_log.h
   rclone_format.h
   lsjson_parser.h
+  rclone_version.h
   export_runner.h
   instance_lock.h
   terminal_command.h
@@ -99,6 +101,8 @@ set(SOURCE
   rclone_log.cpp
   rclone_format.cpp
   lsjson_parser.cpp
+  rclone_version.cpp
+  update_check.cpp
   export_runner.cpp
   instance_lock.cpp
   terminal_command.cpp

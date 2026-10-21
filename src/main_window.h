@@ -8,6 +8,8 @@
 #endif
 
 class JobWidget;
+class UpdateChecker;
+struct RcloneVersion;
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -52,6 +54,9 @@ private slots:
   void quitApp(void);
 
 private:
+  void showUnsupportedRcloneDialog(const QString &problem);
+  void startUpdateChecks(const RcloneVersion &rcloneVersion);
+
   Ui::MainWindow ui;
 
   QSystemTrayIcon mSystemTray;
@@ -72,6 +77,8 @@ private:
   IconCache mIcons;
 
   bool mFirstTime = true;
+  UpdateChecker *mRcloneUpdateChecker = nullptr;
+  UpdateChecker *mBrowserUpdateChecker = nullptr;
   int mJobCount = 0;
 
   // keep track of number of active transfers

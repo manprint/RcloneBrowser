@@ -1,4 +1,7 @@
 #include "preferences_dialog.h"
+#include "rclone_process.h"
+#include "rclone_version.h"
+#include "update_check.h"
 #include "utils.h"
 
 PreferencesDialog::PreferencesDialog(QWidget *parent) : QDialog(parent) {
@@ -15,6 +18,14 @@ PreferencesDialog::PreferencesDialog(QWidget *parent) : QDialog(parent) {
   ui.cb_button_4->hide();
 
   ui.cb_remote_xxl->hide();
+
+  // the dialog height is locked below: reserve the room of the slug error
+  // (hidden by default) and of a two-line rclone test result
+  ui.rcloneUpdateRepoError->hide();
+  QSizePolicy errorPolicy = ui.rcloneUpdateRepoError->sizePolicy();
+  errorPolicy.setRetainSizeWhenHidden(true);
+  ui.rcloneUpdateRepoError->setSizePolicy(errorPolicy);
+  ui.rcloneTestResult->setMinimumHeight(fontMetrics().height() * 2);
 
 // dark mode option for all systems but latest macOS
 // on macOS Mojave or newer dark mode is managed by OS
@@ -247,6 +258,93 @@ PreferencesDialog::PreferencesDialog(QWidget *parent) : QDialog(parent) {
       settings->value("Settings/checkRcloneBrowserUpdates", true).toBool());
   ui.checkRcloneUpdates->setChecked(
       settings->value("Settings/checkRcloneUpdates", true).toBool());
+
+  // custom rclone release repository for the update check
+  auto validateUpdateRepo = [this]() {
+    const bool valid =
+        isValidRepoSlug(ui.rcloneUpdateRepo->text().trimmed());
+    ui.rcloneUpdateRepoError->setVisible(!valid);
+    if (QPushButton *ok = ui.buttonBox->button(QDialogButtonBox::Ok)) {
+      ok->setEnabled(valid);
+    }
+  };
+  ui.rcloneUpdateRepo->setText(
+      settings->value("Settings/rcloneUpdateRepo", "rclone/rclone")
+          .toString());
+  QObject::connect(ui.rcloneUpdateRepo, &QLineEdit::textChanged, this,
+                   validateUpdateRepo);
+  validateUpdateRepo();
+
+  // run the selected rclone with "version" and report the outcome
+  QObject::connect(ui.testRclone, &QPushButton::clicked, this, [this]() {
+    ui.testRclone->setEnabled(false);
+    ui.rcloneTestResult->setStyleSheet(QString());
+    ui.rcloneTestResult->setText("Testing...");
+
+    auto showResult = [this](const QString &text, bool good) {
+      ui.rcloneTestResult->setStyleSheet(
+          good ? "color: #2ea043;" : "color: #f85149;");
+      ui.rcloneTestResult->setText(text);
+      ui.testRclone->setEnabled(true);
+    };
+    // U+2014 as UTF-8 bytes: this source stays ASCII
+    const QString dash = QString::fromUtf8(" \xE2\x80\x94 ");
+
+    QProcess *p = new QProcess(this);
+    QTimer *timer = new QTimer(p);
+    timer->setSingleShot(true);
+    auto timedOut = [p]() { return p->property("rbTimedOut").toBool(); };
+
+    QObject::connect(timer, &QTimer::timeout, p, [p]() {
+      p->setProperty("rbTimedOut", true);
+      p->kill();
+    });
+    QObject::connect(
+        p, &QProcess::errorOccurred, this,
+        [p, showResult, timedOut](QProcess::ProcessError error) {
+          // a crash or a kill is reported by finished(); only a start
+          // failure never gets there
+          if (error == QProcess::FailedToStart && !timedOut()) {
+            showResult("Cannot run: " + p->errorString(), false);
+            p->deleteLater();
+          }
+        });
+    QObject::connect(
+        p,
+        static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
+            &QProcess::finished),
+        this,
+        [p, showResult, timedOut, dash](int code, QProcess::ExitStatus status) {
+          if (timedOut()) {
+            showResult("Cannot run: timed out after 10 s", false);
+          } else if (status != QProcess::NormalExit) {
+            showResult("Cannot run: " + p->errorString(), false);
+          } else if (code != 0) {
+            const QString err = QString::fromUtf8(p->readAllStandardError())
+                                    .section('\n', 0, 0)
+                                    .trimmed();
+            showResult("Cannot run: " + (err.isEmpty()
+                                             ? QString("exit code %1").arg(code)
+                                             : err),
+                       false);
+          } else {
+            const QString out =
+                QString::fromUtf8(p->readAllStandardOutput()).trimmed();
+            const QString line = out.section('\n', 0, 0).trimmed();
+            if (isSupportedRclone(RcloneVersion::fromVersionOutput(out))) {
+              showResult(line + dash + "OK", true);
+            } else {
+              showResult(line + dash + "requires 1.75.0 or newer", false);
+            }
+          }
+          p->deleteLater();
+        });
+
+    ApplyRcloneEnvironment(p);
+    timer->start(10000);
+    p->start(ui.rclone->text().trimmed(), QStringList() << "version",
+             QIODevice::ReadOnly);
+  });
 
   if (QSystemTrayIcon::isSystemTrayAvailable()) {
     ui.alwaysShowInTray->setChecked(
@@ -519,6 +617,10 @@ bool PreferencesDialog::getCheckRcloneBrowserUpdates() const {
 
 bool PreferencesDialog::getCheckRcloneUpdates() const {
   return ui.checkRcloneUpdates->isChecked();
+}
+
+QString PreferencesDialog::getRcloneUpdateRepo() const {
+  return ui.rcloneUpdateRepo->text();
 }
 
 bool PreferencesDialog::getAlwaysShowInTray() const {

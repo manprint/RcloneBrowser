@@ -24,5 +24,3 @@ QStringList GetShowHidden();
 QStringList GetRcloneCmd(const QStringList &args);
 
 QDir GetConfigDir(void);
-
-unsigned int compareVersion(std::string, std::string);

@@ -5,6 +5,7 @@
 #include "mount_dialog.h"
 #include "mount_widget.h"
 #include "preferences_dialog.h"
+#include "rclone_version.h"
 #include "remote_widget.h"
 #include "scheduler_widget.h"
 #include "stream_widget.h"
@@ -12,6 +13,7 @@
 #include "lsjson_parser.h"
 #include "rclone_process.h"
 #include "terminal_command.h"
+#include "update_check.h"
 #include "utils.h"
 #ifdef Q_OS_MACOS
 #include "global.h"
@@ -20,6 +22,22 @@
 #include "osx_helper.h"
 #endif
 #include "file_dialog.h"
+
+namespace {
+
+const char kBrowserUpdateRepo[] = "manprint/RcloneBrowser";
+
+// Link of an update message: the release page when the server sent a web URL,
+// else the repository's latest release page.
+QString releaseLink(const ReleaseInfo &release, const QString &slug) {
+  const QString scheme = release.htmlUrl.scheme();
+  if (release.htmlUrl.isValid() && (scheme == "https" || scheme == "http")) {
+    return release.htmlUrl.toString(QUrl::FullyEncoded);
+  }
+  return "https://github.com/" + slug + "/releases/latest";
+}
+
+} // namespace
 
 MainWindow::MainWindow() {
 
@@ -37,6 +55,57 @@ MainWindow::MainWindow() {
   }
 
   auto settings = GetSettings();
+
+  // asynchronous update checks (started from rcloneGetVersion)
+  mRcloneUpdateChecker = new UpdateChecker(this);
+  mBrowserUpdateChecker = new UpdateChecker(this);
+  connect(mRcloneUpdateChecker, &UpdateChecker::newerAvailable, this,
+          [this](const ReleaseInfo &release) {
+            auto s = GetSettings();
+            const QString slug =
+                s->value("Settings/rcloneUpdateRepo", "rclone/rclone")
+                    .toString()
+                    .trimmed();
+            QMessageBox::information(
+                this, "",
+                QString("<p>New rclone version is available</p>"
+                        "<p>You have: v%1<br />New version: v%2</p>"
+                        "<p>Visit rclone <a href=\"%3\">downloads</a> page "
+                        "to upgrade</p>")
+                    .arg(s->value("Settings/rcloneVersion")
+                             .toString()
+                             .toHtmlEscaped(),
+                         release.version.toString().toHtmlEscaped(),
+                         releaseLink(release, slug).toHtmlEscaped()));
+          });
+  connect(mRcloneUpdateChecker, &UpdateChecker::failed, this,
+          [](const QString &reason) {
+            auto s = GetSettings();
+            qWarning().noquote()
+                << "rclone update check failed ("
+                << s->value("Settings/rcloneUpdateRepo", "rclone/rclone")
+                       .toString()
+                << "):" << reason;
+          });
+  connect(mBrowserUpdateChecker, &UpdateChecker::newerAvailable, this,
+          [this](const ReleaseInfo &release) {
+            QMessageBox::information(
+                this, "",
+                QString("<p>New Rclone Browser version is available</p>"
+                        "<p>You have: v%1<br />New version: v%2</p>"
+                        "<p>Visit <a href=\"%3\">releases</a> page to "
+                        "download</p>")
+                    .arg(QString::fromLatin1(RCLONE_BROWSER_VERSION),
+                         release.version.toString().toHtmlEscaped(),
+                         releaseLink(release, kBrowserUpdateRepo)
+                             .toHtmlEscaped()));
+          });
+  connect(mBrowserUpdateChecker, &UpdateChecker::failed, this,
+          [](const QString &reason) {
+            qWarning().noquote()
+                << "Rclone Browser update check failed (" << kBrowserUpdateRepo
+                << "):" << reason;
+          });
 
 #if defined(Q_OS_WIN) && QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
   // disable "?" WindowContextHelpButton (Qt 6 no longer shows it by default)
@@ -574,6 +643,8 @@ MainWindow::MainWindow() {
                          dialog.getCheckRcloneBrowserUpdates());
       settings->setValue("Settings/checkRcloneUpdates",
                          dialog.getCheckRcloneUpdates());
+      settings->setValue("Settings/rcloneUpdateRepo",
+                         dialog.getRcloneUpdateRepo().trimmed());
 
       settings->setValue("Settings/alwaysShowInTray",
                          dialog.getAlwaysShowInTray());
@@ -2515,40 +2586,25 @@ void MainWindow::rcloneGetVersion() {
         if (code == 0) {
           QString version = p->readAllStandardOutput().trimmed();
 
-          // extract rclone version - numbers only
-          QString rclone_info1 = version;
-          QString rclone_version_no;
-          int lineBreak = rclone_info1.indexOf('\n');
-          if (lineBreak != -1) {
-            rclone_info1.remove(lineBreak, rclone_info1.length() - lineBreak);
-            rclone_version_no = rclone_info1;
-            rclone_version_no.replace("rclone v", "");
-            rclone_version_no.replace("-DEV", "");
-          } else {
-            // for very old rclone versions format was one line only
-            rclone_version_no = rclone_info1.trimmed();
-            rclone_version_no.replace("rclone v", "");
-            rclone_version_no.replace("-DEV", "");
-          }
+          // first line of the output, used in the status bar
+          const QString rclone_info1 = version.section('\n', 0, 0).trimmed();
+
+          const RcloneVersion rcloneVersion =
+              RcloneVersion::fromVersionOutput(version);
+
           // save current version no in settings
           auto settings = GetSettings();
-          settings->setValue("Settings/rcloneVersion", rclone_version_no);
+          settings->setValue("Settings/rcloneVersion",
+                             rcloneVersion.toString());
 
-#if defined(Q_OS_WIN32)
-          // check if required version
-          unsigned int result =
-              compareVersion(rclone_version_no.toStdString(), "1.50");
-
-          if (result == 2) {
-            QMessageBox::warning(
-                this, "",
-                "For mount functionality to work you need "
-                "rclone version at least v1.50 "
-                "and your current version is v" +
-                    rclone_version_no +
-                    ". Mount will be disabled. \n\nPlease consider upgrading.");
-          };
-#endif
+          // rclone older than the minimum (or unrecognised output): block
+          // everything else that normally follows a successful version check
+          const QString versionProblem = rcloneVersionProblem(version);
+          if (!versionProblem.isEmpty()) {
+            p->deleteLater();
+            showUnsupportedRcloneDialog(versionProblem);
+            return;
+          }
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 14, 1)
           QStringList lines = version.split("\n", Qt::SkipEmptyParts);
@@ -2634,6 +2690,7 @@ void MainWindow::rcloneGetVersion() {
 #endif
 
           rcloneListRemotes();
+          startUpdateChecks(rcloneVersion);
         } else {
           if (p->error() != QProcess::FailedToStart) {
             if (getConfigPassword(p)) {
@@ -2660,165 +2717,6 @@ void MainWindow::rcloneGetVersion() {
           }
         }
 
-        auto settings = GetSettings();
-
-        /// check rclone version
-
-        // get already stored rclone version no
-        QString rclone_version_no =
-            settings->value("Settings/rcloneVersion").toString();
-
-        // during first run the key might not exist yet
-        if (!(settings->contains("Settings/checkRcloneUpdates"))) {
-          // if checkRcloneUpdates does not exist create new key
-          settings->setValue("Settings/checkRcloneUpdates", true);
-        };
-
-        bool checkRcloneUpdates =
-            settings->value("Settings/checkRcloneUpdates").toBool();
-
-        // if check updates enabled in settings
-        if (checkRcloneUpdates) {
-          QString last_check;
-          QString current_date = QDate::currentDate().toString();
-
-          if (!(settings->contains("Settings/lastRcloneUpdateCheck"))) {
-            // if lastRcloneUpdateCheck does not exist create new key
-            settings->setValue("Settings/lastRcloneUpdateCheck", current_date);
-          } else { // read last check date
-            last_check =
-                settings->value("Settings/lastRcloneUpdateCheck").toString();
-          };
-
-          // dont check if already checked today (once per day only)
-          if (!(last_check == current_date)) {
-            // remmber when last checked
-            settings->setValue("Settings/lastRcloneUpdateCheck", current_date);
-
-            QString url =
-                "https://api.github.com/repos/rclone/rclone/releases/latest";
-            QNetworkAccessManager manager;
-            QNetworkReply *response = manager.get(QNetworkRequest(QUrl(url)));
-            QEventLoop event;
-            connect(response, SIGNAL(finished()), &event, SLOT(quit()));
-            event.exec();
-            QByteArray content = response->readAll();
-            QJsonParseError jsonError;
-
-            QJsonDocument document = QJsonDocument::fromJson(
-                content, &jsonError); // parse and capture the error flag
-
-            if (jsonError.error == QJsonParseError::NoError) {
-
-              if (document.object().contains("tag_name")) {
-
-                QJsonValue tag_name = document.object().value("tag_name");
-
-                QString rclone_latest_version_no = tag_name.toString(QString());
-
-                rclone_latest_version_no.replace("v", "");
-                rclone_latest_version_no.replace("-DEV", "");
-                rclone_latest_version_no = rclone_latest_version_no.trimmed();
-
-                // check if new version available and if yes display information
-                unsigned int result =
-                    compareVersion(rclone_latest_version_no.toStdString(),
-                                   rclone_version_no.toStdString());
-                // latest version is greater than current
-                if (result == 1) {
-
-                  QMessageBox::information(
-                      this, "",
-                      QString(
-                          R"(<p>New rclone version is available</p>)"
-                          R"(<p>You have: v)" +
-                          rclone_version_no +
-                          "<br />"
-                          R"(New version: v)" +
-                          rclone_latest_version_no +
-                          "</p>"
-                          R"(<p>Visit rclone <a href="https://rclone.org/downloads/">downloads</a> page to upgrade</p>)"));
-                };
-              };
-            };
-          };
-        };
-
-        /// check rclone browser version
-
-        // during first run the key might not exist yet
-        if (!(settings->contains("Settings/checkRcloneBrowserUpdates"))) {
-          // if checkRcloneBrowserUpdates does not exist create new key
-          settings->setValue("Settings/checkRcloneBrowserUpdates", true);
-        };
-
-        bool checkRcloneBrowserUpdates =
-            settings->value("Settings/checkRcloneBrowserUpdates").toBool();
-
-        // if check updates enabled in settings
-        if (checkRcloneBrowserUpdates) {
-          QString last_check;
-          QString current_date = QDate::currentDate().toString();
-
-          if (!(settings->contains("Settings/lastRcloneBrowserUpdateCheck"))) {
-            // if lastRcloneBrowserUpdateCheck does not exist create new key
-            settings->setValue("Settings/lastRcloneBrowserUpdateCheck",
-                               current_date);
-          } else { // read last check date
-            last_check =
-                settings->value("Settings/lastRcloneBrowserUpdateCheck")
-                    .toString();
-          };
-
-          // dont check if already checked today (once per day only)
-          if (!(last_check == current_date)) {
-            // remmber when last checked
-            settings->setValue("Settings/lastRcloneBrowserUpdateCheck",
-                               current_date);
-
-            // get latest version available
-            QString url = "https://api.github.com/repos/kapitainsky/"
-                          "rclonebrowser/releases/latest";
-            QNetworkAccessManager manager;
-            QNetworkReply *response = manager.get(QNetworkRequest(QUrl(url)));
-            QEventLoop event;
-            connect(response, SIGNAL(finished()), &event, SLOT(quit()));
-            event.exec();
-            QByteArray content = response->readAll();
-
-            QJsonParseError jsonError;
-            QJsonDocument document = QJsonDocument::fromJson(
-                content, &jsonError); // parse and capture the error flag
-
-            if (jsonError.error == QJsonParseError::NoError) {
-              if (document.object().contains("tag_name")) {
-                QJsonValue tag_name = document.object().value("tag_name");
-                QString rclone_browser_latest_version_no =
-                    tag_name.toString(QString());
-                rclone_browser_latest_version_no =
-                    rclone_browser_latest_version_no.trimmed();
-
-                // check if new version available and if yes display information
-                unsigned int result = compareVersion(
-                    rclone_browser_latest_version_no.toStdString(),
-                    RCLONE_BROWSER_VERSION);
-                // latest version is greater than current
-                if (result == 1) {
-                  QMessageBox::information(
-                      this, "",
-                      QString(
-                          R"(<p>New Rclone Browser version is available</p>)"
-                          R"(<p>You have: v)" RCLONE_BROWSER_VERSION "<br />"
-                          R"(New version: v)" +
-                          rclone_browser_latest_version_no +
-                          "</p>"
-                          R"(<p>Visit <a href="https://github.com/kapitainsky/RcloneBrowser/releases/latest">releases</a> page to download</p>)"));
-                };
-              };
-            };
-          };
-        };
-
         p->deleteLater();
       });
 
@@ -2839,6 +2737,84 @@ void MainWindow::rcloneGetVersion() {
            QStringList() << "version"
                          << "--ask-password=false",
            QIODevice::ReadOnly);
+}
+
+void MainWindow::showUnsupportedRcloneDialog(const QString &problem) {
+  // "Download rclone" shows the dialog again, the other buttons end it
+  for (;;) {
+    QMessageBox box(QMessageBox::Critical, "Unsupported rclone version",
+                    problem + "\n\nrclone path: " + GetRclone(),
+                    QMessageBox::NoButton, this);
+    QPushButton *preferences =
+        box.addButton("Preferences...", QMessageBox::AcceptRole);
+    QPushButton *download =
+        box.addButton("Download rclone", QMessageBox::ActionRole);
+    QPushButton *quit = box.addButton("Quit", QMessageBox::RejectRole);
+    box.setEscapeButton(quit);
+    box.exec();
+
+    if (box.clickedButton() == download) {
+      QDesktopServices::openUrl(QUrl("https://rclone.org/downloads/"));
+      continue;
+    }
+    if (box.clickedButton() == preferences) {
+      // accepting Preferences runs rcloneGetVersion() again
+      emit ui.preferences->trigger();
+    } else if (canClose()) {
+      // quit even when "close to tray" is set (close() would only hide)
+      quitApp();
+    }
+    return;
+  }
+}
+
+void MainWindow::startUpdateChecks(const RcloneVersion &rcloneVersion) {
+  auto settings = GetSettings();
+  const QDate today = QDate::currentDate();
+  const QString todayText = today.toString(Qt::ISODate);
+
+  // rclone (any repository chosen in Preferences)
+  if (!(settings->contains("Settings/checkRcloneUpdates"))) {
+    settings->setValue("Settings/checkRcloneUpdates", true);
+  }
+  if (settings->value("Settings/checkRcloneUpdates").toBool() &&
+      updateCheckDue(
+          settings->value("Settings/lastRcloneUpdateCheck").toString(),
+          today)) {
+    const QString slug =
+        settings->value("Settings/rcloneUpdateRepo", "rclone/rclone")
+            .toString()
+            .trimmed();
+    if (!isValidRepoSlug(slug)) {
+      qWarning().noquote()
+          << "rclone update check skipped: invalid repository" << slug;
+    } else {
+      settings->setValue("Settings/lastRcloneUpdateCheck", todayText);
+      mRcloneUpdateChecker->check(slug, rcloneVersion);
+    }
+  }
+
+  // Rclone Browser itself
+  if (!(settings->contains("Settings/checkRcloneBrowserUpdates"))) {
+    settings->setValue("Settings/checkRcloneBrowserUpdates", true);
+  }
+  if (settings->value("Settings/checkRcloneBrowserUpdates").toBool() &&
+      updateCheckDue(
+          settings->value("Settings/lastRcloneBrowserUpdateCheck").toString(),
+          today)) {
+    const RcloneVersion current =
+        RcloneVersion::fromTag(QString::fromLatin1(RCLONE_BROWSER_VERSION));
+    if (!current.valid) {
+      qWarning().noquote()
+          << "Rclone Browser update check skipped: version"
+          << QString::fromLatin1(RCLONE_BROWSER_VERSION)
+          << "is not major.minor.patch";
+    } else {
+      settings->setValue("Settings/lastRcloneBrowserUpdateCheck", todayText);
+      mBrowserUpdateChecker->check(QString::fromLatin1(kBrowserUpdateRepo),
+                                   current);
+    }
+  }
 }
 
 void MainWindow::rcloneConfig() {

@@ -14,7 +14,7 @@ Phase closure: P3; review by agent-1:opus.
 Read STATE.md §0–1 first for scope, ownership, recovery, checks and commit rules. Open a unit before editing it. Checkpoint at recovery boundaries. Close with evidence. A delegated worker follows its assigned OPEN unit. Missing design decisions go to agent-1:opus. No network access (U6). Tests may use 127.0.0.1 servers only.
 
 ## Local design context
-Plan revision: 1.
+Plan revision: 6 (3.2 update-check clarifications).
 - U1: the minimum rclone is 1.75.0. The support check compares only the numeric triple, so `1.75.0-beta…` and `1.75.2-DEV` count as supported.
 - U4: the update check for Rclone Browser uses `manprint/RcloneBrowser`.
 - D9: `RcloneVersion` replaces `compareVersion` (deleted in 3.2).
@@ -161,6 +161,7 @@ Plan revision: 1.
       - both are gated by the existing check-enable settings and `updateCheckDue`. On dispatch, store `QDate::currentDate().toString(Qt::ISODate)`; a legacy locale-format value simply counts as due.
       - Messages keep today's HTML text, with links to `release.htmlUrl` (fallback: `https://github.com/<slug>/releases/latest`).
       - Distinguish signals by using two checker instances, or a `check` call that includes a context string. The implementer picks one and records it.
+      - (revision 6) Update checks run only from the exit-0 path after the version is supported; the non-zero-exit branch (password retry, Preferences) starts none. If `RcloneVersion::fromTag(RCLONE_BROWSER_VERSION)` is invalid (VERSION is `2.0` until 4.2 sets `2.0.0`), the browser check is skipped with one `qWarning` line and the stored date is not written. `upToDate` shows nothing; `failed(reason)` shows nothing and logs `qWarning` with the slug and reason (today's code is silent on errors; the smoke container has no network). The blocking rule covers the `rcloneGetVersion` handler only; `autoStartMounts` (scheduled by the constructor) is unchanged.
     - Preferences:
       - `rcloneUpdateRepo` loads and saves `Settings/rcloneUpdateRepo`; on edit, an invalid slug shows `rcloneUpdateRepoError` ("Expected owner/repo") and OK is disabled;
       - `testRclone` runs `<ui.rclone text> version` in a `QProcess` with `ApplyRcloneEnvironment` and a 10 s kill timer;

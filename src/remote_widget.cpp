@@ -40,11 +40,6 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
 #endif
 
 #ifdef Q_OS_WIN
-  // check if required rclone version
-  QString rcloneVersion = settings->value("Settings/rcloneVersion").toString();
-  unsigned int rcloneVersionResult =
-      compareVersion(rcloneVersion.toStdString(), "1.50");
-
   // as with Fusion style in Windows QTreeView font size does not scale
   // with QApplication::font() changes we control it manually using style sheet
 
@@ -477,15 +472,6 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
           driveModeButtons = (ui.cb_GoogleDriveMode->currentIndex() == 1 ||
                               ui.cb_GoogleDriveMode->currentIndex() == 2);
         }
-
-#if defined(Q_OS_WIN32)
-        // check if required rclone version
-        if (rcloneVersionResult == 2) {
-          // rclone version before 1.50 - no mount in Windows
-          isNotMountable = true;
-        } else {
-        };
-#endif
 
 // mount is not supported by rclone on these systems
 #if defined(Q_OS_OPENBSD) || defined(Q_OS_NETBSD)

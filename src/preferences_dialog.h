@@ -22,6 +22,7 @@ public:
 
   bool getCheckRcloneBrowserUpdates() const;
   bool getCheckRcloneUpdates() const;
+  QString getRcloneUpdateRepo() const;
 
   bool getAlwaysShowInTray() const;
   bool getCloseToTray() const;
