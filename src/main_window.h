@@ -27,6 +27,12 @@ public slots:
 private slots:
   void rcloneGetVersion();
   void rcloneConfig();
+  // native remote dialog (Create) when the rc daemon runs, else rcloneConfig()
+  void openRemoteConfig();
+  // native remote dialog (Update mode) for `name`
+  void editRemote(const QString &name);
+  // context menu of the remotes list: Edit remote and Advanced (terminal)
+  void showRemotesMenu(const QPoint &pos);
   void rcloneListRemotes();
   void listTasks();
 

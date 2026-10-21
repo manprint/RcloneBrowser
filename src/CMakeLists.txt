@@ -64,6 +64,7 @@ set(MOC
   rc_client.h
   rclone_daemon.h
   config_flow.h
+  remote_config_dialog.h
 )
 
 set(OTHER
@@ -110,6 +111,7 @@ set(SOURCE
   rc_client.cpp
   rclone_daemon.cpp
   config_flow.cpp
+  remote_config_dialog.cpp
   export_runner.cpp
   instance_lock.cpp
   terminal_command.cpp

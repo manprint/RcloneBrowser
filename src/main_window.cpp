@@ -13,6 +13,7 @@
 #include "rc_client.h"
 #include "rclone_daemon.h"
 #include "rclone_version.h"
+#include "remote_config_dialog.h"
 #include "remote_widget.h"
 #include "scheduler_widget.h"
 #include "stream_widget.h"
@@ -865,7 +866,12 @@ MainWindow::MainWindow() {
                    &QPushButton::clicked);
 
   QObject::connect(ui.config, &QPushButton::clicked, this,
-                   &MainWindow::rcloneConfig);
+                   &MainWindow::openRemoteConfig);
+
+  // the remote context menu: native editing and the terminal flow
+  ui.remotes->setContextMenuPolicy(Qt::CustomContextMenu);
+  QObject::connect(ui.remotes, &QWidget::customContextMenuRequested, this,
+                   &MainWindow::showRemotesMenu);
 
   QObject::connect(ui.refresh, &QPushButton::clicked, this,
                    &MainWindow::rcloneListRemotes);
@@ -2911,6 +2917,72 @@ void MainWindow::startUpdateChecks(const RcloneVersion &rcloneVersion) {
       mBrowserUpdateChecker->check(QString::fromLatin1(kBrowserUpdateRepo),
                                    current);
     }
+  }
+}
+
+namespace {
+
+bool daemonRunning() {
+  const QPointer<RcloneDaemon> daemon(global.daemon);
+  return daemon && daemon->state() == RcloneDaemon::State::Running;
+}
+
+// Runs the dialog modally; true when the remote list may have changed: the
+// remote was created or updated, or the flow started and was left (a partial
+// remote whose cleanup failed must still show up in the list).
+bool runRemoteConfigDialog(QWidget *parent, RemoteConfigDialog::Mode mode,
+                           const QString &name) {
+  auto ctx = std::make_shared<QPointer<QObject>>();
+  RemoteConfigDialog dialog(
+      daemonRcCall(QPointer<RcloneDaemon>(global.daemon), ctx), mode, name,
+      parent);
+  *ctx = &dialog;
+  const bool accepted = dialog.exec() == QDialog::Accepted;
+  return accepted || dialog.flowStarted();
+}
+
+} // namespace
+
+void MainWindow::openRemoteConfig() {
+  if (!daemonRunning()) {
+    // no private rcd: the terminal flow is the fallback
+    rcloneConfig();
+    return;
+  }
+  if (runRemoteConfigDialog(this, RemoteConfigDialog::Mode::Create,
+                            QString())) {
+    rcloneListRemotes();
+  }
+}
+
+void MainWindow::editRemote(const QString &name) {
+  if (runRemoteConfigDialog(this, RemoteConfigDialog::Mode::Update, name)) {
+    rcloneListRemotes();
+  }
+}
+
+void MainWindow::showRemotesMenu(const QPoint &pos) {
+  if (QListWidgetItem *item = ui.remotes->itemAt(pos)) {
+    ui.remotes->setCurrentItem(item);
+  }
+  // The name is read now: the menu runs a nested event loop, and a remote
+  // list refresh meanwhile deletes the items.
+  const QList<QListWidgetItem *> selected = ui.remotes->selectedItems();
+  const QString remoteName =
+      selected.isEmpty() ? QString() : selected.first()->text();
+
+  QMenu menu(this);
+  QAction *edit = menu.addAction(QStringLiteral(u"Edit remote\u2026"));
+  edit->setObjectName("actionEditRemote");
+  edit->setEnabled(!remoteName.isEmpty() && daemonRunning());
+  QAction *advanced = menu.addAction(QStringLiteral(u"Advanced (terminal)\u2026"));
+  advanced->setObjectName("actionAdvancedConfig");
+
+  QAction *chosen = menu.exec(ui.remotes->viewport()->mapToGlobal(pos));
+  if (chosen == edit && !remoteName.isEmpty()) {
+    editRemote(remoteName);
+  } else if (chosen == advanced) {
+    rcloneConfig();
   }
 }
 
