@@ -16,6 +16,9 @@ public:
                const QString &remoteType, QWidget *parent = nullptr);
   ~RemoteWidget();
 
+  // hide or show the row of icons above the files list
+  void setButtonsHidden(bool hidden);
+
 signals:
   void addTransfer(const QString &message, const QString &source,
                    const QString &remote, const QStringList &args,

@@ -83,6 +83,8 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
     ui.buttonDedupe->hide();
   }
 
+  setButtonsHidden(settings->value("Settings/hideRemoteIcons", false).toBool());
+
   QString img_add = "";
 
   if (iconsColour == "white") {
@@ -1048,6 +1050,47 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
       settings->setValue("Settings/streamConfirmed", true);
     }
 
+    // several players separated by '|' (e.g. "mpv - | vlc - | mplayer -"):
+    // let the user pick one, a single command is used directly
+    const QStringList choices =
+        stream.split('|', Qt::SkipEmptyParts);
+    if (choices.size() > 1) {
+      QDialog chooser(this);
+      chooser.setWindowTitle("Player?");
+      auto layout = new QVBoxLayout(&chooser);
+      layout->addWidget(new QLabel("Play with:"));
+      auto list = new QListWidget();
+      QStringList commands;
+      for (const QString &choice : choices) {
+        QString cmd = choice.trimmed();
+        if (cmd.isEmpty()) {
+          continue;
+        }
+        QString exe = cmd.section(' ', 0, 0).remove('"');
+        if (cmd.startsWith('"')) {
+          exe = cmd.section('"', 1, 1);
+        }
+        list->addItem(QFileInfo(exe).fileName());
+        commands << cmd;
+      }
+      list->setCurrentRow(0);
+      layout->addWidget(list);
+      auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok |
+                                          QDialogButtonBox::Cancel);
+      layout->addWidget(buttons);
+      QObject::connect(buttons, &QDialogButtonBox::accepted, &chooser,
+                       &QDialog::accept);
+      QObject::connect(buttons, &QDialogButtonBox::rejected, &chooser,
+                       &QDialog::reject);
+      QObject::connect(list, &QListWidget::itemDoubleClicked, &chooser,
+                       &QDialog::accept);
+      chooser.resize(220, 200);
+      if (chooser.exec() != QDialog::Accepted || list->currentRow() < 0) {
+        return;
+      }
+      stream = commands.at(list->currentRow());
+    }
+
     QFileInfo fi(path);
     QString filename = fi.fileName();
     stream.replace("$file_name", filename);
@@ -1711,6 +1754,34 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
 }
 
 RemoteWidget::~RemoteWidget() {}
+
+// Hides or shows the row of icons above the files list of this remote tab.
+// Buttons that were already hidden for other reasons stay hidden. For Google
+// Drive remotes the drive mode selector stays visible.
+void RemoteWidget::setButtonsHidden(bool hidden) {
+  const auto toolButtons = ui.buttons->findChildren<QToolButton *>();
+  for (QToolButton *button : toolButtons) {
+    if (hidden) {
+      if (button->isVisibleTo(ui.buttons)) {
+        button->setProperty("hiddenByPreference", true);
+        button->hide();
+      }
+    } else if (button->property("hiddenByPreference").toBool()) {
+      button->setProperty("hiddenByPreference", false);
+      button->show();
+    }
+  }
+
+  if (hidden) {
+    // close the tools panel, its button is not reachable anymore
+    mButtonToolsState = false;
+    ui.buttonTools->setDown(false);
+    ui.frameTools->hide();
+  }
+
+  ui.buttons->setVisible(!hidden ||
+                         ui.cb_GoogleDriveMode->isVisibleTo(ui.buttons));
+}
 
 QString setRemoteMode(int index, QString remoteType) {
 

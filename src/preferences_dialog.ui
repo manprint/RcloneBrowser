@@ -507,6 +507,49 @@
         </widget>
        </item>
        <item>
+        <widget class="QGroupBox" name="groupBox_hide_tabs">
+         <property name="title">
+          <string>Tabs</string>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_hide_tabs">
+          <item>
+           <widget class="QCheckBox" name="cb_hide_tasks">
+            <property name="text">
+             <string>Hide Tasks tab</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="cb_hide_queue">
+            <property name="text">
+             <string>Hide Queue tab</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="cb_hide_scheduler">
+            <property name="text">
+             <string>Hide Scheduler tab</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_hide_tabs">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
         <spacer name="verticalSpacer">
          <property name="orientation">
           <enum>Qt::Vertical</enum>
@@ -575,6 +618,16 @@
             </property>
             <property name="text">
              <string>Show file icons</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="0" colspan="2">
+           <widget class="QCheckBox" name="hideRemoteIcons">
+            <property name="toolTip">
+             <string>Hide the row of icons above the files list in the remote tabs. The icons of the fixed tabs (Remotes, Jobs, Tasks, Queue, Scheduler) are not affected. All actions stay available in the right-click menu.</string>
+            </property>
+            <property name="text">
+             <string>Hide remote icons</string>
             </property>
            </widget>
           </item>
@@ -972,37 +1025,28 @@
          </property>
          <layout class="QHBoxLayout" name="horizontalLayout">
           <item>
-           <widget class="QRadioButton" name="cb_remote_s">
+           <widget class="QLabel" name="label_remote_icon_scale">
             <property name="text">
-             <string>S</string>
+             <string>Multiplier</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QRadioButton" name="cb_remote_m">
-            <property name="text">
-             <string>M</string>
+           <widget class="QLineEdit" name="le_remote_icon_scale">
+            <property name="maximumSize">
+             <size>
+              <width>60</width>
+              <height>16777215</height>
+             </size>
             </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QRadioButton" name="cb_remote_l">
-            <property name="text">
-             <string>L</string>
+            <property name="toolTip">
+             <string>Icon size = multiplier x the default list icon size of the current style (about 16 px). Use . or , for decimals (0.5 - 20). Old values: XS 1.5, S 3, M 4, L 6, XL 8, XXL 15</string>
             </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QRadioButton" name="cb_remote_xl">
-            <property name="text">
-             <string>XL</string>
+            <property name="maxLength">
+             <number>4</number>
             </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QRadioButton" name="cb_remote_xxl">
             <property name="text">
-             <string>XXL</string>
+             <string>4.0</string>
             </property>
            </widget>
           </item>

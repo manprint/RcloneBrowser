@@ -30,6 +30,11 @@ public:
   bool getNotifyFinishedTransfers() const;
   bool getSoundNotif() const;
 
+  bool getHideTasksTab() const;
+  bool getHideQueueTab() const;
+  bool getHideSchedulerTab() const;
+  bool getHideRemoteIcons() const;
+
   bool getShowFolderIcons() const;
   bool getShowFileIcons() const;
   bool getRowColors() const;

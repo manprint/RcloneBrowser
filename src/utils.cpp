@@ -221,6 +221,32 @@ void SetRclonePassword(const QString &rclonePassword) {
   gRclonePassword = rclonePassword;
 }
 
+double RemotesIconScaleFromSetting(const QString &value) {
+  bool ok = false;
+  double number = value.trimmed().toDouble(&ok);
+  if (ok && number > 0) {
+    return number;
+  }
+  // old settings saved as letters
+  if (value == "XS") {
+    return 1.5;
+  }
+  if (value == "S") {
+    return 3;
+  }
+  if (value == "L") {
+    return 6;
+  }
+  if (value == "XL") {
+    return 8;
+  }
+  if (value == "XXL") {
+    return 15;
+  }
+  // M and anything unknown
+  return 4;
+}
+
 QStringList GetRemoteModeRcloneOptions() {
   auto settings = GetSettings();
   QString googleDriveMode =

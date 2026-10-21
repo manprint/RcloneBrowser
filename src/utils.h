@@ -20,6 +20,9 @@ void SetRclonePassword(const QString &rclonePassword);
 
 QStringList GetDefaultOptionsList(const QString &settingsOptions);
 QStringList GetRemoteModeRcloneOptions();
+// remotes icon size setting -> multiplier; accepts a number ("2.5") or
+// one of the old letter values (XS, S, M, L, XL, XXL)
+double RemotesIconScaleFromSetting(const QString &value);
 QStringList GetShowHidden();
 QStringList GetRcloneCmd(const QStringList &args);
 

@@ -4,6 +4,9 @@
 #include "update_check.h"
 #include "utils.h"
 
+#include <QRegularExpression>
+#include <QRegularExpressionValidator>
+
 PreferencesDialog::PreferencesDialog(QWidget *parent) : QDialog(parent) {
 
   ui.setupUi(this);
@@ -17,7 +20,8 @@ PreferencesDialog::PreferencesDialog(QWidget *parent) : QDialog(parent) {
 
   ui.cb_button_4->hide();
 
-  ui.cb_remote_xxl->hide();
+  ui.le_remote_icon_scale->setValidator(new QRegularExpressionValidator(
+      QRegularExpression("[0-9]{0,2}([.,][0-9]?)?"), this));
 
   // the dialog height is locked below: reserve the room of the slug error
   // (hidden by default) and of a two-line rclone test result
@@ -472,23 +476,19 @@ PreferencesDialog::PreferencesDialog(QWidget *parent) : QDialog(parent) {
     }
   }
 
-  if ((settings->value("Settings/iconSize").toString()) == "S") {
-    ui.cb_remote_s->setChecked(true);
-  } else {
-    if (settings->value("Settings/iconSize").toString() == "L") {
-      ui.cb_remote_l->setChecked(true);
-    } else {
-      if (settings->value("Settings/iconSize").toString() == "XL") {
-        ui.cb_remote_xl->setChecked(true);
-      } else {
-        if (settings->value("Settings/iconSize").toString() == "XXL") {
-          ui.cb_remote_xxl->setChecked(true);
-        } else {
-          ui.cb_remote_m->setChecked(true);
-        }
-      }
-    }
-  }
+  ui.le_remote_icon_scale->setText(QString::number(
+      RemotesIconScaleFromSetting(
+          settings->value("Settings/iconSize").toString()),
+      'f', 1));
+
+  ui.cb_hide_tasks->setChecked(
+      settings->value("Settings/hideTasksTab", false).toBool());
+  ui.cb_hide_queue->setChecked(
+      settings->value("Settings/hideQueueTab", false).toBool());
+  ui.cb_hide_scheduler->setChecked(
+      settings->value("Settings/hideSchedulerTab", false).toBool());
+  ui.hideRemoteIcons->setChecked(
+      settings->value("Settings/hideRemoteIcons", false).toBool());
 
   ui.info_2->setText(
       "See rclone <a "
@@ -736,24 +736,33 @@ QString PreferencesDialog::getButtonSize() const {
   return "0";
 }
 
+bool PreferencesDialog::getHideTasksTab() const {
+  return ui.cb_hide_tasks->isChecked();
+}
+
+bool PreferencesDialog::getHideQueueTab() const {
+  return ui.cb_hide_queue->isChecked();
+}
+
+bool PreferencesDialog::getHideSchedulerTab() const {
+  return ui.cb_hide_scheduler->isChecked();
+}
+
+bool PreferencesDialog::getHideRemoteIcons() const {
+  return ui.hideRemoteIcons->isChecked();
+}
+
 QString PreferencesDialog::getIconSize() const {
-  if (ui.cb_remote_s->isChecked()) {
-    return "S";
-  } else {
-    if (ui.cb_remote_l->isChecked()) {
-      return "L";
-    } else {
-      if (ui.cb_remote_xl->isChecked()) {
-        return "XL";
-      } else {
-        if (ui.cb_remote_xxl->isChecked()) {
-          return "XXL";
-        } else {
-          return "M";
-        }
-      }
-    }
+  // accept both "2.5" and "2,5" whatever the system language is
+  QString text = ui.le_remote_icon_scale->text().trimmed();
+  text.replace(',', '.');
+  bool ok = false;
+  double value = text.toDouble(&ok);
+  if (!ok) {
+    value = 4;
   }
+  value = qBound(0.5, value, 20.0);
+  return QString::number(value, 'f', 1);
 }
 
 QString PreferencesDialog::getHttpProxy() const {
