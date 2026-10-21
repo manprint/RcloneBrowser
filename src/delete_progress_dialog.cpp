@@ -1,5 +1,6 @@
 #include "delete_progress_dialog.h"
 #include "global.h"
+#include "rclone_process.h"
 #include "utils.h"
 
 DeleteProgressDialog::DeleteProgressDialog(const QList<QStringList> &pDataList,
@@ -273,7 +274,7 @@ void DeleteProgressDialog::addNewDeleteProcess(const QStringList &args) {
     emit outputAvailable(output);
   });
 
-  UseRclonePassword(deleteProcess);
+  ApplyRcloneEnvironment(deleteProcess);
   deleteProcess->start(GetRclone(), args, QIODevice::ReadOnly);
 }
 

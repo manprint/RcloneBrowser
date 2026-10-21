@@ -11,6 +11,7 @@
 #include "progress_dialog.h"
 #include "remote_folder_dialog.h"
 #include "transfer_dialog.h"
+#include "rclone_process.h"
 #include "utils.h"
 
 RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
@@ -606,7 +607,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
           Qt::ElideMiddle, 500);
 
       QProcess process;
-      UseRclonePassword(&process);
+      ApplyRcloneEnvironment(&process);
       process.setProgram(GetRclone());
       process.setArguments(QStringList()
                            << "mkdir" << GetRcloneConf()
@@ -645,7 +646,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
         QLineEdit::Normal, name);
     if (!name.isEmpty()) {
       QProcess process;
-      UseRclonePassword(&process);
+      ApplyRcloneEnvironment(&process);
       process.setProgram(GetRclone());
       process.setArguments(QStringList()
                            << "moveto" << GetRcloneConf()
@@ -788,7 +789,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
     }
 
     QProcess process;
-    UseRclonePassword(&process);
+    ApplyRcloneEnvironment(&process);
     process.setProgram(GetRclone());
     process.setArguments(QStringList()
                          << "copy" << GetRcloneConf()
@@ -938,7 +939,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
     }
 
     QProcess process;
-    UseRclonePassword(&process);
+    ApplyRcloneEnvironment(&process);
     process.setProgram(GetRclone());
     process.setArguments(QStringList()
                          << "move" << GetRcloneConf()
@@ -1072,7 +1073,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
               (isLocal ? QDir::toNativeSeparators(path) : path) + "\"";
 
     QProcess *process = new QProcess;
-    UseRclonePassword(process);
+    ApplyRcloneEnvironment(process);
     process->setProgram(GetRclone());
     process->setArguments(QStringList()
                           << "link" << GetRcloneConf()
@@ -1201,7 +1202,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
                       (isLocal ? QDir::toNativeSeparators(path) : path) + "\"";
 
     QProcess *process = new QProcess;
-    UseRclonePassword(process);
+    ApplyRcloneEnvironment(process);
     process->setProgram(GetRclone());
     process->setArguments(
         QStringList() << "tree"
@@ -1275,7 +1276,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
 
     } // if (multiSelectCount > 1)
 
-    UseRclonePassword(process);
+    ApplyRcloneEnvironment(process);
     process->setProgram(GetRclone());
     process->setArguments(QStringList()
                           << "size" << GetRcloneConf()
@@ -1329,7 +1330,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
           R"(\s*(\d+) (\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d)\.\d+ (.+))"));
 
       QProcess *process = new QProcess;
-      UseRclonePassword(process);
+      ApplyRcloneEnvironment(process);
       process->setProgram(GetRclone());
       process->setArguments(QStringList()
                             << GetRcloneConf() << GetRemoteModeRcloneOptions()
@@ -1483,7 +1484,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
       QString source = e.getSource();
 
       QProcess *process = new QProcess;
-      UseRclonePassword(process);
+      ApplyRcloneEnvironment(process);
       process->setProgram(GetRclone());
 
       process->setArguments(QStringList()
@@ -1524,7 +1525,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
     if (e.exec() == QDialog::Accepted) {
 
       QProcess *process = new QProcess;
-      UseRclonePassword(process);
+      ApplyRcloneEnvironment(process);
       process->setProgram(GetRclone());
 
       process->setArguments(QStringList()
@@ -1556,7 +1557,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
     QString toolTip = "\"" + remote + ":" + "\"";
 
     QProcess *process = new QProcess;
-    UseRclonePassword(process);
+    ApplyRcloneEnvironment(process);
     process->setProgram(GetRclone());
     process->setArguments(QStringList()
                           << "about" << GetRcloneConf()
@@ -1595,7 +1596,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
     if (button == QMessageBox::Yes) {
 
       QProcess process;
-      UseRclonePassword(&process);
+      ApplyRcloneEnvironment(&process);
       process.setProgram(GetRclone());
       process.setArguments(QStringList()
                            << "cleanup" << GetRcloneConf()

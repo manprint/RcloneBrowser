@@ -394,7 +394,7 @@ void MountWidget::cancel() {
 
   unmountArgs << user << password;
 
-  //  UseRclonePassword(pUnmount);
+  //  ApplyRcloneEnvironment(pUnmount);
   pUnmount->start(GetRclone(), unmountArgs, QIODevice::ReadOnly);
 
 #else

@@ -259,13 +259,7 @@ QString GetRclone() {
 
 void SetRclone(const QString &rclone) { gRclone = rclone.trimmed(); }
 
-void UseRclonePassword(QProcess *process) {
-  if (!gRclonePassword.isEmpty()) {
-    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-    env.insert("RCLONE_CONFIG_PASS", gRclonePassword);
-    process->setProcessEnvironment(env);
-  }
-}
+QString GetRclonePassword() { return gRclonePassword; }
 
 void SetRclonePassword(const QString &rclonePassword) {
   gRclonePassword = rclonePassword;

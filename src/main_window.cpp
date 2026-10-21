@@ -9,6 +9,7 @@
 #include "scheduler_widget.h"
 #include "stream_widget.h"
 #include "transfer_dialog.h"
+#include "rclone_process.h"
 #include "utils.h"
 #ifdef Q_OS_MACOS
 #include "global.h"
@@ -2831,7 +2832,7 @@ void MainWindow::rcloneGetVersion() {
         emit ui.preferences->trigger();
       });
 
-  UseRclonePassword(p);
+  ApplyRcloneEnvironment(p);
   p->start(GetRclone(),
            QStringList() << "version"
                          << "--ask-password=false",
@@ -2924,7 +2925,7 @@ void MainWindow::rcloneConfig() {
 #endif
 
 #if !defined(Q_OS_WIN32) || (QT_VERSION >= QT_VERSION_CHECK(5, 7, 0))
-  UseRclonePassword(p);
+  ApplyRcloneEnvironment(p, RcloneEnvMode::Interactive);
   p->start(QIODevice::NotOpen);
 #endif
 }
@@ -3129,7 +3130,7 @@ void MainWindow::rcloneListRemotes() {
         emit ui.preferences->trigger();
       });
 
-  UseRclonePassword(p);
+  ApplyRcloneEnvironment(p);
   p->start(GetRclone(),
            QStringList() << "listremotes" << GetRcloneConf()
                          << GetDefaultOptionsList("defaultRcloneOptions")
@@ -4235,8 +4236,12 @@ void MainWindow::addTransfer(const QString &message, const QString &source,
   QProcess *transfer = new QProcess(this);
   transfer->setProcessChannelMode(QProcess::MergedChannels);
 
-  auto widget = new JobWidget(transfer, message, args, source, dest, uniqueId,
-                              transferMode, requestId);
+  // The app owns the logging flags and the environment (I-1).
+  // 1.4 wires ta.logFile / ta.ignored
+  const TransferArgs ta = PrepareTransferArgs(args);
+
+  auto widget = new JobWidget(transfer, message, ta.args, source, dest,
+                              uniqueId, transferMode, requestId);
 
   auto line = new QFrame();
   line->setFrameShape(QFrame::HLine);
@@ -4572,8 +4577,9 @@ void MainWindow::addTransfer(const QString &message, const QString &source,
   ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);
   ui.buttonCleanNotRunning->setEnabled(mJobCount != (ui.jobs->count() - 2) / 2);
 
-  UseRclonePassword(transfer);
-  transfer->start(GetRclone(), args + GetRcloneConf(), QIODevice::ReadOnly);
+  ApplyRcloneEnvironment(transfer);
+  transfer->start(GetRclone(), ta.args + GetRcloneConf(),
+                  QIODevice::ReadOnly);
 
   ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);
   ui.buttonCleanNotRunning->setEnabled(mJobCount != (ui.jobs->count() - 2) / 2);
@@ -4706,7 +4712,7 @@ void MainWindow::addNewMount(const QString &remote, const QString &folder,
     setTasksButtons();
   });
 
-  UseRclonePassword(mount);
+  ApplyRcloneEnvironment(mount);
   mount->start(GetRclone(), argsFinal, QIODevice::ReadOnly);
 
   ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);
@@ -5115,7 +5121,7 @@ void MainWindow::addStream(const QString &remote, const QString &stream,
 
   player->start(streamCmd, streamArgs, QProcess::ReadOnly);
 
-  UseRclonePassword(rclone);
+  ApplyRcloneEnvironment(rclone);
   rclone->start(GetRclone(), QStringList() << args, QProcess::WriteOnly);
 
   ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);

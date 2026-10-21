@@ -210,15 +210,6 @@ QStringList JobOptions::getOptions() const {
     }
   }
 
-  // always verbose
-  list << "--verbose";
-
-  list << "--stats"
-       << "1s";
-
-  list << "--stats-file-name-length"
-       << "0";
-
   if (dryRun) {
     list << "--dry-run";
   }

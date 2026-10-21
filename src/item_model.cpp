@@ -1,6 +1,7 @@
 #include "item_model.h"
 #include "global.h"
 #include "icon_cache.h"
+#include "rclone_process.h"
 #include "utils.h"
 #include <algorithm>
 
@@ -560,8 +561,8 @@ void ItemModel::load(const QPersistentModelIndex &parentIndex, Item *parent) {
   emit endInsertRows();
 
   timer->start(100);
-  UseRclonePassword(lsd);
-  UseRclonePassword(lsl);
+  ApplyRcloneEnvironment(lsd);
+  ApplyRcloneEnvironment(lsl);
 
   // keep track of number of lsl and lsd rclone processes
   mRcloneLsProcessCountMutex.lock();

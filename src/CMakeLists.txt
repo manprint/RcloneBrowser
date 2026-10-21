@@ -66,6 +66,7 @@ set(OTHER
   utils.h
   rclone_log.h
   rclone_format.h
+  rclone_process.h
   job_options.h
   global.h
   qcronfield.h
@@ -92,6 +93,7 @@ set(SOURCE
   utils.cpp
   rclone_log.cpp
   rclone_format.cpp
+  rclone_process.cpp
   job_options.cpp
   list_of_job_options.cpp
   qcron.cpp
