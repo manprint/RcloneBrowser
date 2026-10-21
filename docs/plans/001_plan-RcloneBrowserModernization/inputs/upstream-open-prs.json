@@ -1,0 +1,62 @@
+[
+ {
+  "number": 126,
+  "title": "Replaced Qt 5.15 deprecated method calls",
+  "created": "2020-07-09",
+  "author": "warricksothr"
+ },
+ {
+  "number": 152,
+  "title": "Add architecture ppc64le to travis build",
+  "created": "2020-12-10",
+  "author": "ddeka2910"
+ },
+ {
+  "number": 164,
+  "title": "Mac brew install option",
+  "created": "2021-04-21",
+  "author": "dzg"
+ },
+ {
+  "number": 166,
+  "title": "added a second row",
+  "created": "2021-05-06",
+  "author": "chatumao"
+ },
+ {
+  "number": 173,
+  "title": "Use separate lockfile for each user.",
+  "created": "2021-07-14",
+  "author": "izahn"
+ },
+ {
+  "number": 205,
+  "title": "Fix typo",
+  "created": "2022-04-13",
+  "author": "smortex"
+ },
+ {
+  "number": 212,
+  "title": "Update size-transferred regex for progress in Jobs tab",
+  "created": "2022-07-14",
+  "author": "djpohly"
+ },
+ {
+  "number": 225,
+  "title": "Update `job_widget.cpp` to support rclone 1.56 output changes",
+  "created": "2023-07-17",
+  "author": "MikeRatcliffe"
+ },
+ {
+  "number": 232,
+  "title": "fix: Homebrew install script in README.md results in 404",
+  "created": "2024-03-11",
+  "author": "DevinNorgarb"
+ },
+ {
+  "number": 246,
+  "title": "fix regexes for bw, eta, etc",
+  "created": "2025-05-23",
+  "author": "Skylark13"
+ }
+]

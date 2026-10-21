@@ -245,6 +245,26 @@ Build instructions
 
 > **Note:** Qt 6 no longer provides 32-bit Windows desktop kits, so 32-bit Windows builds are no longer supported.
 
+Development (Docker)
+-----------------------
+
+`scripts/dev.sh` builds, tests and smoke-runs the app inside a Docker container, so no Qt toolchain is needed on the host. The containers run with `--network none`, as your uid:gid, with the repository mounted at `/src`. The host `$HOME` and your rclone configuration are never mounted: inside the container rclone only sees an empty temporary config.
+
+The host `rclone` (version 1.75 or newer, taken from `PATH` or from `RB_RCLONE=/path/to/rclone`) is mounted read-only at `/opt/rclone/rclone` for the end-to-end tests.
+
+```
+scripts/dev.sh build  [qt64|qt610]                 # configure and build into build-docker-<flavor>
+scripts/dev.sh test   [qt64|qt610] [-- <ctest args>]   # unit tests (ctest -L unit)
+scripts/dev.sh e2e    [qt64|qt610] [-- <ctest args>]   # end-to-end tests (ctest -L e2e)
+scripts/dev.sh smoke  [qt64|qt610]                 # start the app offscreen for 10 s
+scripts/dev.sh shell  [qt64|qt610]                 # interactive shell in the container
+scripts/dev.sh image  [qt64|qt610]                 # build the Docker image (needs network)
+```
+
+Flavors: `qt64` (default) uses the image `rb-build:24.04` (Ubuntu 24.04, distro Qt 6.4); `qt610` uses `rb-build:qt610` (Ubuntu 22.04, Qt 6.10.3, as in CI). Example: `scripts/dev.sh test qt64 -- -R 'tst_rclone_(log|format)'`.
+
+Building the images is the only step that needs network access: run `scripts/dev.sh image qt64` or `scripts/dev.sh image qt610` once. All other commands work offline and report a missing image with exit code 3.
+
 Portable vs standard mode
 -----------------------
 

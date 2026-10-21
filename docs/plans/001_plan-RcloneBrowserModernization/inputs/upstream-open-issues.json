@@ -1,0 +1,997 @@
+[
+ {
+  "number": 16,
+  "title": "Manually enter path to browse",
+  "created": "2019-10-01",
+  "labels": [
+   "enhancement"
+  ],
+  "comments": 5
+ },
+ {
+  "number": 19,
+  "title": "Features request - Multiple Config Files and Remotes arrangement",
+  "created": "2019-10-05",
+  "labels": [
+   "wontfix",
+   "wish list"
+  ],
+  "comments": 1
+ },
+ {
+  "number": 21,
+  "title": "Requests: Sorting Task list and Search box",
+  "created": "2019-10-20",
+  "labels": [
+   "enhancement",
+   "will be fixed in the next relase"
+  ],
+  "comments": 15
+ },
+ {
+  "number": 28,
+  "title": "Move files and folders on remotes using drag and drop",
+  "created": "2019-10-27",
+  "labels": [
+   "wontfix",
+   "wish list"
+  ],
+  "comments": 3
+ },
+ {
+  "number": 42,
+  "title": "Select multiple files in file upload/download mode",
+  "created": "2019-11-25",
+  "labels": [
+   "wish list",
+   "will be fixed in the next relase"
+  ],
+  "comments": 2
+ },
+ {
+  "number": 47,
+  "title": "Suggestion: Multilanguage",
+  "created": "2019-12-01",
+  "labels": [
+   "enhancement",
+   "help wanted"
+  ],
+  "comments": 7
+ },
+ {
+  "number": 52,
+  "title": "Extended mount functionality ",
+  "created": "2019-12-05",
+  "labels": [
+   "enhancement",
+   "will be fixed in the next relase"
+  ],
+  "comments": 35
+ },
+ {
+  "number": 60,
+  "title": "Wishlist: System Tray icon, silent startup/auto-mount remotes",
+  "created": "2019-12-29",
+  "labels": [
+   "wish list",
+   "will be fixed in the next relase"
+  ],
+  "comments": 3
+ },
+ {
+  "number": 61,
+  "title": "Sound notification on MacOS",
+  "created": "2019-12-29",
+  "labels": [
+   "enhancement",
+   "will be fixed in the next relase"
+  ],
+  "comments": 9
+ },
+ {
+  "number": 62,
+  "title": "cryptcheck",
+  "created": "2020-01-01",
+  "labels": [
+   "enhancement",
+   "will be fixed in the next relase"
+  ],
+  "comments": 4
+ },
+ {
+  "number": 71,
+  "title": "dual pane interface",
+  "created": "2020-01-31",
+  "labels": [
+   "enhancement",
+   "wontfix",
+   "wish list"
+  ],
+  "comments": 1
+ },
+ {
+  "number": 73,
+  "title": "Task Scheduling",
+  "created": "2020-02-12",
+  "labels": [
+   "will be fixed in the next relase"
+  ],
+  "comments": 9
+ },
+ {
+  "number": 76,
+  "title": "Remotes: Change List view to Tiles to fit in more clouds",
+  "created": "2020-02-17",
+  "labels": [
+   "enhancement",
+   "wish list",
+   "will be fixed in the next relase"
+  ],
+  "comments": 4
+ },
+ {
+  "number": 77,
+  "title": "Export's output file encoded in operating system encoding but not UTF-8",
+  "created": "2020-02-18",
+  "labels": [
+   "bug",
+   "will be fixed in the next relase"
+  ],
+  "comments": 9
+ },
+ {
+  "number": 79,
+  "title": "rclone-browser should not prompt for the config password if RCLONE_PASSWORD_COMMAND is set",
+  "created": "2020-02-20",
+  "labels": [
+   "will be fixed in the next relase"
+  ],
+  "comments": 30
+ },
+ {
+  "number": 80,
+  "title": "Multiselect to run multiple tasks",
+  "created": "2020-02-21",
+  "labels": [
+   "enhancement",
+   "will be fixed in the next relase"
+  ],
+  "comments": 68
+ },
+ {
+  "number": 83,
+  "title": "Status overlaps the breadcrumb",
+  "created": "2020-02-29",
+  "labels": [
+   "bug",
+   "will be fixed in the next relase"
+  ],
+  "comments": 17
+ },
+ {
+  "number": 84,
+  "title": "Notification title and icon",
+  "created": "2020-02-29",
+  "labels": [
+   "bug",
+   "will be fixed in the next relase"
+  ],
+  "comments": 4
+ },
+ {
+  "number": 87,
+  "title": "Feature request: allow editing of source & destination for saved tasks",
+  "created": "2020-03-04",
+  "labels": [
+   "enhancement",
+   "will be fixed in the next relase"
+  ],
+  "comments": 5
+ },
+ {
+  "number": 93,
+  "title": "Next release - beta testing",
+  "created": "2020-03-17",
+  "labels": [
+   "enhancement",
+   "feedback needed",
+   "will be fixed in the next relase"
+  ],
+  "comments": 96
+ },
+ {
+  "number": 94,
+  "title": "Keyboard shortcuts",
+  "created": "2020-03-18",
+  "labels": [
+   "enhancement",
+   "will be fixed in the next relase"
+  ],
+  "comments": 22
+ },
+ {
+  "number": 98,
+  "title": "Allow multi-selection on the tasks tab",
+  "created": "2020-03-28",
+  "labels": [
+   "will be fixed in the next relase"
+  ],
+  "comments": 4
+ },
+ {
+  "number": 104,
+  "title": "Config not working (v1.8.0)",
+  "created": "2020-04-11",
+  "labels": [],
+  "comments": 17
+ },
+ {
+  "number": 107,
+  "title": "Can't access folder if folder name ends with space",
+  "created": "2020-04-23",
+  "labels": [
+   "bug",
+   "will be fixed in the next relase"
+  ],
+  "comments": 12
+ },
+ {
+  "number": 108,
+  "title": "a bigger \"show output\" ?",
+  "created": "2020-04-25",
+  "labels": [
+   "enhancement",
+   "wontfix"
+  ],
+  "comments": 7
+ },
+ {
+  "number": 109,
+  "title": "Feature Request: Queue Jobs (rather than run concurrently)",
+  "created": "2020-04-26",
+  "labels": [
+   "enhancement",
+   "will be fixed in the next relase"
+  ],
+  "comments": 3
+ },
+ {
+  "number": 111,
+  "title": "Global and/or session (up/down) counter statistics on a status bar",
+  "created": "2020-04-28",
+  "labels": [
+   "enhancement",
+   "wontfix"
+  ],
+  "comments": 1
+ },
+ {
+  "number": 112,
+  "title": "ETA field in transfers",
+  "created": "2020-04-28",
+  "labels": [
+   "enhancement",
+   "wontfix"
+  ],
+  "comments": 3
+ },
+ {
+  "number": 115,
+  "title": "Glitched tooltips",
+  "created": "2020-05-02",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 116,
+  "title": "Global upload limit",
+  "created": "2020-05-03",
+  "labels": [],
+  "comments": 5
+ },
+ {
+  "number": 117,
+  "title": "rclone runs in background and do transferring jobs even after canceling running job",
+  "created": "2020-05-07",
+  "labels": [],
+  "comments": 3
+ },
+ {
+  "number": 118,
+  "title": "Feature Request: Restart Jobs",
+  "created": "2020-05-07",
+  "labels": [],
+  "comments": 2
+ },
+ {
+  "number": 119,
+  "title": "FTP , 500 MLSD command not understood.",
+  "created": "2020-05-11",
+  "labels": [],
+  "comments": 3
+ },
+ {
+  "number": 120,
+  "title": "rclone Browser sometimes crashes after heavy use",
+  "created": "2020-06-04",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 121,
+  "title": "Multiselect for files/folders within drives",
+  "created": "2020-06-05",
+  "labels": [],
+  "comments": 2
+ },
+ {
+  "number": 122,
+  "title": "Sort by recent in google drive. ",
+  "created": "2020-06-05",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 123,
+  "title": "Option to show commands used for tasks",
+  "created": "2020-06-05",
+  "labels": [],
+  "comments": 4
+ },
+ {
+  "number": 124,
+  "title": "Google drive root not deleting files as there were IO errors",
+  "created": "2020-06-05",
+  "labels": [],
+  "comments": 4
+ },
+ {
+  "number": 125,
+  "title": "OSX make failing due to deprecated declarations?",
+  "created": "2020-06-25",
+  "labels": [],
+  "comments": 5
+ },
+ {
+  "number": 127,
+  "title": "Build fail on Fedora32: requires \"qt5-qtbase-devel\"",
+  "created": "2020-07-27",
+  "labels": [
+   "documentation"
+  ],
+  "comments": 1
+ },
+ {
+  "number": 128,
+  "title": "Cannot retrieve directory listing via FTP mount",
+  "created": "2020-07-27",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 129,
+  "title": "[Feature request] GUI context menu options for rclone \"crypt\"/\"check\"/\"serve\"?",
+  "created": "2020-07-31",
+  "labels": [],
+  "comments": 2
+ },
+ {
+  "number": 130,
+  "title": "[ ] ( ) and others is not supported",
+  "created": "2020-08-04",
+  "labels": [],
+  "comments": 3
+ },
+ {
+  "number": 132,
+  "title": "Listing (cache) pre warming in mounts",
+  "created": "2020-08-10",
+  "labels": [],
+  "comments": 2
+ },
+ {
+  "number": 133,
+  "title": "--fast-list",
+  "created": "2020-08-27",
+  "labels": [],
+  "comments": 2
+ },
+ {
+  "number": 134,
+  "title": "Option to log errors to file",
+  "created": "2020-09-07",
+  "labels": [],
+  "comments": 4
+ },
+ {
+  "number": 136,
+  "title": "Not remembering Extra Option",
+  "created": "2020-09-18",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 138,
+  "title": "Really wish RcloneBrowser could support multi language, I can help translate. ",
+  "created": "2020-09-21",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 139,
+  "title": "Tasks - some further ideas",
+  "created": "2020-09-30",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 140,
+  "title": "[Bugs x2] Not detecting rclone v1.53.1 manual update, not listing Google Docs in file list view",
+  "created": "2020-10-07",
+  "labels": [
+   "bug"
+  ],
+  "comments": 2
+ },
+ {
+  "number": 141,
+  "title": "Error field is always empty",
+  "created": "2020-10-09",
+  "labels": [
+   "bug"
+  ],
+  "comments": 1
+ },
+ {
+  "number": 142,
+  "title": "Size, Bandwidth and Remaining Time always empty when using --log-file option",
+  "created": "2020-10-29",
+  "labels": [],
+  "comments": 3
+ },
+ {
+  "number": 143,
+  "title": "Request: Convert the tasks.bin file into xml, text or other editable format or give more options for working with tasks.",
+  "created": "2020-10-29",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 144,
+  "title": "Request: \"Are you sure you want to run task\" confirmation before clicking Run button",
+  "created": "2020-10-30",
+  "labels": [],
+  "comments": 2
+ },
+ {
+  "number": 145,
+  "title": "Fail to configure RcloneBrowser",
+  "created": "2020-11-04",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 146,
+  "title": "Mount remotes automatically on launch",
+  "created": "2020-11-06",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 148,
+  "title": "Tap to edit path",
+  "created": "2020-11-20",
+  "labels": [],
+  "comments": 4
+ },
+ {
+  "number": 150,
+  "title": "Task is not saved",
+  "created": "2020-11-26",
+  "labels": [],
+  "comments": 3
+ },
+ {
+  "number": 153,
+  "title": "How to get outside $HOME using SFTP remote",
+  "created": "2020-12-18",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 154,
+  "title": "What is the difference between Dry Run and Run?",
+  "created": "2020-12-22",
+  "labels": [],
+  "comments": 2
+ },
+ {
+  "number": 156,
+  "title": "Minimum width is forced to 1232px",
+  "created": "2020-12-30",
+  "labels": [
+   "enhancement"
+  ],
+  "comments": 3
+ },
+ {
+  "number": 157,
+  "title": "Previous issues",
+  "created": "2021-01-06",
+  "labels": [],
+  "comments": 16
+ },
+ {
+  "number": 158,
+  "title": "Mount dropped easily",
+  "created": "2021-01-27",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 159,
+  "title": "When I open the software, it will be closed automatically and forced to exit",
+  "created": "2021-02-07",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 160,
+  "title": "[macOS] Filename with forward slashes not parsed in running output",
+  "created": "2021-02-07",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 161,
+  "title": "[macOS] Build for Apple Silicon / Universal Binary",
+  "created": "2021-03-08",
+  "labels": [],
+  "comments": 11
+ },
+ {
+  "number": 162,
+  "title": "lockFile is global for all users",
+  "created": "2021-04-13",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 163,
+  "title": "RcloneBrowser - \"Config\" button not working on Ubuntu 18.04 & 20.04",
+  "created": "2021-04-16",
+  "labels": [],
+  "comments": 3
+ },
+ {
+  "number": 167,
+  "title": "Google Photos lists only empty folders",
+  "created": "2021-05-07",
+  "labels": [],
+  "comments": 2
+ },
+ {
+  "number": 168,
+  "title": "On Linux Mint, Appimage starts and Immediately exits",
+  "created": "2021-05-10",
+  "labels": [],
+  "comments": 16
+ },
+ {
+  "number": 169,
+  "title": "Job Widget UI issues when sending multiple small files",
+  "created": "2021-05-31",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 171,
+  "title": "Rclone Browser 1.8 moves files not folder on DropBox",
+  "created": "2021-06-14",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 172,
+  "title": "Clicking config opens a empty terminal",
+  "created": "2021-07-04",
+  "labels": [],
+  "comments": 2
+ },
+ {
+  "number": 174,
+  "title": "Various fields are empty in Rclone v1.56.0",
+  "created": "2021-07-21",
+  "labels": [],
+  "comments": 7
+ },
+ {
+  "number": 175,
+  "title": "How to launch terminal in BSD",
+  "created": "2021-09-02",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 176,
+  "title": "'Copy command to clipboard ' button in Tasks view",
+  "created": "2021-09-06",
+  "labels": [],
+  "comments": 4
+ },
+ {
+  "number": 177,
+  "title": "Feature Request: Scheduled Tasks",
+  "created": "2021-09-18",
+  "labels": [],
+  "comments": 7
+ },
+ {
+  "number": 178,
+  "title": "Hidden Remotes",
+  "created": "2021-10-02",
+  "labels": [
+   "enhancement"
+  ],
+  "comments": 11
+ },
+ {
+  "number": 179,
+  "title": "The exclude option is never being applied to transfers",
+  "created": "2021-10-05",
+  "labels": [],
+  "comments": 8
+ },
+ {
+  "number": 180,
+  "title": "Mount multiple remotes",
+  "created": "2021-10-18",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 181,
+  "title": "Command Line Interface?",
+  "created": "2021-10-30",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 182,
+  "title": "Problems with remaining time and bandwidth fields while downloading",
+  "created": "2021-11-01",
+  "labels": [],
+  "comments": 13
+ },
+ {
+  "number": 185,
+  "title": "setting up configs on one of two mounts of same remote",
+  "created": "2021-11-11",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 186,
+  "title": "If I change the main RB app icon that appears in the Dock when the app is closed, the app icon reverts to the original one when RB is opened.",
+  "created": "2021-11-14",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 188,
+  "title": "not an issue - feature suggestion",
+  "created": "2021-11-22",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 190,
+  "title": "Error when run git clone in mount directory ",
+  "created": "2021-11-28",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 192,
+  "title": "[Feature Request] 'Copy' Button in context menu and top bar",
+  "created": "2021-12-12",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 193,
+  "title": "Compile the test2",
+  "created": "2021-12-24",
+  "labels": [],
+  "comments": 19
+ },
+ {
+  "number": 194,
+  "title": "Feature Request: Copy/Export Mount Command",
+  "created": "2021-12-29",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 195,
+  "title": "Check for updates",
+  "created": "2022-01-06",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 198,
+  "title": "Various fields are empty in Rclone v1.57.0",
+  "created": "2022-02-03",
+  "labels": [
+   "bug"
+  ],
+  "comments": 7
+ },
+ {
+  "number": 199,
+  "title": "Need Support Remote Upload For Url",
+  "created": "2022-02-07",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 200,
+  "title": "Scheduled Tasks",
+  "created": "2022-02-10",
+  "labels": [],
+  "comments": 8
+ },
+ {
+  "number": 201,
+  "title": "Tasks and jobs tab are Grayed out",
+  "created": "2022-02-19",
+  "labels": [],
+  "comments": 3
+ },
+ {
+  "number": 203,
+  "title": "Has this been abandoned? Any good forks?",
+  "created": "2022-03-20",
+  "labels": [],
+  "comments": 46
+ },
+ {
+  "number": 204,
+  "title": "Queue manager",
+  "created": "2022-03-29",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 206,
+  "title": "possible to hide unencrypted remote source ?",
+  "created": "2022-04-14",
+  "labels": [],
+  "comments": 3
+ },
+ {
+  "number": 207,
+  "title": "Issue on compile",
+  "created": "2022-04-16",
+  "labels": [],
+  "comments": 7
+ },
+ {
+  "number": 208,
+  "title": "is it possible to start rclonebrowser in tray?",
+  "created": "2022-05-14",
+  "labels": [],
+  "comments": 4
+ },
+ {
+  "number": 209,
+  "title": "MacOS rclone location error",
+  "created": "2022-05-22",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 210,
+  "title": "setting as a network drive on windows // and mounting to any unused drive letter",
+  "created": "2022-05-26",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 211,
+  "title": "How to retrieve folder listings from local storage?",
+  "created": "2022-07-12",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 213,
+  "title": "Rclone configuration on NAS",
+  "created": "2022-08-21",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 214,
+  "title": "Make running executable again open the original instance",
+  "created": "2022-08-28",
+  "labels": [],
+  "comments": 2
+ },
+ {
+  "number": 215,
+  "title": "Feature Request: remember last used mountpoint ",
+  "created": "2022-09-10",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 218,
+  "title": "Possible to quit without “job in progress” alert? Or is force quit safe?",
+  "created": "2023-01-08",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 219,
+  "title": "make error",
+  "created": "2023-02-09",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 220,
+  "title": "'Create folder in' (1) confuses, (2) hangs.",
+  "created": "2023-02-23",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 221,
+  "title": "Can No Longer Mount",
+  "created": "2023-04-08",
+  "labels": [],
+  "comments": 2
+ },
+ {
+  "number": 222,
+  "title": "Portable version?",
+  "created": "2023-05-09",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 223,
+  "title": "Build Errors on Ubuntu from Debrecations",
+  "created": "2023-05-16",
+  "labels": [],
+  "comments": 6
+ },
+ {
+  "number": 226,
+  "title": "Command copied to clipboard not working",
+  "created": "2023-08-11",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 228,
+  "title": "Small visual bug",
+  "created": "2023-09-05",
+  "labels": [],
+  "comments": 3
+ },
+ {
+  "number": 231,
+  "title": "RcloneBrowser no longer seems compatible with Rclone 1.64.2",
+  "created": "2023-10-29",
+  "labels": [],
+  "comments": 3
+ },
+ {
+  "number": 233,
+  "title": "Generate error log in real time?",
+  "created": "2024-03-14",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 235,
+  "title": "Taking longer to complete the task",
+  "created": "2024-06-30",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 238,
+  "title": "Duplicates on Google Drive are silently both deleted",
+  "created": "2024-10-02",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 239,
+  "title": "Configure doesn't work",
+  "created": "2024-10-06",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 240,
+  "title": "Rclone Browser into ARM architecture",
+  "created": "2024-12-08",
+  "labels": [],
+  "comments": 2
+ },
+ {
+  "number": 242,
+  "title": "Brew intall stopped cold on \"could not create work tree dir 'RcloneBrowser': Read-only file system\"",
+  "created": "2025-01-02",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 243,
+  "title": "Support for bisync ?",
+  "created": "2025-03-05",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 244,
+  "title": "[linux] QT6 + wayland",
+  "created": "2025-04-08",
+  "labels": [],
+  "comments": 2
+ },
+ {
+  "number": 247,
+  "title": "RCloneBrowser Compile for FreeBSD Core(No Desktop)",
+  "created": "2025-07-17",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 248,
+  "title": "void QProcess::start(const QString&, QIODevice::OpenMode)’ is deprecated",
+  "created": "2026-03-14",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 249,
+  "title": "Can RcloneBrowser be autoupdated?",
+  "created": "2026-03-29",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 250,
+  "title": "how can mounts be autostarted",
+  "created": "2026-04-19",
+  "labels": [],
+  "comments": 1
+ },
+ {
+  "number": 251,
+  "title": "Can't View Sub Folders",
+  "created": "2026-06-08",
+  "labels": [],
+  "comments": 0
+ },
+ {
+  "number": 252,
+  "title": "Exclude files from Sync",
+  "created": "2026-06-10",
+  "labels": [],
+  "comments": 2
+ },
+ {
+  "number": 253,
+  "title": "[Announcement] Rclone Browser Next for macOS: Apple Silicon, redesigned UI and current rclone support",
+  "created": "2026-10-20",
+  "labels": [],
+  "comments": 0
+ }
+]
