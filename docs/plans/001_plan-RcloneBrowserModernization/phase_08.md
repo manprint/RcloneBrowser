@@ -42,10 +42,11 @@ Plan revision: 1.
 - **Model:** agent-2:sonnet
 - **Assignment:** implementer. agent-1:opus reviews after the diff. The review uses `git diff --color-moved=plain --color-moved-ws=allow-indentation-change`: every removed constructor line reappears in a setup method, and the only non-moved hunks are method signatures, calls, member declarations and promoted locals.
 - **Files:**
-  - NEW `tests/tst_mainwindow_snapshot.cpp` (unit, `QTEST_MAIN`) and `tests/fixtures/synthetic/mainwindow_snapshot.txt`.
+  - NEW `tests/tst_mainwindow_snapshot.cpp` (unit, `QTEST_MAIN`, Linux only: revision 13) and `tests/fixtures/synthetic/mainwindow_snapshot.txt`.
   - WRITE `src/main_window.h/.cpp`.
 - **Change:**
   - Preconditions: P6 DONE.
+  - Revision 13 (supersedes the registration, environment and recording lines of 7.1): (a) `tst_mainwindow_snapshot` is registered only when `CMAKE_SYSTEM_NAME STREQUAL "Linux"`: the constructor has platform branches and CI runs unit tests on Windows, macOS and FreeBSD; the Windows/macOS compile of the split is checked by G-CI dispatched on the 7.1 commit, before 7.2. (b) `scripts/dev.sh` does not forward host variables, so the test always writes its actual snapshot next to its binary (`mainwindow_snapshot.actual.txt`) and S1 records the fixture by copying that file; `RB_RECORD_SNAPSHOT=1` still works for direct runs. (c) the test uses `SetRclone("/bin/false")` always (identical on every runner, no rcd from a unit test); the snapshot skips objectNames starting with `qt_` or `_q_` (Qt internals that differ between Qt versions), escapes `\`, newlines and `|`, and replaces the app version and the test temp dir with `<VERSION>` and `<TESTDIR>`. (d) after the window is destroyed the test checks that no `rcd --rc-addr 127.0.0.1:0` process is left. The fixture must also pass on qt610 (CI Linux runs Qt 6.10.3).
   - Snapshot contract, `QString mainWindowSnapshot(QWidget *w)`:
     - for every `QWidget` descendant with a non-empty objectName, sorted by objectName then class name, one line `W|<objectName>|<className>|<isEnabled>|<isVisibleTo(w)>|<text>|<toolTip>|<checked>`;
       - text: from QAbstractButton/QLabel/QLineEdit, else empty;

@@ -1,7 +1,7 @@
 # Rclone Browser modernization — Implementation state
 
 Read this file first in every session. Updated 2026-10-22 by agent-1:opus (execute session 1).
-Plan ID: 001_plan-RcloneBrowserModernization. Revision: 12. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
+Plan ID: 001_plan-RcloneBrowserModernization. Revision: 13. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
 Plan baseline: `0a57f4f` (HEAD of `ci/macos-arm64-dmg`, which is master `1551dbd` plus the PR #1 commits). Pre-existing changes at planning time:
 - untracked `.serena/`, which is unrelated: never stage or modify it;
 - untracked `docs/plans/001_plan-RcloneBrowserModernization/`, this plan, authored by this planning session (provenance established).
@@ -64,17 +64,17 @@ Recover an unresolved audit completion commit first, without finalizing the susp
 
 - Active scope: plan 001, all phases 0–14 (invocation `/plan-execute-verify-mid execute 001`, 2026-10-21; phase 14 added by revision 11). User, 2026-10-21: "finisci il piano in autonomia".
 - Scope result: RUNNING
-- Type: phase
-- ID / attempt: P6 / 1
-- Status: CLOSED (unit:P6:1)
-- Intent: phase 6 closure: README obligation (native config dialog, Edit remote/Advanced (terminal), Cancel semantics, `dev.sh servers`/`server-images` and the isolation paragraph), phase gates, P6 review. The first G-E2E run found B-T1 (a flaky `reveal` in two test helpers), fixed as its own unit before the closure.
-- Assigned: agent-1:opus (supervisor: README, gates, review, state writer).
-- File / unit heading: phase_07.md "Phase gates and closure"
-- Current step: done
-- Next action: 7.1 (phase_08.md "Golden snapshot test; constructor split"; agent-2:sonnet implementer via `pev-subphase-v2`, agent-1:opus moved-code review), then 7.2, P7, then phase 14 (v2.0.0).
-- Next eligible plan unit: 7.1 (phase_08.md).
-- Unit base: aeee597 (unit:6.3:1), then unit:B-T1:1; branch: `dev/001-modernization`; owned changes: `README.md`, STATE.md.
-- Repo state: HEAD = unit:P6:1; untracked `.serena/` (unrelated).
+- Type: sub-phase
+- ID / attempt: 7.1 / 1
+- Status: OPEN
+- Intent: golden widget-state snapshot T-MW-SNAPSHOT recorded against the unchanged `MainWindow`, then the constructor split into named setup methods (D14: moved lines only).
+- Assigned: `pev-subphase-v2` workflow (explicit models: sonnet-5-5 implementer/fixer, haiku-5-5 gate runner, opus-5-5 reviewers `moved` and `snapshot` and verifiers, sonnet-5-5 prefetch for 7.2); agent-1:opus (coordinator, final reviewer, state writer).
+- File / unit heading: phase_08.md "7.1 Golden snapshot test; constructor split"
+- Current step: S1
+- Next action: workflow runs implement (S1 record, S2 split, S3 suites) → gates ∥ reviews → fix rounds; coordinator proves the fixture against the unsplit code (worktree at the unit base), runs the gates, records STATE, commits, dispatches G-CI before 7.2.
+- Next eligible plan unit: 7.2 (phase_08.md).
+- Unit base: 69784c4 (unit:P6:1); branch: `dev/001-modernization`; owned changes: `src/main_window.h/.cpp`, NEW `tests/tst_mainwindow_snapshot.cpp`, NEW `tests/fixtures/synthetic/mainwindow_snapshot.txt`, `tests/CMakeLists.txt`; plan `phase_08.md` (revision 13), STATE.md.
+- Repo state: HEAD 69784c4; untracked `.serena/` (unrelated).
 
 ## 2. Feature context and readiness
 
@@ -376,6 +376,7 @@ Cold-read note (1.4, agent-1:opus, 2026-10-21): every symbol 1.4 uses is defined
 | 10 | R13 decision "ConfigFlow always sends the accumulated answers as `parameters`"; phase_07 advanced-options rule ("Show advanced options" answers advanced options unless checked), `setShowAdvanced`, T-CFG-ADVANCED, the 6.2 `showAdvanced` checkbox; no rule for an empty Update password, a looping flow, an existing name in Create, or a cancel during an in-flight step | R18 probes (isolated containers, temp configs, `--network none`, rcd `--rc-no-auth` on 127.0.0.1): echo-all writes every option (empty ones too) while echoing only non-default answers (passwords only when non-empty, never `config_*`) keeps passwords obscured and writes only non-default keys; an Update password answered `""` becomes an obscured empty string (password lost), answered with `DefaultStr` stays byte-identical; `config_fs_advanced=true` loops forever (exact `State` repeats; also with `all:true` on continue calls). New rules: the R18 echo rules, Update empty password → `DefaultStr`, `config_fs_advanced` auto-`false` (advanced options only via "Advanced (terminal)…"), loop guard on a repeated auto-answered `State` or 500 steps, Create refuses an existing name, cleanup waits for an in-flight step, async fake; new T-CFG-PARAMS and T-CFG-LOOP (G-U6.1 10 functions), stronger T-E2E-CONFIG-SFTP/UPDATE oracles, the `(unchanged)` placeholder in 6.2, README notes at P6 | agent-1:opus (6.1 pre-dispatch review, advisor-checked) | phase_07 R18, contract, request rules, 6.1 tests, 6.2 dialog, P6 README obligation; overview R13/R18; 6.1 not started before this revision |
 | 11 | (a) no real-protocol test (servers only via `rclone serve` on 127.0.0.1); (b) no plan unit for the open upstream issues beyond the 0.4 triage; (c) v2.0.0 readiness at P7, the user tags; (d) G-CI, tags and merges user-run (I-6) | (a) user, 2026-10-21: "puoi pullare minio, in locale puoi avviare anche webdav, un sftp, un ftp … Questi test puoi farli, anzi li devi fare": NEW 6.3 (isolated server harness, R19 probes, `dev.sh server-images`/`servers`, G-SERVERS local-only, required at P6 and later), I-9 extended; (b) user: "le issue upstream vanno verificate e risolte, se occorre": NEW phase 14 (`phase_15.md`, 14.1–14.5) after P7 and before P8, from the read-only sweep wf_7aa437c8-baa with the R-REPRO/R-ROW/R-DEDUP rules; P8 and P9 now depend on P14; (c) v2.0.0 readiness moves to P14 so the sweep ships in 2.0.0; P13 adds the `v2.1.0-beta.1` prerelease; (d) user authorizations (§3): the supervisor pushes, dispatches, tags and merges on manprint | agent-1:opus (advisor-checked) | phase_07 6.3 + closure gates; phase_08 closure; phase_09/10 prerequisites; phase_14 closure; NEW phase_15; overview phase map, I-6, I-9, R19, verification, model table; §3 G-SERVERS/G-REL/P-6; §11 boards and tests |
 | 12 | phase_07 6.2 assumed Cancel while editing leaves the remote unchanged ("nothing to clean up") | rclone saves every `config/update` answer as it is given (agent-1 probe 2026-10-22, isolated container); the P6 README obligation now states that Cancel while editing keeps the answers already confirmed with Next, and Cancel while creating removes the new remote. No restore on cancel: a delete/re-create restore could lose the remote on encrypted or OAuth configs. (b) G-SERVERS required the literal `Total Tests: 1`, which `ctest -V` never prints (only `ctest -N` does; found by the 6.3 gate runner): the oracle is `100% tests passed, 0 tests failed out of 1` | agent-1:opus (6.2 final review; 6.3 gate wording) | P6 README; follow-up F-W4 (§9); no test change (T-RCD-CANCEL covers the Create cleanup) |
+| 13 | phase_08 7.1: T-MW-SNAPSHOT as a unit test on every platform, recorded with `RB_RECORD_SNAPSHOT=1 scripts/dev.sh test …`, `SetRclone(rbRclone())` when set | Linux-only registration (platform branches in the constructor; CI runs unit tests on Windows, macOS and FreeBSD), recording by copying the actual file the test always writes (dev.sh forwards no host variables), `/bin/false` always, `qt_`/`_q_` names skipped, field escaping, `<VERSION>`/`<TESTDIR>` normalization, a no-rcd oracle; G-CI on the 7.1 commit before 7.2 | agent-1:opus (7.1 pre-dispatch, advisor-checked) | 7.1 brief; G-U7.1 also on qt610; G-CI moves from P7 debt to the 7.1 closure |
 
 Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 9.1 S2 (new `actionServes`) and 11.2 S2 (new `openDual` button). Each re-recording lists only the added lines here when it happens.
 
@@ -441,7 +442,7 @@ Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 9
 | 6.1 | phase_07.md | P5 | DONE | 1 | G-U6.1, G-U6.1e pass; unit:6.1:1 |
 | 6.2 | phase_07.md | 6.1 | DONE | 1 | G-U6.2 pass; unit:6.2:1 |
 | 6.3 | phase_07.md | 6.1, P-6 | DONE | 1 | G-U6.3, G-SERVERS pass; unit:6.3:1 |
-| 7.1 | phase_08.md | P6 | TODO | 1 | — |
+| 7.1 | phase_08.md | P6 | IN_PROGRESS | 1 | — |
 | 7.2 | phase_08.md | 7.1 | TODO | 1 | — |
 | 14.1 | phase_15.md | P7, 6.3 | TODO | 1 | — |
 | 14.2 | phase_15.md | 14.1 | TODO | 1 | — |
@@ -474,7 +475,7 @@ Units run in ID order. A prerequisite must be DONE; SKIPPED never satisfies it i
 | 4 | phase_05.md | P4 | DONE | P4 review (§7); unit:P4:1 |
 | 5 | phase_06.md | P5 | DONE | P5 review (§7); unit:P5:1 |
 | 6 | phase_07.md | P6 | DONE | P6 review (§7); unit:P6:1 |
-| 7 | phase_08.md | P7 | TODO | — |
+| 7 | phase_08.md | P7 | IN_PROGRESS | — |
 | 14 | phase_15.md | P14 (runs after P7, before P8; v2.0.0 readiness) | TODO | — |
 | 8 | phase_09.md | P8 | TODO | — |
 | 9 | phase_10.md | P9 | TODO | — |
