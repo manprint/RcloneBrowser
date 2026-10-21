@@ -2091,6 +2091,15 @@ MainWindow::MainWindow() {
   QString rclone = GetRclone();
   if (rclone.isEmpty()) {
     rclone = QStandardPaths::findExecutable("rclone");
+#ifdef Q_OS_MACOS
+    // apps started from Finder get a minimal PATH without the Homebrew
+    // (/opt/homebrew/bin on Apple Silicon), rclone installer and MacPorts
+    // locations
+    if (rclone.isEmpty()) {
+      rclone = QStandardPaths::findExecutable(
+          "rclone", {"/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin"});
+    }
+#endif
     if (rclone.isEmpty()) {
       QMessageBox::information(
           this, "Error",
