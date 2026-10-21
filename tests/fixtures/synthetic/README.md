@@ -39,3 +39,17 @@ The file ends with an empty line after (f), so it is `...something\n\n`.
 | (e) | array close | `]` | nullopt; not counted as skipped |
 | (f) | rclone log text on stdout | `2026/10/21 10:00:00 NOTICE: something` | nullopt; counted as 1 skipped |
 | (g) | empty line | (empty) | nullopt; not counted as skipped |
+
+## config_errors/
+
+stderr of `rclone listremotes --long --json --ask-password=false --config <file>` in the default text log format
+(`YYYY/MM/DD HH:MM:SS LEVEL : msg`), captured from rclone 1.75.2 against an encrypted config (R8). The timestamps
+are fixed and the config path is replaced by `/FIXTURE/c.conf`. Each file is read as a whole and passed to
+`classifyConfigLoadError(1, stderr)`.
+
+| File | Case | Lines | Expected classification |
+|---|---|---|---|
+| `needs.txt` | encrypted config, no password | 1 CRITICAL: `unable to decrypt configuration and not allowed to ask for password` | NeedsPassword |
+| `wrong.txt` | wrong `RCLONE_CONFIG_PASS` | ERROR `Couldn't decrypt configuration, most likely wrong password.`, then CRITICAL `using RCLONE_CONFIG_PASS env password, unable to decrypt configuration` | WrongPassword |
+| `cmdfail.txt` | `RCLONE_PASSWORD_COMMAND` exits non-zero | ERROR `Using --password-command returned: exit status 1`, then CRITICAL `password command failed: exit status 1` | PasswordCommandFailed |
+| `other.txt` | not a password problem | text form of the recorded `../rclone-1.75/config_fail.jsonl` CRITICAL message (`didn't find section in config file`) | Other |

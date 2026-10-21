@@ -33,3 +33,21 @@ struct TransferArgs {
 TransferArgs PrepareTransferArgs(
     const QStringList &args,
     const QProcessEnvironment &env = QProcessEnvironment::systemEnvironment());
+
+// Why rclone could not load its configuration file (R8, rclone 1.75).
+enum class ConfigLoadProblem {
+  None,
+  NeedsPassword,
+  WrongPassword,
+  PasswordCommandFailed,
+  Other
+};
+
+// Classifies the stderr of a failed rclone run. Case-sensitive substring
+// match, so JSON-log and text stderr give the same result. Rules in order:
+// exit 0 -> None; "password command failed" -> PasswordCommandFailed;
+// "most likely wrong password" or "using RCLONE_CONFIG_PASS env password" ->
+// WrongPassword; "not allowed to ask for password" -> NeedsPassword;
+// anything else -> Other.
+ConfigLoadProblem classifyConfigLoadError(int exitCode,
+                                          const QByteArray &stderrBytes);

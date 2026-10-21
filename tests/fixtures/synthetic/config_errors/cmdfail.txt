@@ -1,0 +1,2 @@
+2026/10/21 10:00:00 ERROR : Using --password-command returned: exit status 1
+2026/10/21 10:00:00 CRITICAL: Failed to load config file "/FIXTURE/c.conf": password command failed: exit status 1

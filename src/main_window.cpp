@@ -3108,18 +3108,40 @@ void MainWindow::rcloneListRemotes() {
 }
 
 bool MainWindow::getConfigPassword(QProcess *p) {
-  QString output = p->readAllStandardError().trimmed();
-  if (output.indexOf("RCLONE_CONFIG_PASS") > 0) {
+  const QByteArray stderrBytes = p->readAllStandardError();
+  const ConfigLoadProblem problem =
+      classifyConfigLoadError(p->exitCode(), stderrBytes);
+
+  switch (problem) {
+  case ConfigLoadProblem::NeedsPassword:
+  case ConfigLoadProblem::WrongPassword: {
+    QString label = "Enter password for .rclone.conf configuration file:";
+    if (problem == ConfigLoadProblem::WrongPassword) {
+      SetRclonePassword("");
+      label = "Wrong password. " + label;
+    }
     bool ok;
     QString password = QInputDialog::getText(
-        this, qApp->applicationDisplayName(),
-        "Enter password for .rclone.conf configuration file:",
-        QLineEdit::Password, QString(), &ok);
+        this, qApp->applicationDisplayName(), label, QLineEdit::Password,
+        QString(), &ok);
     if (ok) {
       SetRclonePassword(password);
       return true;
     }
-  } else if (output.indexOf("unknown command \"listremotes\"") > 0) {
+    return false;
+  }
+  case ConfigLoadProblem::PasswordCommandFailed:
+    QMessageBox::warning(this, qApp->applicationDisplayName(),
+                         "RCLONE_PASSWORD_COMMAND failed:\n" +
+                             lastRcloneStderrMessage(stderrBytes));
+    return false;
+  case ConfigLoadProblem::None:
+  case ConfigLoadProblem::Other:
+    break;
+  }
+
+  if (QString::fromUtf8(stderrBytes).trimmed().indexOf(
+          "unknown command \"listremotes\"") > 0) {
     QMessageBox::critical(this, qApp->applicationDisplayName(),
                           "It seems rclone version you are using is too "
                           "old.\nPlease upgrade to the latest version");

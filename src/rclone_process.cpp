@@ -195,3 +195,21 @@ TransferArgs PrepareTransferArgs(const QStringList &args,
   ta.args << tail;
   return ta;
 }
+
+ConfigLoadProblem classifyConfigLoadError(int exitCode,
+                                          const QByteArray &stderrBytes) {
+  if (exitCode == 0) {
+    return ConfigLoadProblem::None;
+  }
+  if (stderrBytes.contains("password command failed")) {
+    return ConfigLoadProblem::PasswordCommandFailed;
+  }
+  if (stderrBytes.contains("most likely wrong password") ||
+      stderrBytes.contains("using RCLONE_CONFIG_PASS env password")) {
+    return ConfigLoadProblem::WrongPassword;
+  }
+  if (stderrBytes.contains("not allowed to ask for password")) {
+    return ConfigLoadProblem::NeedsPassword;
+  }
+  return ConfigLoadProblem::Other;
+}

@@ -136,6 +136,36 @@ private slots:
                  .contains("RCLONE_CONFIG_PASS"));
   }
 
+  // T-CFGPASS-CLASSIFY
+  void T_CFGPASS_CLASSIFY_data() {
+    QTest::addColumn<int>("exitCode");
+    QTest::addColumn<QString>("file");
+    QTest::addColumn<int>("expected");
+    QTest::newRow("needs") << 1 << "synthetic/config_errors/needs.txt"
+                           << int(ConfigLoadProblem::NeedsPassword);
+    QTest::newRow("wrong") << 1 << "synthetic/config_errors/wrong.txt"
+                           << int(ConfigLoadProblem::WrongPassword);
+    QTest::newRow("cmdfail") << 1 << "synthetic/config_errors/cmdfail.txt"
+                             << int(ConfigLoadProblem::PasswordCommandFailed);
+    QTest::newRow("other") << 1 << "synthetic/config_errors/other.txt"
+                           << int(ConfigLoadProblem::Other);
+    QTest::newRow("exit0") << 0 << QString() << int(ConfigLoadProblem::None);
+  }
+
+  void T_CFGPASS_CLASSIFY() {
+    QFETCH(int, exitCode);
+    QFETCH(QString, file);
+    QFETCH(int, expected);
+    QByteArray stderrBytes;
+    if (!file.isEmpty()) {
+      QFile f(rbFixture(file));
+      QVERIFY2(f.open(QIODevice::ReadOnly), qPrintable(f.fileName()));
+      stderrBytes = f.readAll();
+      QVERIFY(!stderrBytes.isEmpty());
+    }
+    QCOMPARE(int(classifyConfigLoadError(exitCode, stderrBytes)), expected);
+  }
+
   void cleanupTestCase() { SetRclonePassword(""); }
 };
 

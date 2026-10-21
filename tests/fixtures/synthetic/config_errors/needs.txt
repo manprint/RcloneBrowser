@@ -1,0 +1,1 @@
+2026/10/21 10:00:00 CRITICAL: Failed to load config file "/FIXTURE/c.conf": unable to decrypt configuration and not allowed to ask for password - set RCLONE_CONFIG_PASS to your configuration password

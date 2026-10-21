@@ -1,0 +1,2 @@
+2026/10/21 10:00:00 ERROR : Couldn't decrypt configuration, most likely wrong password.
+2026/10/21 10:00:00 CRITICAL: Failed to load config file "/FIXTURE/c.conf": using RCLONE_CONFIG_PASS env password, unable to decrypt configuration
