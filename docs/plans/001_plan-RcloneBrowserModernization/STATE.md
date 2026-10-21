@@ -64,17 +64,17 @@ Recover an unresolved audit completion commit first, without finalizing the susp
 
 - Active scope: plan 001, all phases 0–13 (invocation `/plan-execute-verify-mid execute 001`, 2026-10-21).
 - Scope result: RUNNING
-- Type: none (0.2 closed)
-- ID / attempt: —
-- Status: none
-- Intent: —
-- Assigned: —; supervisor: agent-1:opus
-- File / unit heading: —
-- Current step: none
-- Next action: open 0.3 (phase_01.md "0.3 CI: tests in every job, …"); P-1 refs present.
-- Next eligible plan unit: 0.3 (phase_01.md).
-- Unit base: —; branch: `dev/001-modernization`; owned changes: none.
-- Repo state: see the ledger; untracked `.serena/` (unrelated).
+- Type: sub-phase
+- ID / attempt: 0.3 / 1
+- Status: DONE (closed by the completion commit for unit:0.3:1)
+- Intent: CI runs unit tests in every job and e2e on Linux; Travis/AppVeyor removed; CodeQL + dependabot; VERSION/tag check.
+- Assigned: agent-2:sonnet; supervisor: agent-1:opus (at P0; CI-compiled, D12)
+- File / unit heading: phase_01.md "0.3 CI: tests in every job, …"
+- Current step: closed
+- Next action: open 0.4 (phase_01.md "0.4 Upstream triage document"; agent-3:haiku).
+- Next eligible plan unit: 0.4 (phase_01.md).
+- Unit base: `e7834ad`; branch: `dev/001-modernization`; owned changes: `.github/**`, `.travis.yml`, `.appveyor.yml`, `README.md` (badges), plus `tests/CMakeLists.txt` (test binary output directory; review finding, §7).
+- Repo state: HEAD `e7834ad`; untracked `.serena/` (unrelated).
 
 ## 2. Feature context and readiness
 
@@ -173,6 +173,7 @@ The executor never runs these (U6). It only runs the local "verify" commands, an
 | Type | ID / attempt | Plan revision | Agent | Changes | Evidence/review | Commit |
 |------|--------------|---------------|-------|---------|-----------------|--------|
 | plan | plan / 1 | 2 | agent-1:opus | `docs/plans/001_plan-RcloneBrowserModernization/` (overview, phase_01–14, STATE, inputs) | quality checklist; cold read of 1.4 (§7) | included in unit:0.1:1 |
+| sub-phase | 0.3 / 1 | 2 | agent-2:sonnet (worker); agent-1:opus (coordinator, reviewer) | build.yml: `-DRB_BUILD_TESTS=ON` + `ctest -L unit` in the 5 build jobs (Windows after build with Qt bin on PATH, FreeBSD in the VM, macOS before bundling, Linux before install); Linux downloads rclone v1.75.2 with a SHA256SUMS check, `-DRB_TEST_RCLONE`, `ctest -L e2e`; `create_release` sparse checkout + tag/VERSION check; NEW codeql.yml (dispatch + Monday 03:00, manual build), dependabot.yml (github-actions monthly); DELETE `.travis.yml`, `.appveyor.yml`; README Travis/AppVeyor badges removed; `tests/CMakeLists.txt` test binaries in `build/tests` | G-U0.3 pass; G-CI not-run (needs push, §9); review (§7) | unit:0.3:1 |
 | sub-phase | 0.2 / 1 | 2 | agent-2:sonnet (worker); agent-1:opus (coordinator, reviewer) | root/src CMakeLists: `rb_warnings`, `rclone-browser-core` STATIC, exe = main.cpp + QRC (+rc/icns), PUBLIC definitions; NEW `tests/CMakeLists.txt` (`rb_add_test`, plus AUTOMOC ON for test targets), `tests/support/rb_test_support.h`, `tests/tst_utils.cpp`, `tests/tst_e2e_rclone_smoke.cpp`, `tests/fixtures/.gitkeep` | G-U0.2 pass; reviews before S2 and after S5 (§7) | unit:0.2:1 |
 | sub-phase | 0.1 / 1 | 2 | agent-2:sonnet (worker); agent-1:opus (coordinator) | NEW `docker/qt64.Dockerfile`, `docker/qt610.Dockerfile`, `scripts/dev.sh`; README section "Development (Docker)" (heading in the README's setext style) | G-U0.1 pass (§7) | unit:0.1:1 |
 
@@ -204,6 +205,8 @@ Research checkpoint: N/A. Planning research is complete (R1–R16).
 | G-BASE | §3 | pass | exit 0; 90/90 ninja steps; `grep -c 'warning:'` = 0; `build-docker-base/build/rclone-browser` exists (3.5 MB) | 0a57f4f | 2026-10-21 |
 | G-U0.1 | `bash -n`; `dev.sh nosuch`; `dev.sh build qt64`; `dev.sh smoke qt64`; `RB_RCLONE=/bin/true dev.sh build`; `dev.sh build qt610` | pass | exit 64 with usage; build exit 0, 90/90, 0 `warning:` (`/tmp/rb-gates/u01-build.log`), exe present; `smoke: alive after 10s`; exit 2 with the rclone message; exit 3 with the image message; `-e RCLONE_CONFIG=/tmp/home/rclone-empty.conf` present, no `.config/rclone`, no host HOME mount; Dockerfiles match the contract byte-for-byte; `dev.sh test qt64 -- -N` passthrough works (0 tests before 0.2) | 0a57f4f + 0.1 diff | 2026-10-21 |
 | G-U0.2 | `dev.sh build qt64` (clean); `dev.sh test qt64 -- -V`; `dev.sh e2e qt64 -- -V`; `dev.sh smoke qt64`; I-8 ninja check | pass | build 99/99, 0 `warning:` (`/tmp/rb-gates/u02-build.log`), exe + `src/librclone-browser-core.a`; tst_utils PASS T_UTIL_SPLIT/EMPTY/PORTABLE, Totals 5 passed, 1/1; tst_e2e_rclone_smoke PASS T_E2E_SMOKE_VERSION/LSJSON, Totals 4 passed, 1/1; smoke alive; 55 compile commands, 0 without `-Werror`; version strings identical to the G-BASE binary (`GUI for rclone, v2.0`) | 649f6d6 + 0.2 diff | 2026-10-21 |
+| G-U0.3 | G-YAML (host); `git grep -n -i 'travis\|appveyor'`; `dev.sh build qt64` (clean); `dev.sh test qt64`; `dev.sh e2e qt64` | pass | `yaml ok 3`; grep hits only in the plan docs/inputs and the generic comment `scripts/release_AppImage.sh:58` (behavior keys on `$CI`; accepted); build 99/99, 0 `warning:`; tst_utils 1/1, tst_e2e_rclone_smoke 1/1; `build-docker-qt64/build/` holds only `rclone-browser`, the test binaries are in `build-docker-qt64/tests/` | e7834ad + 0.3 diff | 2026-10-21 |
+| G-CI (0.3) | user push (P-4) + one `workflow_dispatch` CodeQL run | not-run (needs push) | — | — | — |
 | P-1 verify | §3 Prefetch | pass | the 8 commits resolve as `commit`; hrpv codeql.yml + dependabot.yml present; `nicolaius/my-customizations` = cc483cce55fd; totza2010 `src/images/remotes_icons/teldrive.png` | remotes added 2026-10-21 | 2026-10-21 |
 | I-9 probe | temp `RCLONE_CONFIG` (scratchpad), `rclone lsjson <tmp dir>` | missing file → `NOTICE: Config file … not found - using defaults`; existing empty file → silent | — | rclone 1.75.2 | 2026-10-21 |
 | R6 image check | `docker run --rm --network none rb-build:24.04 ls /usr/lib/x86_64-linux-gnu/cmake/` | LinguistTools absent (expected; P-5) | — | image as of 2026-10-21 | 2026-10-21 (planning) |
@@ -216,6 +219,7 @@ Results are one of: pass, fail, blocked, not-run, not-applicable-yet. Only pass 
 | Plan readiness | agent-1:opus | revision 1 | quality checklist "Plan readiness" (every item); dependencies acyclic; every test ID has an owner and a gate | READY |
 | 0.2 design (before S2) | agent-1:opus | revision 2; worker S1 draft of root/src/tests CMakeLists on base 649f6d6 | D10 lists and targets; `rb_warnings` `if(MSVC)` form (I-8); PUBLIC definitions; MOC_OUT once; PCH on CORE_SOURCE/MOC_OUT; exe = main.cpp + QRC (+ rc/icns); tests registration | approved with changes: drop the empty `if(WIN32)` branch (use `if(APPLE)`); write S3/S4 test sources before the first build (configure needs them); verify the version string in the binary. Qt resources stay exe-only (D10); 13.2 adds the qrc to its own test. RB_BUILD_TESTS default ON kept (QtTest is part of qtbase everywhere). |
 | 0.2 diff (after S5) | agent-1:opus | revision 2; 0.2 working-tree diff on 649f6d6 | D10 targets/lists, MOC_OUT once, PCH macro on CORE_SOURCE/MOC_OUT, exe properties and install rules unchanged, I-8 (`rb_warnings` PUBLIC), I-9 (support header verbatim, `cleanEnv()` restores the temp `RCLONE_CONFIG`), naming rule | approved. Accepted deviation: `AUTOMOC ON` on test targets (test classes are declared in the .cpp; the project has no AUTOMOC). Windows/macOS link and MSVC PCH are CI-compiled → G-CI debt (§9). |
+| 0.3 diff | agent-1:opus | revision 2; 0.3 working-tree diff on e7834ad | contract S1–S3; ctest placement per platform; SHA256 taken from SHA256SUMS in the same step before configure; I-9 (no rclone remotes in CI; e2e uses its temp config); VERSION check; CodeQL triggers and manual build; dependabot without action bumps | approved with one change: test binaries were written to `build/build` (CMAKE_RUNTIME_OUTPUT_DIRECTORY), which the Windows (`build\build\Release\*`) and FreeBSD (`build/build/*`) artifact globs ship in release zips → `RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}` on test targets (also keeps Windows tests on the Qt install DLLs and plugins instead of the windeployqt copies). Accepted: sparse `actions/checkout@v4` before the VERSION check (the release job had no checkout); an `::error::` message after the contract test; CodeQL with `-DRB_BUILD_TESTS=OFF` and codeql-action v4 (as in hrpv; no other codeql-action in the repo); checkout kept at the repo's v4. |
 | Cold read 1.4 | agent-1:opus | revision 1, phase_02.md 1.4 | the worker can implement and test from phase_02 + STATE.md alone; see the finding note below | pass (no missing decision) |
 
 Cold-read note (1.4, agent-1:opus, 2026-10-21): every symbol 1.4 uses is defined by 1.1–1.3 (`consumeLine`, `finish(code, status, stoppedByUser)`, `lastStatsText`, `recentErrors`, `clampedPercent`, `RcloneEnvironment(mode, base)`, render rule 8). The fixture file count (6) matches the 1.1 recorder tree. One gap was found and fixed in revision 1: the final stats block had no defined event time and no empty case. finish step 3 now builds the event with the current time and skips it when there were no stats. The JobWidget constructor stays the existing one (anchor `src/job_widget.h`). No other missing decision.
@@ -238,6 +242,7 @@ Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 9
 | B-P2 | G-BUILD610 at G-REL and G-FINAL (P<N> records `blocked (P-2)`) | the image `rb-build:qt610` is absent | user | after 0.1, run P-2 |
 | B-P4 | G-CI (debt from 0.3; required for tags and G-FINAL) | requires a push | user | push and report the run ID |
 | CI-debt 0.2 | G-CI | Windows (MSVC PCH on CORE_SOURCE, `resources.rc` in exe) and macOS (bundle from main.cpp + core, `.mm` in core) are not compiled locally | user push (P-4) | check the Windows x64/ARM64 and macOS jobs at the first G-CI |
+| CI-debt 0.3 | G-CI | all workflow changes are CI-only: ctest in the 5 jobs (Windows DLL/plugin lookup, FreeBSD `ctest` in the VM), the Linux rclone download/SHA check and e2e, the release VERSION check (first runs on a tag), CodeQL manual build | user push (P-4) | at the first G-CI: every job green, `ctest -L unit` output in each log, Linux `tst_e2e_rclone_smoke … Passed`, one dispatched CodeQL run |
 | N-1 (non-blocking) | none | the triage document from 0.4 needs per-issue user sign-off (`User OK` column) | user | review `docs/triage/upstream-issues.md` |
 
 ## 10. Do-not-repeat
@@ -258,7 +263,7 @@ Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 9
 |----|------------|------------|--------|---------|-------------------|
 | 0.1 | phase_01.md | G-BASE | DONE | 1 | G-U0.1 pass; unit:0.1:1 |
 | 0.2 | phase_01.md | 0.1 | DONE | 1 | G-U0.2 pass; unit:0.2:1 |
-| 0.3 | phase_01.md | 0.2, P-1 (B-P1) | TODO | 1 | — |
+| 0.3 | phase_01.md | 0.2, P-1 (B-P1) | DONE | 1 | G-U0.3 pass; G-CI debt (§9); unit:0.3:1 |
 | 0.4 | phase_01.md | 0.1 | TODO | 1 | — |
 | 1.1 | phase_02.md | P0 | TODO | 1 | — |
 | 1.2 | phase_02.md | 1.1 | TODO | 1 | — |

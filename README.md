@@ -1,6 +1,6 @@
 <img src="https://github.com/kapitainsky/RcloneBrowser/wiki/images/RcloneBrowserLongLogo1.png" width="80%" />
 
-[![Travis CI Build Status][img1]][1] [![AppVeyor Build Status][img2]][2] [![Downloads][img3]][3] [![Release][img4]][4] <img src="https://img.shields.io/badge/Qt-cmake-green.svg"> [![Codacy Badge](https://api.codacy.com/project/badge/Grade/e22f828fc0c94dcf9ddb3d38701d177f)](https://www.codacy.com/manual/kapitainsky/RcloneBrowser?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=kapitainsky/RcloneBrowser&amp;utm_campaign=Badge_Grade) [![License][img5]][5] [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/kapitainsky)
+[![Downloads][img3]][3] [![Release][img4]][4] <img src="https://img.shields.io/badge/Qt-cmake-green.svg"> [![Codacy Badge](https://api.codacy.com/project/badge/Grade/e22f828fc0c94dcf9ddb3d38701d177f)](https://www.codacy.com/manual/kapitainsky/RcloneBrowser?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=kapitainsky/RcloneBrowser&amp;utm_campaign=Badge_Grade) [![License][img5]][5] [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/kapitainsky)
 
 Rclone browser
 ==============
@@ -312,8 +312,6 @@ If you would like to donate towards code signing keys please feel free to [do it
 
 Raised so far: 7.82 USD (1.6% of the required target)
 
-[1]: https://travis-ci.org/kapitainsky/RcloneBrowser
-[2]: https://ci.appveyor.com/project/kapitainsky/RcloneBrowser
 [3]: https://github.com/kapitainsky/RcloneBrowser/releases
 [4]: https://github.com/kapitainsky/RcloneBrowser/releases/latest
 [5]: https://github.com/kapitainsky/RcloneBrowser/blob/master/LICENSE
@@ -322,8 +320,6 @@ Raised so far: 7.82 USD (1.6% of the required target)
 [8]: https://docs.microsoft.com/en-us/visualstudio/releases/2019/release-notes
 [9]: http://www.cmake.org/
 [10]: https://www.qt.io/download-open-source/
-[img1]: https://api.travis-ci.org/kapitainsky/RcloneBrowser.svg?branch=master
-[img2]: https://ci.appveyor.com/api/projects/status/cclx7jc48t4u4x9u?svg=true
 [img3]: https://img.shields.io/github/downloads/kapitainsky/RcloneBrowser/total.svg?maxAge=3600
 [img4]: https://img.shields.io/github/release/kapitainsky/RcloneBrowser.svg?maxAge=3600
 [img5]: https://img.shields.io/github/license/kapitainsky/RcloneBrowser.svg?maxAge=3600

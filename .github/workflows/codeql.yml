@@ -1,0 +1,59 @@
+name: "CodeQL"
+
+on:
+  # Manual start from the Actions tab ("Run workflow"), plus a weekly scan that
+  # finds new advisories for code paths that did not change.
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0 3 * * 1'
+
+env:
+  QT_VERSION: '6.10.3'
+
+jobs:
+  analyze:
+    name: Analyze (cpp)
+    # Same runner, Qt and build commands as the Linux build job.
+    runs-on: ubuntu-22.04
+    permissions:
+      # needed to upload the results to the Security tab
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: 'linux'
+          target: 'desktop'
+          arch: 'linux_gcc_64'
+          modules: 'qtmultimedia'
+
+      - name: Install build dependencies
+        run: |
+          sudo apt update
+          sudo apt -y install build-essential cmake libgl1-mesa-dev
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: cpp
+          # manual build mode: CodeQL traces the build step below
+          build-mode: manual
+
+      - name: Build Rclone Browser
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DCMAKE_INSTALL_PREFIX=/usr -DRB_BUILD_TESTS=OFF
+          make --jobs="$(nproc)"
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:cpp"

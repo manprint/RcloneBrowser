@@ -35,9 +35,14 @@ jobs:
           cd build
           # Let CMake auto-detect the newest installed Visual Studio generator
           # (windows-latest ships VS 2026, not VS 2022).
-          cmake -A x64 -DCMAKE_CONFIGURATION_TYPES="Release" -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR" ..
+          cmake -A x64 -DCMAKE_CONFIGURATION_TYPES="Release" -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR" -DRB_BUILD_TESTS=ON ..
           cmake --build . --config Release
           & "$env:QT_ROOT_DIR\bin\windeployqt.exe" --no-translations --no-compiler-runtime --no-svg ".\build\Release\RcloneBrowser.exe"
+      - name: Run unit tests
+        run: |
+          # the test executables load the Qt DLLs from the Qt install
+          $env:PATH = "$env:QT_ROOT_DIR\bin;$env:PATH"
+          ctest --test-dir build -L unit --output-on-failure -C Release
       - uses: actions/upload-artifact@v4
         with:
           name: windows
@@ -66,9 +71,15 @@ jobs:
           mkdir build
           cd build
           # Let CMake auto-detect the newest installed Visual Studio generator.
-          cmake -A ARM64 -DCMAKE_CONFIGURATION_TYPES="Release" -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR" ..
+          cmake -A ARM64 -DCMAKE_CONFIGURATION_TYPES="Release" -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR" -DRB_BUILD_TESTS=ON ..
           cmake --build . --config Release
           & "$env:QT_ROOT_DIR\bin\windeployqt.exe" --no-translations --no-compiler-runtime --no-svg ".\build\Release\RcloneBrowser.exe"
+      - name: Run unit tests
+        shell: pwsh
+        run: |
+          # the test executables load the Qt DLLs from the Qt install
+          $env:PATH = "$env:QT_ROOT_DIR\bin;$env:PATH"
+          ctest --test-dir build -L unit --output-on-failure -C Release
       - uses: actions/upload-artifact@v4
         with:
           name: windows-arm64
@@ -119,13 +130,41 @@ jobs:
           chmod +x "$HOME/linuxdeploy/"linuxdeploy*
           echo "$HOME/linuxdeploy" >> "$GITHUB_PATH"
 
+      - name: Download rclone for the e2e tests
+        run: |
+          set -euo pipefail
+          RCLONE_VERSION=v1.75.2
+          BASE_URL="https://downloads.rclone.org/${RCLONE_VERSION}"
+          ZIP="rclone-${RCLONE_VERSION}-linux-amd64.zip"
+          mkdir -p "$RUNNER_TEMP/rclone-download" "$RUNNER_TEMP/rclone"
+          cd "$RUNNER_TEMP/rclone-download"
+          curl -fsSL -O "${BASE_URL}/${ZIP}"
+          curl -fsSL -o SHA256SUMS "${BASE_URL}/SHA256SUMS"
+          # the expected hash comes from the SHA256SUMS published next to the zip
+          EXPECTED="$(awk -v f="$ZIP" '$2 == f { print $1 }' SHA256SUMS)"
+          test "$(printf '%s\n' "$EXPECTED" | wc -l)" -eq 1
+          test -n "$EXPECTED"
+          echo "${EXPECTED}  ${ZIP}" | sha256sum -c -
+          unzip -q -j "$ZIP" "rclone-${RCLONE_VERSION}-linux-amd64/rclone" -d "$RUNNER_TEMP/rclone"
+          chmod +x "$RUNNER_TEMP/rclone/rclone"
+          "$RUNNER_TEMP/rclone/rclone" version
+
       - name: Build Rclone Browser
         run: |
           mkdir build
           cd build
-          cmake .. -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DCMAKE_INSTALL_PREFIX=/usr
+          cmake .. -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DCMAKE_INSTALL_PREFIX=/usr \
+            -DRB_BUILD_TESTS=ON -DRB_TEST_RCLONE="$RUNNER_TEMP/rclone/rclone"
           make --jobs="$(nproc)"
-          make install DESTDIR="$GITHUB_WORKSPACE/AppDir"
+
+      - name: Run unit tests
+        run: ctest --test-dir build -L unit --output-on-failure -C Release
+
+      - name: Run e2e tests
+        run: ctest --test-dir build -L e2e --output-on-failure -C Release
+
+      - name: Install into AppDir
+        run: make -C build install DESTDIR="$GITHUB_WORKSPACE/AppDir"
 
       - name: Build AppImage
         env:
@@ -168,8 +207,10 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake .. -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64
+          cmake .. -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DRB_BUILD_TESTS=ON
           make -j "$(sysctl -n hw.ncpu)"
+      - name: Run unit tests
+        run: ctest --test-dir build -L unit --output-on-failure -C Release
       - name: Bundle, sign and package DMG
         run: |
           cd build/build
@@ -242,8 +283,10 @@ jobs:
           run: |
             mkdir build
             cd build
-            cmake ..
+            cmake -DRB_BUILD_TESTS=ON ..
             make
+            cd ..
+            ctest --test-dir build -L unit --output-on-failure -C Release
             
       - uses: actions/upload-artifact@v4
         with:
@@ -261,6 +304,17 @@ jobs:
       contents: write
 
     steps:
+      # VERSION is read from the tagged commit, so the repository is needed.
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: VERSION
+      - name: Check the tag matches VERSION
+        shell: bash
+        run: |
+          test "${GITHUB_REF_NAME#v}" = "$(cat VERSION)" || [[ "${GITHUB_REF_NAME#v}" == "$(cat VERSION)"-* ]] || {
+            echo "::error::tag ${GITHUB_REF_NAME} does not match VERSION $(cat VERSION)"
+            exit 1
+          }
       - name: Create artifact directory
         run: rm -rf /tmp/artifacts /tmp/release && mkdir /tmp/artifacts /tmp/release
       - uses: actions/download-artifact@v4
