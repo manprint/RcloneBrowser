@@ -30,6 +30,13 @@ QJsonObject serveStartParams(const ServeParams &p) {
   if (p.readOnly) {
     o.insert(QStringLiteral("read_only"), true);
   }
+  if (p.type == QLatin1String("sftp")) {
+    // without it rclone 1.75.2 reads ~/.ssh/authorized_keys of the backend's
+    // account: it accepts those keys under any user name, drops their
+    // options, and loops forever on a line that is not a key (a trailing
+    // comment), so the serve never starts and serve/* stops answering
+    o.insert(QStringLiteral("authorized_keys"), QString());
+  }
   return o;
 }
 

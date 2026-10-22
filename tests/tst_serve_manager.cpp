@@ -127,6 +127,19 @@ private slots:
                                                {"addr", " 127.0.0.1:0 "},
                                                {"user", " u "},
                                                {"pass", " p "}}));
+
+    // sftp: rclone's default authorized_keys file is always turned off
+    ServeParams s;
+    s.type = "sftp";
+    s.fs = "r:";
+    s.user = "u";
+    s.pass = "p";
+    QCOMPARE(serveStartParams(s), (QJsonObject{{"type", "sftp"},
+                                               {"fs", "r:"},
+                                               {"addr", "127.0.0.1:0"},
+                                               {"user", "u"},
+                                               {"pass", "p"},
+                                               {"authorized_keys", ""}}));
   }
 
   // T-SRV-LIST

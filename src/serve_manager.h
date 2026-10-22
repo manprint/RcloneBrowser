@@ -11,8 +11,9 @@ struct ServeParams {
 };
 
 // {type, fs, addr}; "user" when not empty, "pass" when not empty, "read_only"
-// (JSON bool true) when readOnly. Nothing is trimmed and no other key is ever
-// added: rclone rejects keys a serve type does not know.
+// (JSON bool true) when readOnly; for sftp always "authorized_keys": "" (see
+// the .cpp). Nothing is trimmed and no other key is ever added: rclone rejects
+// keys a serve type does not know.
 QJsonObject serveStartParams(const ServeParams &p);
 
 // A running serve as serve/list reports it. There is deliberately no password

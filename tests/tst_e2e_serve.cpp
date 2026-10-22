@@ -104,6 +104,15 @@ private slots:
     // sftp writes its host keys into the rclone cache dir: keep it inside the
     // temporary dir, never the real user cache (inherited by rcd).
     qputenv("RCLONE_CACHE_DIR", mDir.filePath("cache").toUtf8());
+    // and a HOME whose ~/.ssh/authorized_keys ends with a comment: rclone
+    // 1.75.2 loops forever on it unless the sftp serve turns the file off
+    const QString home = mDir.filePath("home");
+    QVERIFY(QDir().mkpath(home + "/.ssh"));
+    QFile keys(home + "/.ssh/authorized_keys");
+    QVERIFY(keys.open(QIODevice::WriteOnly));
+    keys.write("# no key here\n");
+    keys.close();
+    qputenv("HOME", home.toUtf8());
     // I-9: rcd uses this temporary config, never the host one.
     mConf = mDir.filePath("rclone.conf");
     QFile f(mConf);
