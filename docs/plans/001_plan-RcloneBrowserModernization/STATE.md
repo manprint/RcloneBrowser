@@ -1,7 +1,7 @@
 # Rclone Browser modernization — Implementation state
 
 Read this file first in every session. Updated 2026-10-22 by agent-1:opus (execute session 1).
-Plan ID: 001_plan-RcloneBrowserModernization. Revision: 21. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
+Plan ID: 001_plan-RcloneBrowserModernization. Revision: 22. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
 Plan baseline: `0a57f4f` (HEAD of `ci/macos-arm64-dmg`, which is master `1551dbd` plus the PR #1 commits). Pre-existing changes at planning time:
 - untracked `.serena/`, which is unrelated: never stage or modify it;
 - untracked `docs/plans/001_plan-RcloneBrowserModernization/`, this plan, authored by this planning session (provenance established).
@@ -64,17 +64,17 @@ Recover an unresolved audit completion commit first, without finalizing the susp
 
 - Active scope: plan 001, all phases 0–14 (invocation `/plan-execute-verify-mid execute 001`, 2026-10-21; phase 14 added by revision 11). User, 2026-10-21: "finisci il piano in autonomia".
 - Scope result: RUNNING
-- Type: sub-phase
-- ID / attempt: 8.2 / 1
-- Status: CLOSED (unit:8.2:1)
-- Intent: "Copy to…" (`rclone copyto`) and "Upload from URL…" (`rclone copyurl`) on the remote tree (#199): `remote_actions` helpers, `UrlUploadDialog`, the two actions and handlers; T-ACT-* unit tests and the e2e against `rclone serve http` on 127.0.0.1 (revision 21).
-- Assigned: `pev-subphase-v2` workflow wf_e5d5dbe9-d37 (see the ledger); agent-1:opus (coordinator, final reviewer, state writer).
-- File / unit heading: phase_09.md "8.2 copyto and copyurl actions (#199)"
-- Current step: done
-- Next action: P8 closure (prefetch `scratchpad/prefetchP8.json`): README Bisync, Copy to…, Upload from URL…; CHANGELOG `## [2.1.0] - unreleased`; phase gates; G-CI on the closure HEAD (it also checks the 8.1 clang fix c5a1f24).
-- Next eligible plan unit: P8 closure (phase_09.md).
-- Unit base: 4020c62 (revision 21 + WIP open of 8.2 on unit:8.1:1); branch: `dev/001-modernization`; owned changes: NEW `src/remote_actions.h/.cpp`, NEW `src/url_upload_dialog.h/.cpp`, `src/remote_widget.cpp/.ui`, `src/CMakeLists.txt`, `tests/CMakeLists.txt`, NEW `tests/tst_remote_actions.cpp`, NEW `tests/tst_e2e_remote_actions.cpp`, `docs/triage/upstream-issues.md` (#199); STATE.md. Before it on dev: c5a1f24 (8.1 clang fix) and 1c813ac (merge of `release/2.0.0`).
-- Repo state: HEAD = unit:8.2:1; untracked `.serena/` (unrelated).
+- Type: phase closure
+- ID / attempt: P8 / 1
+- Status: OPEN
+- Intent: close phase 8 (Bisync, Copy to…, Upload from URL…): README FAQ, Fork changes and Known limitations; CHANGELOG `## [2.1.0] - unreleased`; the `leBisyncWorkdir` tooltip (revision 22); triage notes; full phase gates and the P8 review.
+- Assigned: agent-1:opus (coordinator, writer of README/CHANGELOG/tooltip from `scratchpad/draftP8.md`, state writer); opus-5-5 reviewers for the rclone facts and the UI strings; haiku-5-5 not used.
+- File / unit heading: phase_09.md "Phase gates and closure"
+- Current step: documentation
+- Next action: write the README, CHANGELOG, tooltip and triage notes; review against rclone 1.75.2 and `src/`; run `scratchpad/gp8/run.sh`; G-CI; close P8.
+- Next eligible plan unit: 9.1 (phase_10.md), after unit:P8:1.
+- Unit base: revision 22 on unit:8.2:1 (8add683); branch: `dev/001-modernization`; owned changes: `README.md`, `CHANGELOG.md`, `src/transfer_dialog.ui` (one tooltip), `docs/triage/upstream-issues.md`; STATE.md.
+- Repo state: HEAD = revision 22 + this opening on unit:8.2:1; untracked `.serena/` (unrelated).
 
 ## 2. Feature context and readiness
 
@@ -454,6 +454,7 @@ Cold-read note (1.4, agent-1:opus, 2026-10-21): every symbol 1.4 uses is defined
 | 19 | phase_15 14.5: #116 answered as a global limit through default options; #132 without the existing Refresh cache button; status forms without notes; `already implemented` cells (3.3) outside the forms; PR rows unspecified; README obligation as a list of changes; files without `src/remote_widget.cpp` | the 14.5 prefetch read on the 14.4 tree: `--bwlimit` is per rclone process (rclone v1.75.2 docs and `fs/accounting/token_bucket.go`) and every job is its own process; the mount widget has had a Refresh cache button since 5.3 (T-E2E-VFS-REFRESH); several fixed rows need a short note; the rename dialog's Cancel stays disabled like the mkdir dialog's did before 14.3. Decided: #116 deferred with a correct FAQ entry, #132 names the button, `; <note>` tails, explicit `faq-…` anchors, `already implemented` → answered with FAQ entries, PR rows in the same grammar, FAQ entries for the 14.1–14.4 changes plus Known limitations, the rename `allowToClose()` line with the build and suite gates | agent-1:opus (14.5 brief) | 14.5 brief |
 | 20 | phase_09 8.1: Bisync gets "the same common flags as Sync" minus the sync timing; `rbBisync` enabled in both modes for any item; conflict value from the combo text; G-U8.1 with 4 functions; T-JO-ROUNDTRIP with one record | the 8.1 reviews and probes against rclone 1.75.2: bisync rejects `--delete-empty-src-dirs`, ignores `--update` and `--no-traverse`, and `--delete-excluded` makes it delete Path2 files outside the delta queue (agent-1 probe, isolated container, 2026-10-22); a Bisync task leaves the four out and the dialog disables them; Bisync is not offered for a single downloaded file; relative workdir refused, missing local folder offered for creation; conflict stored by index; `operator<<`/`>>` declared in the header; tst_job_options `QTEST_MAIN` with T-JO-DIALOG (5 functions); T-JO-ROUNDTRIP two records with pinned v9 tails; P8 README covers the left-out flags, folders only and the absolute workdir | agent-1:opus (8.1 closure) | phase_09.md 8.1 "Revision 20" note and the P8 README obligation; §11 test map row 8.1; jobopts_v9.bin (13.1 S1) records the layout T-JO-ROUNDTRIP pins |
 | 21 | phase_09 8.2: files without the dialog and the CMake lists; `dirWithSlash` undefined; `joinRclonePath` a new joiner; enabling without the Drive views; placement "tools frame if that is where…"; no rule for an invalid name with autoName unchecked or a directory-like Copy to destination | the 8.2 prefetch read on the 8.1 tree and rclone 1.75.2: `r:` stays `r:` (`r:/` is a filesystem root), `joinRclonePath` reuses `RemoteOps::joinPath`, both actions off in the Drive shared/trashed views, context menu + Tools drop-down and no toolbar button, OK needs a valid name when not auto, a `/` or `:` destination gets the file name, extra cases as rows, e2e UNIX-only with merged channels | agent-1:opus | phase_09.md 8.2 "Revision 21" note; brief `scratchpad/brief-8.2.md` |
+| 22 | phase_09 R14 "the README advises `--workdir` or shorter paths"; the `leBisyncWorkdir` tooltip "Use a short path if rclone reports a file name that is too long."; phase gates without G-SERVERS and the leftover checks; README obligation "the long-path `--workdir` note" | rclone 1.75.2 `bilib.BasePath` joins the workdir with canonical(Path1) + ".." + canonical(Path2) and adds only suffixes, so `--workdir` cannot shorten the listing and lock file names: the tooltip and the README say that only shorter folder paths help; P8 gates add G-SERVERS, the leftover checks and check-triage (STATE §3 asks for G-SERVERS at every P<N> from P6); the P8 file list and the CHANGELOG 2.1.0 section are fixed | agent-1:opus | phase_09.md R14 and "Revision 22" note; draft `scratchpad/draftP8.md` |
 
 Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 14.1 (new `actionCopyTaskCommand`, revision 15; R-SNAP of phase 14), 9.1 S2 (new `actionServes`) and 11.2 S2 (new `openDual` button). Each re-recording lists only the added lines here when it happens.
 

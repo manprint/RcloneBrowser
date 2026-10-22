@@ -16,7 +16,7 @@ Plan revision: 1.
   - bisync flags: `--resync` (`-1`), `--resync-mode`, `--conflict-resolve none|path1|path2|newer|older|larger|smaller`, `--conflict-loser`, `--conflict-suffix`, `--resilient`, `--recover`, `--check-access`, `--max-lock`, `--compare`, `--create-empty-src-dirs`, `--workdir`, `--force`.
   - A first run without `--resync` exits 7 with error lines `Bisync critical error: cannot find prior Path1 or Path2 listings…` and `Bisync aborted. Must run --resync to recover.`. With `--resync` it exits 0 and logs `Copied (new)` per file.
   - Messages contain ANSI color codes unless `--color NEVER` is given (handled in P1).
-  - Long absolute Path1+Path2 produce a listing/lock filename over 255 bytes, giving `Lock file exists, but contents are unreadable` and exit 1. This is an rclone limitation; the README advises `--workdir` or shorter paths.
+  - Long absolute Path1+Path2 produce a listing/lock filename over 255 bytes, giving `Lock file exists, but contents are unreadable` and exit 1. This is an rclone limitation. The names are built from both full paths (`bilib.BasePath` = `filepath.Join(workDir, SessionName)`, `SessionName` = canonical(Path1) + ".." + canonical(Path2), no truncation or hashing), so `--workdir` only chooses their folder and cannot shorten them; only shorter folder paths help (revision 22).
   - `copyto a.txt "out/renamed a.txt"` logs `info` `object a.txt` `Copied (new) to: renamed a.txt`.
   - `copyurl <url> <dir>/ -a -p` downloads and prints the file name as a plain stdout line (a Text event). Flags: `-a/--auto-filename`, `-p/--print-filename`, `--no-clobber`, `--header-filename`, `--stdout`.
 - I-7: task files with classVersion ≤ 8 load with identical field values. 8.1 bumps classVersion to 9. Phase 13.1 bumps it to 10.
@@ -156,6 +156,11 @@ Plan revision: 1.
   - The #199 triage row becomes `fixed in 8.2 (…)` at the 8.2 closure; the README (Copy to…, Upload from URL…, the URL shows in the job and the copied command, the name comes from the URL path) and CHANGELOG at the P8 closure.
 
 ## Phase gates and closure
-- Required gates: G-BUILD64, G-UNIT, G-E2E, G-SMOKE. G-BUILD610 if the image is present.
-- README obligation (P8): document Bisync (first run needs "resync", the conflict options, the long-path `--workdir` note), "Copy to…" and "Upload from URL…".
+- Required gates: G-BUILD64, G-UNIT, G-E2E (with the `rclone rcd|serve` leftover check inside the container), G-SMOKE, G-SERVERS (with the `rb-srv-` container and network check), check-triage. G-BUILD610 if the image is present.
+- README obligation (P8): document Bisync (first run needs "resync", the conflict options, the long-path note: shorter folder paths, `--workdir` does not shorten the names), "Copy to…" and "Upload from URL…".
 - Supervisor agent-1:opus reviews. Close P8.
+- **Revision 22** (agent-1:opus, from the P8 prefetch and rclone 1.75.2 `cmd/bisync/bilib`; replaces the matching points above):
+  - R14 was wrong about `--workdir` (see R14). The `leBisyncWorkdir` tooltip in `src/transfer_dialog.ui` drops "Use a short path if rclone reports a file name that is too long." and says that very long folder paths can make the listing file names too long and only shorter folder paths help; the README says the same in Known limitations.
+  - Files of the closure: `README.md` (Fork changes bullet; FAQ `faq-bisync`, `faq-bisync-recover` after `faq-include-exclude-order`, `faq-copy-to`, `faq-upload-from-url` after `faq-drive-duplicates`; one sentence each in `faq-copy-action` and `faq-dry-run`; Known limitations `faq-limit-bisync`, `faq-limit-bisync-path`, `faq-limit-url-name`), `CHANGELOG.md` (`## [2.1.0] - unreleased` above 2.0.0: three NEW lines and a CHANGED line for the tasks.bin version, which 2.0.0 cannot read and replaces at its next save; VERSION unchanged, P13 appends to this section), `src/transfer_dialog.ui` (the tooltip), `docs/triage/upstream-issues.md` (README anchors in the #243 and #199 notes).
+  - Every rclone behaviour the README states is checked against rclone 1.75.2 (source or a probe in an isolated container) by the P8 review; every UI string it quotes is checked against `src/`.
+  - The dev branch carries the `release/2.0.0` merge (1c813ac), so CHANGELOG already reads `## [2.0.0] - 2026-10-22`.
