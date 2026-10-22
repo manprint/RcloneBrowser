@@ -64,17 +64,17 @@ Recover an unresolved audit completion commit first, without finalizing the susp
 
 - Active scope: plan 001, all phases 0–14 (invocation `/plan-execute-verify-mid execute 001`, 2026-10-21; phase 14 added by revision 11). User, 2026-10-21: "finisci il piano in autonomia".
 - Scope result: RUNNING
-- Type: phase
-- ID / attempt: P14 / 1
-- Status: CLOSED (unit:P14:1)
-- Intent: phase 14 closure: CHANGELOG `## [2.0.0] - unreleased` gains the 14.1–14.5 changes, README obligation check, phase gates on both images, G-CI, P14 review.
-- Assigned: agent-1:opus (coordinator, reviewer, state writer).
-- File / unit heading: phase_15.md "Phase gates and closure"
-- Current step: done
-- Next action: (a) release candidate for `v2.0.0` on `release/2.0.0` (B-REL2): dated CHANGELOG, G-REL on that HEAD; the tag, the release and the `master` fast-forward wait for the user's explicit OK; (b) in parallel, open 8.1 and run it through `pev-subphase-v2` (brief `scratchpad/brief-8.1.md`).
-- Next eligible plan unit: 8.1 (phase_09.md), revision 11 order P14 → P8.
-- Unit base: d236bb6 (unit:14.5:1); branch: `dev/001-modernization`; owned changes: `CHANGELOG.md`, STATE.md.
-- Repo state: HEAD = unit:P14:1; untracked `.serena/` (unrelated).
+- Type: sub-phase
+- ID / attempt: 8.1 / 1
+- Status: OPEN
+- Intent: Bisync as a fourth transfer mode (#243): `Operation::Bisync`, classVersion 9 with five bisync fields (I-7 fixture recorded first), `getOptions()` without the sync-timing flags, the TransferDialog radio and group, task labels; T-JO-* unit tests and the bisync e2e.
+- Assigned: `pev-subphase-v2` workflow (agent-2:sonnet = sonnet-5-5 implementer, haiku-5-5 gate runner, opus-5-5 reviewers, sonnet-5-5 prefetch for 8.2); agent-1:opus (coordinator, final reviewer, state writer).
+- File / unit heading: phase_09.md "8.1 Bisync mode (#243)"
+- Current step: implementation (workflow); in parallel G-REL for `v2.0.0` on `release/2.0.0` (e6c8950, worktree `../wt-rel200`, CI run 39730307426, CodeQL run 39730309900); the tag waits for the user (B-REL2).
+- Next action: on the workflow result check the v8 fixture provenance, the base argv of Copy/Move/Sync, every operation switch, the e2e; rerun gates; review; close 8.1; then 8.2. Record G-REL when its gates and runs finish.
+- Next eligible plan unit: 8.2 (phase_09.md), after unit:8.1:1.
+- Unit base: unit:P14:1 (d10c1be); branch: `dev/001-modernization`; owned changes: `src/job_options.h/.cpp`, `src/list_of_job_options.cpp`, `src/transfer_dialog.h/.cpp/.ui`, `src/main_window_tasks.cpp`, NEW `tests/tst_job_options.cpp`, NEW `tests/fixtures/synthetic/jobopts_v8.bin`, NEW `tests/tst_e2e_bisync.cpp`, `tests/CMakeLists.txt`; STATE.md.
+- Repo state: HEAD = this opening on unit:P14:1; untracked `.serena/` (unrelated).
 
 ## 2. Feature context and readiness
 
@@ -510,7 +510,7 @@ Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 1
 | 14.3 | phase_15.md | 14.2 | DONE | 1 | G-U14.3, G-U14.3e, G-SERVERS pass; unit:14.3:1 |
 | 14.4 | phase_15.md | 14.3 | DONE | 1 | G-U14.4, G-U14.4e pass; unit:14.4:1 |
 | 14.5 | phase_15.md | 14.4 | DONE | 1 | G-U14.5 pass; unit:14.5:1 |
-| 8.1 | phase_09.md | P14 | TODO | 1 | — |
+| 8.1 | phase_09.md | P14 | IN_PROGRESS | 1 | — |
 | 8.2 | phase_09.md | 8.1 | TODO | 1 | — |
 | 9.1 | phase_10.md | P14 | TODO | 1 | — |
 | 10.1 | phase_11.md | P8, P9 | TODO | 1 | — |
@@ -538,7 +538,7 @@ Units run in ID order. A prerequisite must be DONE; SKIPPED never satisfies it i
 | 6 | phase_07.md | P6 | DONE | P6 review (§7); unit:P6:1 |
 | 7 | phase_08.md | P7 | DONE | P7 review (§7); unit:P7:1 |
 | 14 | phase_15.md | P14 (runs after P7, before P8; v2.0.0 readiness) | DONE | P14 review (§7); unit:P14:1; tag `v2.0.0` waits for the user (B-REL2) |
-| 8 | phase_09.md | P8 | TODO | — |
+| 8 | phase_09.md | P8 | IN_PROGRESS | — |
 | 9 | phase_10.md | P9 | TODO | — |
 | 10 | phase_11.md | P10 | TODO | — |
 | 11 | phase_12.md | P11 | TODO | — |
