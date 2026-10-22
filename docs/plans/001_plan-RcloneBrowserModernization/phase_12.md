@@ -1,5 +1,7 @@
 # Phase 11 — Dual pane (#71)
 
+**SKIPPED by revision 25.** Phase 11 (dual pane, drag between remote views: #28, #71) is not done in plan 001. User, 2026-10-22: "per me puoi non tradurre mi sta bene l'inglese!" and, on the dual pane, "a me va bene l'interafccia come è adesso, possiamo anche skippare questa fase." Nothing below is implemented; the text stays as the design record. The issues are `deferred` in the triage.
+
 Intent:
 - A "Dual pane" tab shows two remote views side by side.
 - An item can be dragged from one pane to a folder in the other, or sent with "Copy to other pane". Either way, the existing TransferDialog opens prefilled, and the transfer runs through `addTransfer`.

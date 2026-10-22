@@ -5,7 +5,7 @@ Intent:
 - OpenBSD and NetBSD CI jobs join the workflow.
 - New remote icons and the macFUSE link text are updated.
 - The final integration gates prove the reference scenario.
-Prerequisites: P12. P-1 (iamnhx and totza2010 refs).
+Prerequisites: P10 (revision 25: phases 11 and 12 are skipped). P-1 (iamnhx and totza2010 refs).
 Phase closure: P13 = final closure; review by agent-1:opus.
 
 ## State and ownership contract
@@ -37,7 +37,7 @@ Plan revision: 1.
   - WRITE `tests/tst_job_options.cpp` (new functions plus a `jobopts_v9.bin` fixture recorded in S1 with the 8.1 code).
   - NEW `tests/tst_upload_headers.cpp` (unit) and `tests/tst_e2e_s3_headers.cpp` (e2e).
 - **Change:**
-  - Preconditions: P12 DONE.
+  - Preconditions: P10 DONE (revision 25).
   - Contract:
     ```cpp
     struct S3Tag { QString key, value; };
@@ -115,7 +115,7 @@ Plan revision: 1.
 - **Done:** gates pass; CI debt recorded; unit closed; completion commit.
 
 ## Phase gates and closure (final)
-- Required gates: G-BUILD64, G-BUILD610 (required at final; BLOCKED until P-2 if the image is absent), G-UNIT, G-E2E, G-SMOKE, G-I18N, G-FINAL. G-SERVERS (revision 11). G-CI is required for COMPLETE: the supervisor pushes and dispatches (user authorization, STATE.md §3) and records the run ID and job conclusions.
+- Required gates: G-BUILD64, G-BUILD610 (required at final; BLOCKED until P-2 if the image is absent), G-UNIT, G-E2E, G-SMOKE, G-FINAL (no G-I18N: revision 25). G-SERVERS (revision 11). G-CI is required for COMPLETE: the supervisor pushes and dispatches (user authorization, STATE.md §3) and records the run ID and job conclusions.
 - G-FINAL (STATE.md §3) checks the reference scenario 1–7 from overview.md:
   1. both builds;
   2. both suites, with the discovered test count equal to STATE.md §11;

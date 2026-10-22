@@ -81,14 +81,14 @@ Count: 15
 |---|---|---|---|---|---|---|
 | #16 | Manually enter path to browse | 2019-10-01 | in-plan 10.1 | 10.1 | planned in 10.1 |  |
 | #21 | Requests: Sorting Task list and Search box | 2019-10-20 | in-plan 10.2 | 10.2 | planned in 10.2; the search filter is planned there, sorting stays as it is |  |
-| #28 | Move files and folders on remotes using drag and drop | 2019-10-27 | in-plan 11.1 | 11.1 | planned in 11.1 |  |
-| #47 | Suggestion: Multilanguage | 2019-12-01 | in-plan 12.1 | 12.1 | planned in 12.1 |  |
-| #71 | dual pane interface | 2020-01-31 | in-plan 11.2 | 11.2 | planned in 11.2 |  |
+| #28 | Move files and folders on remotes using drag and drop | 2019-10-27 | deferred | — | deferred: not in plan 001: phase 11 (drag between remote views) was dropped by revision 25 at the user's request; moving uses the existing Move action of the remote tab |  |
+| #47 | Suggestion: Multilanguage | 2019-12-01 | deferred | — | deferred: not in plan 001: phase 12 (i18n) was dropped by revision 25, the user keeps the English interface |  |
+| #71 | dual pane interface | 2020-01-31 | deferred | — | deferred: not in plan 001: phase 11 (dual pane) was dropped by revision 25, the user keeps the current single-view interface |  |
 | #94 | Keyboard shortcuts | 2020-03-18 | in-plan 10.3 | 10.3 | planned in 10.3 |  |
 | #112 | ETA field in transfers | 2020-04-28 | in-plan 1.4 | 1.4 | deferred: 1.4 shows the remaining duration and the Started and Finished times, not the clock time of the expected finish (README#faq-limit-eta) |  |
 | #129 | [Feature request] GUI context menu options for rclone "crypt"/"check"/"serve"? | 2020-07-31 | in-plan 9.1 | 9.1 | planned in 9.1 |  |
 | #134 | Option to log errors to file | 2020-09-07 | in-plan 1.4 | 1.4 | fixed in 1.4 (T_E2E_JOB_LOGFILE); the output goes to the --log-file; that the file is written while the job runs, and that it holds error lines, is code reading and not asserted by a test |  |
-| #138 | Really wish RcloneBrowser could support multi language, I can help translate. | 2020-09-21 | in-plan 12.1 | 12.1 | planned in 12.1 |  |
+| #138 | Really wish RcloneBrowser could support multi language, I can help translate. | 2020-09-21 | deferred | — | deferred: not in plan 001: phase 12 (i18n) was dropped by revision 25, the user keeps the English interface |  |
 | #148 | Tap to edit path | 2020-11-20 | in-plan 10.1 | 10.1 | planned in 10.1 |  |
 | #195 | Check for updates | 2022-01-06 | in-plan 3.2 | 3.2 | deferred: background update checks exist (T_E2E_UPD_NEWER), switched in Preferences and run at most once a day; an on-demand menu entry is not offered |  |
 | #199 | Need Support Remote Upload For Url | 2022-02-07 | in-plan 8.2 | 8.2 | fixed in 8.2 (T_ACT_URL, T_ACT_COPYURL, T_E2E_COPYURL); the action runs rclone copyurl, named from the address path (after redirects) or by the name typed, see README#faq-upload-from-url and README#faq-limit-url-name |  |

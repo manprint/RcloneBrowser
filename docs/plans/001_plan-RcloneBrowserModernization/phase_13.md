@@ -1,5 +1,7 @@
 # Phase 12 — Internationalization, Italian first (#47)
 
+**SKIPPED by revision 25.** Phase 12 (i18n and the Italian translation: #47, #138) is not done in plan 001. User, 2026-10-22: "per me puoi non tradurre mi sta bene l'inglese!" and, on the dual pane, "a me va bene l'interafccia come è adesso, possiamo anche skippare questa fase." Nothing below is implemented; the text stays as the design record. The issues are `deferred` in the triage.
+
 Intent: the UI is translatable, and Preferences offers "System", "English" and "Italiano", applied after a restart. A complete Italian translation ships, embedded in the binary. English behavior is unchanged when no translation is active.
 Prerequisites: P11. P-5 done: `rb-build:24.04` rebuilt with `qt6-tools-dev qt6-l10n-tools` (R6).
 Phase closure: P12; review by agent-1:opus.

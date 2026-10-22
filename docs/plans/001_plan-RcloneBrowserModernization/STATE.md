@@ -1,7 +1,7 @@
 # Rclone Browser modernization — Implementation state
 
 Read this file first in every session. Updated 2026-10-22 by agent-1:opus (execute session 1).
-Plan ID: 001_plan-RcloneBrowserModernization. Revision: 24. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
+Plan ID: 001_plan-RcloneBrowserModernization. Revision: 25. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
 Plan baseline: `0a57f4f` (HEAD of `ci/macos-arm64-dmg`, which is master `1551dbd` plus the PR #1 commits). Pre-existing changes at planning time:
 - untracked `.serena/`, which is unrelated: never stage or modify it;
 - untracked `docs/plans/001_plan-RcloneBrowserModernization/`, this plan, authored by this planning session (provenance established).
@@ -64,17 +64,17 @@ Recover an unresolved audit completion commit first, without finalizing the susp
 
 - Active scope: plan 001, all phases 0–14 (invocation `/plan-execute-verify-mid execute 001`, 2026-10-21; phase 14 added by revision 11). User, 2026-10-21: "finisci il piano in autonomia".
 - Scope result: RUNNING
-- Type: sub-phase
-- ID / attempt: 9.1 / 1
-- Status: CLOSED (unit:9.1:1)
-- Intent: Serve (#129): `ServeManager` over `serve/*` rc calls with `serveTypeRules`, ServeDialog, ServesWindow, RemoteWidget `actionServe`, MainWindow `actionServes`; unit and e2e tests; T-MW-SNAPSHOT re-record (one added line).
-- Assigned: `pev-subphase-v2` workflow wf_4e992465-5b0 (see the ledger); agent-1:opus (coordinator, final reviewer, state writer).
-- File / unit heading: phase_10.md "9.1 ServeManager, dialogs, actions"
-- Current step: done
-- Next action: G-CI on the 9.1 commit; B-T4 (`src/pch.h` ends with `#pragma warning pop` without parentheses, so MSVC keeps warning level 0 after the PCH: /W4 /WX does not apply to src on Windows; fix and run the Windows jobs on a temporary branch); then the P9 closure (prefetch `scratchpad/prefetchP9.json`): README Serve, Known limitations, CHANGELOG, triage #129, phase gates.
-- Next eligible plan unit: P9 (phase_10.md closure).
-- Unit base: revision 23 on unit:P8:1 (ee3d3b0); branch: `dev/001-modernization`; owned changes: NEW `src/serve_manager.h/.cpp`, `src/serve_widget.h/.cpp`, `tests/tst_serve_manager.cpp`, `tests/tst_serve_widget.cpp`, `tests/tst_e2e_serve.cpp`; `src/remote_widget.h/.cpp/.ui`, `src/main_window.h/.cpp/.ui`, `src/CMakeLists.txt`, `tests/CMakeLists.txt`, `tests/fixtures/synthetic/mainwindow_snapshot.txt` (approved re-record); STATE.md, phase_10.md (revision 24).
-- Repo state: HEAD = unit:9.1:1; untracked `.serena/` (unrelated).
+- Type: phase closure
+- ID / attempt: P9 / 1
+- Status: OPEN
+- Intent: close phase 9 (Serve): README FAQ `faq-serve`, Known limitations, the Backend cross-link and the Fork changes bullet; CHANGELOG 2.1.0 NEW line; triage #129; full phase gates and the P9 review. Revision 25 (user) skips phases 11 and 12 in the same commit.
+- Assigned: agent-1:opus (coordinator, writer from the prefetch draft `scratchpad/draftP9.md` and the probes `scratchpad/p9probe/out.txt`, state writer); opus-5-5 reviewers for the rclone facts and the UI strings.
+- File / unit heading: phase_10.md "Phase gates and closure"
+- Current step: documentation
+- Next action: write README, CHANGELOG and the #129 triage note; review against rclone 1.75.2 and `src/`; phase gates; G-CI; close P9. In parallel: B-T4 on `tmp/b-t4-msvc` (CI run 39753109688); G-CI (9.1) run 39753060570.
+- Next eligible plan unit: 10.1 (phase_11.md), after unit:P9:1.
+- Unit base: unit:9.1:1 (1834176) + revision 25; branch: `dev/001-modernization`; owned changes: `README.md`, `CHANGELOG.md`, `docs/triage/upstream-issues.md` (#129; #28, #71, #47, #138 by revision 25); STATE.md; plan files of revision 25.
+- Repo state: HEAD = revision 25 + this opening on unit:9.1:1; untracked `.serena/` (unrelated).
 
 ## 2. Feature context and readiness
 
@@ -160,10 +160,10 @@ A required supervisor review can never be replaced by a weaker agent's self-revi
 | G-SMOKE | P<N>, from P0 | `scripts/dev.sh smoke qt64` | exit 0 and prints `smoke: alive after 10s` | after G-BUILD64 |
 | G-U<id>, G-U<id>e | the focused unit gate of sub-phase <id> | The exact command is in the phase file. The forms are `scripts/dev.sh test qt64 -- -R '<regex>' -V` (unit) and `scripts/dev.sh e2e qt64 -- -R '<regex>' -V` (e2e), or the listed check commands (G-U0.1, G-U0.3, G-U0.4, G-U4.2). | the test names, function counts and outputs stated in the phase file. Test ID `T-FOO-BAR` is slot `T_FOO_BAR()`. "N functions" = distinct `::T_[A-Z0-9_]+\(` names in `PASS` lines, with no `FAIL!` (phase_01 test naming rule). Zero tests selected is a failure. | after `scripts/dev.sh build qt64` |
 | G-YAML | units that edit `.github/` (0.3, 12.1, 13.2) | `python3 -I -c 'import sys,yaml; [yaml.safe_load(open(f)) for f in sys.argv[1:]]; print("yaml ok", len(sys.argv)-1)' .github/workflows/*.yml $(ls .github/dependabot.yml 2>/dev/null)` | prints `yaml ok <n>`, where n is the number of files | host PyYAML (present 2026-10-21) |
-| G-I18N | 12.3, P12, P13 (the variant without the flag at 12.1 and 12.2) | `scripts/dev.sh i18n qt64 -- --require-complete` (command created by 12.1) | exit 0; prints `contexts=<n> messages=<m>`; m ≥ the count recorded at 12.2. A refreshed `.ts` is an owned change. | P-5 image |
+| G-I18N | not used (revision 25: phase 12 skipped; was 12.3, P12, P13) | `scripts/dev.sh i18n qt64 -- --require-complete` (command created by 12.1) | exit 0; prints `contexts=<n> messages=<m>`; m ≥ the count recorded at 12.2. A refreshed `.ts` is an owned change. | P-5 image |
 | G-CI | debt from 0.3; required before any tag and at G-FINAL | The user pushes the execution branch to `origin` (P-4) and reports the GitHub Actions run ID. The supervisor records the run ID and the conclusion of every job. | every job triggered by the push on that HEAD concludes `success` (5 build jobs; plus OpenBSD and NetBSD from 13.2). From 0.3 on, one user `workflow_dispatch` run of CodeQL on that HEAD also concludes `success`. | user push |
 | G-REL | before `v2.0.0-beta.1` (after P4) and, revision 11, `v2.0.0` (after P14) | G-BUILD64, G-BUILD610, G-UNIT, G-E2E, G-SMOKE (and G-SERVERS from P6 on) on one HEAD, then G-CI on the same HEAD | all pass on the same HEAD. With the user's release authorization (§3, 2026-10-21) the supervisor tags; the manual Windows/macOS checks are `waived (user)`. | P-2, P-4 |
-| G-FINAL | P13 | G-BUILD64, G-BUILD610, G-UNIT, G-E2E, G-SMOKE, G-I18N and G-SERVERS (revision 11) on one HEAD, plus the checklist below, plus G-CI | Scenario checklist (overview.md items 1–7): (1) both builds; (2) both suites, with every §11 test ID executed: `scripts/dev.sh test qt64 -- -V` and `scripts/dev.sh e2e qt64 -- -V` show a `PASS` line for `T_<ID with _>()` for each ID, and no `FAIL!`; (3) T-E2E-JOB-STATS, T-E2E-JOB-ERRORS and T-E2E-JOB-LOGFILE with the polluted env (T-E2E-ENV-POLLUTED); (4) T-E2E-JOB-CANCEL; (5) T-E2E-LIST-NAMES and T-E2E-LIST-UNKNOWNSIZE; (6) T-E2E-DAEMON-*, T-E2E-RCLIST-* and T-E2E-CONFIG-*; (7) each F3 e2e: BISYNC, COPYTO, COPYURL, SERVE, PATH, FILTER, DRAG, DUAL and S3-TAGS. Item 8 is G-CI. | P-2, P-4 |
+| G-FINAL | P13 | G-BUILD64, G-BUILD610, G-UNIT, G-E2E, G-SMOKE and G-SERVERS (revision 11; no G-I18N, revision 25) on one HEAD, plus the checklist below, plus G-CI | Scenario checklist (overview.md items 1–7): (1) both builds; (2) both suites, with every §11 test ID executed: `scripts/dev.sh test qt64 -- -V` and `scripts/dev.sh e2e qt64 -- -V` show a `PASS` line for `T_<ID with _>()` for each ID, and no `FAIL!`; (3) T-E2E-JOB-STATS, T-E2E-JOB-ERRORS and T-E2E-JOB-LOGFILE with the polluted env (T-E2E-ENV-POLLUTED); (4) T-E2E-JOB-CANCEL; (5) T-E2E-LIST-NAMES and T-E2E-LIST-UNKNOWNSIZE; (6) T-E2E-DAEMON-*, T-E2E-RCLIST-* and T-E2E-CONFIG-*; (7) each F3 e2e: BISYNC, COPYTO, COPYURL, SERVE, PATH, FILTER and S3-TAGS (DRAG and DUAL dropped by revision 25). Item 8 is G-CI. | P-2, P-4 |
 | G-S3-MINIO | optional, 13.1 | With the P-3 images: start MinIO bound to `127.0.0.1:9000`, run the T-E2E-S3-TAGS upload args against it (remote `provider = Minio`), then `mc tag list local/bkt/"t 1.txt"` | shows `proj : rb` and `env : test`. Not required; a missing image is `not-run (P-3)`. | P-3 |
 | G-SERVERS | 6.3 and every P<N> from P6 (revision 11); local only, never CI | `scripts/dev.sh servers qt64 -- -V 2>&1 \| tee "${RB_GATE_LOGS:-/tmp/rb-gates}/servers.log"` | exit 0; `100% tests passed, 0 tests failed out of 1` (revision 12: `Total Tests:` is printed only by `ctest -N`); PASS for every `tst_srv_protocols` function with all 4 rows (sftp, ftp, webdav, s3); no SKIP; afterwards `docker ps -a --filter name=rb-srv- -q` and `docker network ls --filter name=rb-srv- -q` print nothing | P-6 images; after G-BUILD64 |
 
@@ -476,8 +476,9 @@ Cold-read note (1.4, agent-1:opus, 2026-10-21): every symbol 1.4 uses is defined
 | 22 | phase_09 R14 "the README advises `--workdir` or shorter paths"; the `leBisyncWorkdir` tooltip "Use a short path if rclone reports a file name that is too long."; phase gates without G-SERVERS and the leftover checks; README obligation "the long-path `--workdir` note" | rclone 1.75.2 `bilib.BasePath` joins the workdir with canonical(Path1) + ".." + canonical(Path2) and adds only suffixes, so `--workdir` cannot shorten the listing and lock file names: the tooltip and the README say that only shorter folder paths help; P8 gates add G-SERVERS, the leftover checks and check-triage (STATE §3 asks for G-SERVERS at every P<N> from P6); the P8 file list and the CHANGELOG 2.1.0 section are fixed | agent-1:opus | phase_09.md R14 and "Revision 22" note; draft `scratchpad/draftP8.md` |
 | 23 | phase_09 8.1 "four" left-out Bisync flags; phase_10 9.1: R15 without the per-type limits, toolbar/menu placement, ServeDialog without type rules, refresh failures through `error`, G-U9.1 and G-U9.1e with 4 functions | B-T3 (d6ba55e): `--ignore-existing` and `--no-update-modtime` break bisync (exit 7), so six flags are left out. 9.1: probes of rclone 1.75.2 rcd (restic no `read_only`; nfs, dlna, s3 no login; sftp needs a login; ftp reports `:0` but listens on 2121; `serve/list` echoes the password) give a pure `serveTypeRules` applied by the dialog, `listFailed` for refresh failures, a `types()` cache, File menu placement, lazy window, T-SRV-RULES and T-E2E-SERVE-TYPES (G-U9.1 5, G-U9.1e 5; totals 24/18); snapshot adds only `A|actionServes|Serves…|1|0|0|` | agent-1:opus | phase_09.md "Revision 23" note; phase_10.md R15 additions and 9.1 "Revision 23" note; §11 test map row 9.1; brief `scratchpad/draft91.md` + `scratchpad/decisions91.md` |
 | 24 | phase_10 9.1 (revision 23): ServeDialog OK gating without the password-only case; no `tst_serve_widget` (D3); serve errors always in a box; G-U9.1 `tst_serve_manager` only, totals 24/18 | the 9.1 reviews (serve-rc F6) and the P9 prefetch: rclone 1.75.2 enables the login only with a user name, so a password alone gives an open serve: OK needs a user name with any password; the dialog carries the type rules, so T-SRV-DIALOG and T-SRV-WINDOW in NEW `tests/tst_serve_widget.cpp` (mutation check: removing the password rule fails T_SRV_DIALOG); an error while the backend is not Running goes to the status bar (no modal box inside the quit loop); totals 25/18 | agent-1:opus (9.1 closure) | phase_10.md 9.1 "Revision 24" note; §11 test map row 9.1 |
+| 25 | phases 11 (11.1, 11.2: drag between views, dual pane) and 12 (12.1–12.3: i18n, Italian) in scope; phase 13 after P12; G-I18N at P12/P13 and in G-FINAL; G-FINAL item 7 with DRAG and DUAL; T-MW-SNAPSHOT re-record at 11.2 | User, 2026-10-22: "per me puoi non tradurre mi sta bene l'inglese!" and, on the dual pane, "a me va bene l'interafccia come è adesso, possiamo anche skippare questa fase." Phases 11 and 12 are SKIPPED (their files stay as the design record); phase 13 follows P10; G-I18N is not used; G-FINAL item 7 lists BISYNC, COPYTO, COPYURL, SERVE, PATH, FILTER and S3-TAGS; no 11.2 re-record; triage #28, #71, #47 and #138 become `deferred` | user (2026-10-22); agent-1:opus | phase_12.md and phase_13.md banners; phase_14.md prerequisites and gates; overview.md F3 list and phase table; `docs/triage/upstream-issues.md` four rows; §3 G-I18N and G-FINAL; §11 boards |
 
-Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 14.1 (new `actionCopyTaskCommand`, revision 15; R-SNAP of phase 14), 9.1 S2 (new `actionServes`) and 11.2 S2 (new `openDual` button). Each re-recording lists only the added lines here when it happens. 9.1 S2 (done): `+A|actionServes|Serves…|1|0|0|` only (`git diff --numstat` `1 0`), sha256 `fccc386d5b1fa157378e67e2d43a401d0f8f0de01b8eb750760213c5370f31ae`.
+Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 14.1 (new `actionCopyTaskCommand`, revision 15; R-SNAP of phase 14), 9.1 S2 (new `actionServes`); the 11.2 S2 re-record (`openDual` button) is dropped with phase 11 (revision 25). Each re-recording lists only the added lines here when it happens. 9.1 S2 (done): `+A|actionServes|Serves…|1|0|0|` only (`git diff --numstat` `1 0`), sha256 `fccc386d5b1fa157378e67e2d43a401d0f8f0de01b8eb750760213c5370f31ae`.
 
 ## 9. Blockers
 
@@ -560,12 +561,12 @@ Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 1
 | 10.1 | phase_11.md | P8, P9 | TODO | 1 | — |
 | 10.2 | phase_11.md | 10.1 | TODO | 1 | — |
 | 10.3 | phase_11.md | 10.2 | TODO | 1 | — |
-| 11.1 | phase_12.md | P10 | TODO | 1 | — |
-| 11.2 | phase_12.md | 11.1 | TODO | 1 | — |
-| 12.1 | phase_13.md | P11, P-5 (B-P5) | TODO | 1 | — |
-| 12.2 | phase_13.md | 12.1 | TODO | 1 | — |
-| 12.3 | phase_13.md | 12.2 | TODO | 1 | — |
-| 13.1 | phase_14.md | P12 | TODO | 1 | — |
+| 11.1 | phase_12.md | P10 | SKIPPED | 1 | revision 25: dropped at the user's request |
+| 11.2 | phase_12.md | 11.1 | SKIPPED | 1 | revision 25: dropped at the user's request |
+| 12.1 | phase_13.md | P11, P-5 (B-P5) | SKIPPED | 1 | revision 25: dropped at the user's request |
+| 12.2 | phase_13.md | 12.1 | SKIPPED | 1 | revision 25: dropped at the user's request |
+| 12.3 | phase_13.md | 12.2 | SKIPPED | 1 | revision 25: dropped at the user's request |
+| 13.1 | phase_14.md | P10 (revision 25) | TODO | 1 | — |
 | 13.2 | phase_14.md | 13.1, P-1 (B-P1) | TODO | 1 | — |
 
 Units run in ID order. A prerequisite must be DONE; SKIPPED never satisfies it implicitly. A sub-phase whose prefetch is missing is BLOCKED, and the next eligible unit continues only if it does not depend on it (for example 0.4 may run while 0.3 waits for P-1; P0 cannot close until 0.3 is DONE).
@@ -585,8 +586,8 @@ Units run in ID order. A prerequisite must be DONE; SKIPPED never satisfies it i
 | 8 | phase_09.md | P8 | DONE | P8 review (§7); unit:P8:1 |
 | 9 | phase_10.md | P9 | IN_PROGRESS | — |
 | 10 | phase_11.md | P10 | TODO | — |
-| 11 | phase_12.md | P11 | TODO | — |
-| 12 | phase_13.md | P12 | TODO | — |
+| 11 | phase_12.md | P11 | SKIPPED | revision 25: dropped at the user's request |
+| 12 | phase_13.md | P12 | SKIPPED | revision 25: dropped at the user's request |
 | 13 | phase_14.md | P13 (final: G-FINAL) | TODO | — |
 
 Statuses: TODO, IN_PROGRESS, IN_REVIEW, DONE, SKIPPED, BLOCKED. SKIPPED keeps a reason.
@@ -630,11 +631,11 @@ Every ID below is a QtTest function (or a named check) defined in its owning uni
 | 10.1 | G-U10.1, G-U10.1e | T-PATH-NORMALIZE, T-PATH-PREFIX, T-PATH-ROOTLESS; e2e T-E2E-PATH-GO, T-E2E-PATH-DUP, T-E2E-PATH-MISSING |
 | 10.2 | G-U10.2, G-U10.2e | T-FILTER-MATCH; e2e T-E2E-FILTER-TASKS |
 | 10.3 | G-U10.3 | T-SC-REMOTE-CONTEXT, T-SC-UNIQUE, T-SC-MAINWINDOW |
-| 11.1 | G-U11.1, G-U11.1e | T-MIME-ROUNDTRIP, T-MIME-BAD, T-MIME-CANDROP; e2e T-E2E-DRAG-MIME, T-E2E-DRAG-DROP, T-E2E-DRAG-LOCALURL |
-| 11.2 | G-U11.2e | e2e T-E2E-DUAL-PANES, T-E2E-DUAL-COPY, T-E2E-DUAL-PICKER |
-| 12.1 | G-U12.1 | T-I18N-SELECT, T-I18N-RESOURCE |
-| 12.2 | G-I18N (without the flag), G-E2E | T-MW-SNAPSHOT unchanged |
-| 12.3 | G-U12.3, G-I18N | T-I18N-IT-STRINGS, T-I18N-IT-WINDOW |
+| 11.1 | G-U11.1, G-U11.1e | T-MIME-ROUNDTRIP, T-MIME-BAD, T-MIME-CANDROP; e2e T-E2E-DRAG-MIME, T-E2E-DRAG-DROP, T-E2E-DRAG-LOCALURL (SKIPPED, revision 25) |
+| 11.2 | G-U11.2e | e2e T-E2E-DUAL-PANES, T-E2E-DUAL-COPY, T-E2E-DUAL-PICKER (SKIPPED, revision 25) |
+| 12.1 | G-U12.1 | T-I18N-SELECT, T-I18N-RESOURCE (SKIPPED, revision 25) |
+| 12.2 | G-I18N (without the flag), G-E2E | T-MW-SNAPSHOT unchanged (SKIPPED, revision 25) |
+| 12.3 | G-U12.3, G-I18N | T-I18N-IT-STRINGS, T-I18N-IT-WINDOW (SKIPPED, revision 25) |
 | 13.1 | G-U13.1, G-U13.1e | T-HDR-PARSE, T-TAG-PARSE, T-TAG-HEADER, T-JO-COMPAT-V9, T-JO-UPLOAD-HEADERS; e2e T-E2E-S3-TAGS |
 | 13.2 | G-U13.2, G-YAML | T-ICON-ALIAS, T-ICON-EXISTS |
 
@@ -655,8 +656,8 @@ Every ID below is a QtTest function (or a named check) defined in its owning uni
 | README Bisync, "Copy to…", "Upload from URL…" | P8 | DONE | unit:P8:1 (§7 P8 closure) |
 | README "Serve" | P9 | TODO | — |
 | README "Navigation", "Search", "Keyboard shortcuts" | P10 | TODO | — |
-| README "Dual pane" | P11 | TODO | — |
-| README "Languages" | P12 | TODO | — |
+| README "Dual pane" | P11 | SKIPPED | revision 25: dropped at the user's request |
+| README "Languages" | P12 | SKIPPED | revision 25: dropped at the user's request |
 | README "Uploads: headers and S3 tags", platforms, full read-through; CHANGELOG and VERSION rule | P13 | TODO | — |
 
 ### Audits

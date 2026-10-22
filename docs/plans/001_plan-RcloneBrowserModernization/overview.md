@@ -10,7 +10,7 @@ Goal: make the manprint/RcloneBrowser fork a maintained Rclone Browser 2.x for r
 - fix the upstream bugs listed below;
 - add an rcd-based backend;
 - integrate the useful fork work;
-- deliver the F3 features: bisync, serve, copyurl/copyto, path entry, search, shortcuts, dual pane, i18n (Italian), S3 headers/tags, and BSD CI.
+- deliver the F3 features: bisync, serve, copyurl/copyto, path entry, search, shortcuts, S3 headers/tags, and BSD CI (dual pane and i18n were dropped by revision 25 at the user's request).
 
 Reference scenario. On the final HEAD, inside the Docker dev image with Qt 6.4.2 and the host rclone 1.75.2, all of the following hold:
 1. `scripts/dev.sh build qt64` and `scripts/dev.sh build qt610` compile with `-Werror` and no warnings.
@@ -118,9 +118,9 @@ New modules are flat files in `src/` (the existing convention), all compiled int
 | 8 Bisync, copyurl, copyto | [phase_09.md](phase_09.md) | 8.1, 8.2 | P14 | agent-2 |
 | 9 Serve | [phase_10.md](phase_10.md) | 9.1 | P14 | agent-2 |
 | 10 Navigation and productivity | [phase_11.md](phase_11.md) | 10.1–10.3 | P8, P9 | agent-2, agent-3 |
-| 11 Dual pane | [phase_12.md](phase_12.md) | 11.1, 11.2 | P10 | agent-2 |
-| 12 i18n Italian | [phase_13.md](phase_13.md) | 12.1–12.3 | P11 | agent-2, agent-3 |
-| 13 Ecosystem extras and final | [phase_14.md](phase_14.md) | 13.1, 13.2 | P12 | agent-2, agent-3 |
+| 11 Dual pane (SKIPPED, revision 25) | [phase_12.md](phase_12.md) | 11.1, 11.2 | P10 | — |
+| 12 i18n Italian (SKIPPED, revision 25) | [phase_13.md](phase_13.md) | 12.1–12.3 | P11 | — |
+| 13 Ecosystem extras and final | [phase_14.md](phase_14.md) | 13.1, 13.2 | P10 (revision 25) | agent-2, agent-3 |
 
 No live status in this table. Phases run in ID order with one state writer, except phase 14 (revision 11), which runs after P7 and before P8: the execution order is 0–7, 14, 8–13. Phases 8 and 9 depend only on P14, so a blocked serve feature does not stall bisync/copyurl. From phase 10 on, each phase depends on its predecessor: they extend the same `remote_widget.ui`/`main_window.ui`, the shortcut map and T-MW-SNAPSHOT, and 12.2 must wrap the strings of every earlier feature.
 
