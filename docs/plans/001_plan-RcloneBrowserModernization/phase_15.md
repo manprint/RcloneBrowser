@@ -103,6 +103,11 @@ Plan revision: 11.
 - **Unit tests:** `tests/tst_remote_ops.cpp`: T-OPS-MOVEARGS (folder and file cases, paths with spaces and brackets), T-OPS-MKDIRARGS (root parent, nested parent, the rejected names). Gate G-U14.3: `scripts/dev.sh test qt64 -- -R tst_remote_ops` passes with 2 functions.
 - **e2e tests:** T-E2E-OPS-MOVEFOLDER (temp dirs, the #171 oracle, in a new `tests/tst_e2e_remote_ops.cpp`; gate G-U14.3e) and T-PROTO-MOVEFOLDER (the same oracle on the 4 server rows in `tst_srv_protocols`; G-SERVERS now has 5 functions).
 - **Done:** gates pass (G-SERVERS included); reviews; unit closed; completion commit.
+- **Revision 17** (agent-1:opus, from the 14.3 prefetch read on the 14.2 tree; replaces the matching points above):
+  - #171: rclone's `moveto` registers neither `--delete-empty-src-dirs` nor `--create-empty-src-dirs` (only `move`, `copy`, `sync`, `bisync` do), so the folder move keeps `move`; the fork already runs `move p/F L/F`, not upstream's `move p/F L`. `folderMoveArgs` gives today's argv; after a successful (exit 0) folder move whose options contain `--delete-empty-src-dirs` and no dry-run/interactive flag, `rmdir <remote>:p/F` removes the source root that rclone's fallback path (destination exists, or no server-side DirMove) leaves empty; its exit code is ignored. If R-REPRO shows no leftover `p/F` in either the fresh or the merge case, #171 is "not reproduced" and the cleanup step is dropped (the builders and the e2e/proto tests stay as guards).
+  - The move dialog (`remote_folder_dialog.*`) already shows From:/To: with To = `L/F`; no "Move 'F' into:" text change.
+  - #220: `isValidFolderName` rejects empty, whitespace-only, any `/`, `.` and `..` (no trimming). The mkdir progress dialog also gets `allowToClose()` (its Cancel button was never enabled: the reported hang); the 60 s timeout applies to mkdir only. `ui.rename` keeps the same defect (follow-up). No automated test for the timeout; the root cause is recorded in the review row.
+  - Files: `src/CMakeLists.txt` and `tests/CMakeLists.txt` (registration). `tst_e2e_remote_ops` runs in the Linux e2e block. Expected totals: G-UNIT 20, G-E2E 14, G-SERVERS 5 functions.
 
 ### 14.4 Startup, rclone path, terminal, tray, window size (#159, #145, #209, #175, #208, #201, #156, #228)
 - **Model:** agent-2:sonnet
