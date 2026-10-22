@@ -1015,6 +1015,17 @@
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Dry Run all selected tasks at once&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </action>
+  <action name="actionCopyTaskCommand">
+   <property name="text">
+    <string>Copy command</string>
+   </property>
+   <property name="toolTip">
+    <string>Copy the rclone command of the selected tasks to the clipboard</string>
+   </property>
+   <property name="statusTip">
+    <string>Copy the rclone command of the selected tasks to the clipboard</string>
+   </property>
+  </action>
   <action name="actionSortTask">
    <property name="text">
     <string>Sort</string>

@@ -77,6 +77,7 @@ set(OTHER
   export_runner.h
   instance_lock.h
   terminal_command.h
+  command_line.h
   rclone_process.h
   mount_launch.h
   job_options.h
@@ -116,6 +117,7 @@ set(SOURCE
   export_runner.cpp
   instance_lock.cpp
   terminal_command.cpp
+  command_line.cpp
   rclone_process.cpp
   mount_launch.cpp
   transfer_monitor.cpp

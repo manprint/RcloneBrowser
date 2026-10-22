@@ -1,4 +1,5 @@
 #include "mount_widget.h"
+#include "command_line.h"
 #include "global.h"
 #include "rclone_process.h"
 #include "utils.h"
@@ -15,10 +16,11 @@ MountWidget::MountWidget(QProcess *process, const QString &remote,
   mUniqueID = uniqueID;
   QProcess *mScriptProcess = new QProcess();
 
-  mArgs.append(QDir::toNativeSeparators(GetRclone()));
-  mArgs.append(args);
+  // args carry no rc credentials (I-5): they travel in the environment
+  mCommand = commandLineForClipboard(QDir::toNativeSeparators(GetRclone()), args,
+                                     nativeShell());
 
-  ui.showOutput->setToolTip(mArgs.join(" "));
+  ui.showOutput->setToolTip(mCommand);
 
   QString screenInfo;
   if (info == "") {
@@ -195,7 +197,7 @@ MountWidget::MountWidget(QProcess *process, const QString &remote,
 
   QObject::connect(ui.copy, &QToolButton::clicked, this, [=]() {
     QClipboard *clipboard = QGuiApplication::clipboard();
-    clipboard->setText(mArgs.join(" "));
+    clipboard->setText(mCommand);
   });
 
   QObject::connect(

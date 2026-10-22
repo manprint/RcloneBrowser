@@ -59,6 +59,7 @@ A|actionAddToQueue|Add to the queue|1|0|0|
 A|actionAddToScheduler|Add to the scheduler|1|0|0|
 A|actionCleanNotRunning|Clean|1|0|0|
 A|actionConfig|Config|1|0|0|
+A|actionCopyTaskCommand|Copy command|1|0|0|
 A|actionDelete|Delete|1|0|0|
 A|actionDownQueue|Down|0|0|0|
 A|actionDryRun|Dry Run|1|0|0|

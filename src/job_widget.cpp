@@ -1,4 +1,5 @@
 #include "job_widget.h"
+#include "command_line.h"
 #include "rclone_format.h"
 #include "rclone_log.h"
 #include "transfer_monitor.h"
@@ -24,9 +25,12 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
 
   updateStartFinishInfo();
 
-  mArgs = GetRcloneCmd(args);
+  // the argv addTransfer starts (program, args, then --config), quoted for the
+  // native shell; GetRcloneCmd() output is already quoted and has --config first
+  mCommand = commandLineForClipboard(QDir::toNativeSeparators(GetRclone()),
+                                     args + GetRcloneConf(), nativeShell());
 
-  ui.showOutput->setToolTip(mArgs.join(" "));
+  ui.showOutput->setToolTip(mCommand);
 
   ui.source->setText(source);
   ui.source->setCursorPosition(0);
@@ -144,7 +148,7 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
 
   QObject::connect(ui.copy, &QToolButton::clicked, this, [=]() {
     QClipboard *clipboard = QGuiApplication::clipboard();
-    clipboard->setText(mArgs.join(" "));
+    clipboard->setText(mCommand);
   });
 
   QObject::connect(mMonitor, &TransferMonitor::statsUpdated, this,
@@ -198,9 +202,9 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
         QSet<QString> names;
         for (const RcloneTransferItem &item : items) {
           names.insert(item.name);
-          updateProgress(item.name, clampedPercent(item),
-                         transferTooltip(item));
         }
+        // finished files go first, so the high-water mark of the progress
+        // area never counts them together with the files that replace them
         for (auto it = mActive.begin(); it != mActive.end();) {
           if (names.contains(it.key())) {
             ++it;
@@ -209,6 +213,10 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
             it = mActive.erase(it);
             removeProgressRow(label);
           }
+        }
+        for (const RcloneTransferItem &item : items) {
+          updateProgress(item.name, clampedPercent(item),
+                         transferTooltip(item));
         }
       });
 
@@ -280,6 +288,10 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
 
         // 5. Cleanup.
         clearProgressRows();
+        // the finished widget compacts: one shift, at the end of the job. The
+        // strut is hidden too, or its (empty) row would still add spacing.
+        ui.gridLayout_2->setRowMinimumHeight(mProgressRow, 0);
+        mProgressStrut->hide();
         isRunning = false;
         mFinishDateTime = QDateTime::currentDateTime();
         updateStartFinishInfo();
@@ -294,6 +306,8 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
   ui.showDetails->setStyleSheet(
       "QToolButton { border: 0; color: green; font-weight: bold;}");
   ui.showDetails->setText("  Running");
+
+  reserveProgressArea();
 }
 
 JobWidget::~JobWidget() {}
@@ -327,6 +341,12 @@ void JobWidget::updateProgress(const QString &name, int value,
     label->setBuddy(bar);
 
     ui.progress->addRow(label, bar);
+    // the layout shows a new child only later; a hidden row has no size hint
+    label->show();
+    bar->show();
+    // high-water mark: the area never shrinks while the job runs
+    mProgressReserve = qMax(mProgressReserve, ui.progress->sizeHint().height());
+    ui.gridLayout_2->setRowMinimumHeight(mProgressRow, mProgressReserve);
 
     mActive.insert(name, label);
   } else {
@@ -343,12 +363,42 @@ void JobWidget::updateProgress(const QString &name, int value,
   bar->setToolTip(toolTip);
 }
 
+// The per-file rows are created and deleted as files start and end. Their grid
+// row keeps the height of one real row from the start (#169), so a file
+// appearing or disappearing does not move the widgets below it. A grid row
+// without a visible item adds no spacing, so a zero-size widget keeps the row
+// "used" and the spacing is already counted when the first file shows up.
+void JobWidget::reserveProgressArea() {
+  for (int i = 0; i < ui.gridLayout_2->count(); ++i) {
+    if (ui.gridLayout_2->itemAt(i)->layout() == ui.progress) {
+      int rowSpan = 0;
+      int column = 0;
+      int columnSpan = 0;
+      ui.gridLayout_2->getItemPosition(i, &mProgressRow, &column, &rowSpan,
+                                       &columnSpan);
+      break;
+    }
+  }
+
+  mProgressStrut = new QWidget(ui.details);
+  mProgressStrut->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+  ui.gridLayout_2->addWidget(mProgressStrut, mProgressRow, 1);
+
+  // measure one real row once, then remove it
+  auto *probeLabel = new QLabel(QStringLiteral("Xg"));
+  auto *probeBar = new QProgressBar();
+  ui.progress->addRow(probeLabel, probeBar);
+  probeLabel->show();
+  probeBar->show();
+  mProgressReserve = ui.progress->sizeHint().height();
+  ui.progress->removeRow(0);
+  ui.gridLayout_2->setRowMinimumHeight(mProgressRow, mProgressReserve);
+}
+
 void JobWidget::removeProgressRow(QLabel *label) {
-  QWidget *bar = label->buddy();
-  ui.progress->removeWidget(bar);
-  ui.progress->removeWidget(label);
-  delete bar;
-  delete label;
+  // removeRow() deletes both widgets and the row; removeWidget() left an empty
+  // row behind for every finished file, which made the area grow for good
+  ui.progress->removeRow(label);
 }
 
 void JobWidget::clearProgressRows() {
@@ -395,7 +445,7 @@ void JobWidget::setLogFile(const QString &path) {
   mLogFile = file;
   mLogFile->write((QStringLiteral("# Rclone Browser transfer log ") +
                    QDateTime::currentDateTime().toString(Qt::ISODate) +
-                   QStringLiteral(": ") + mArgs.join(QLatin1Char(' ')) +
+                   QStringLiteral(": ") + mCommand +
                    QLatin1Char('\n'))
                       .toUtf8());
   mLogFile->flush();

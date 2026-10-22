@@ -1,4 +1,5 @@
 #include "stream_widget.h"
+#include "command_line.h"
 #include "utils.h"
 
 StreamWidget::StreamWidget(QProcess *rclone, QProcess *player,
@@ -12,12 +13,13 @@ StreamWidget::StreamWidget(QProcess *rclone, QProcess *player,
   QString remoteTrimmed;
 
   auto settings = GetSettings();
-  mArgs.append(QDir::toNativeSeparators(GetRclone()));
-  mArgs.append(args);
-  mArgs.append(" | ");
-  mArgs.append(stream);
+  // the rclone part is quoted for the native shell; the player command line is
+  // typed by the user in shell syntax and is appended as it is
+  mCommand = commandLineForClipboard(QDir::toNativeSeparators(GetRclone()), args,
+                                     nativeShell()) +
+             QStringLiteral(" | ") + stream;
 
-  ui.showOutput->setToolTip(mArgs.join(" "));
+  ui.showOutput->setToolTip(mCommand);
 
   if (remote.length() > 140) {
     remoteTrimmed = remote.left(57) + "..." + remote.right(80);
@@ -78,7 +80,7 @@ StreamWidget::StreamWidget(QProcess *rclone, QProcess *player,
 
   QObject::connect(ui.copy, &QToolButton::clicked, this, [=]() {
     QClipboard *clipboard = QGuiApplication::clipboard();
-    clipboard->setText(mArgs.join(" "));
+    clipboard->setText(mCommand);
   });
 
   QObject::connect(

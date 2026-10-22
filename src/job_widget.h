@@ -44,7 +44,8 @@ private:
   TransferMonitor *mMonitor = nullptr;
   QFile *mLogFile = nullptr;
 
-  QStringList mArgs;
+  // the command of the job as the user would type it in the native shell
+  QString mCommand;
   QHash<QString, QLabel *> mActive;
 
   QString mUniqueID = "";
@@ -63,4 +64,10 @@ private:
   void consumeProcessOutput(bool final);
   void removeProgressRow(QLabel *label);
   void clearProgressRows();
+  void reserveProgressArea();
+
+  // grid row of the per-file progress area and its minimum height (#169)
+  int mProgressRow = 0;
+  QWidget *mProgressStrut = nullptr;
+  int mProgressReserve = 0;
 };

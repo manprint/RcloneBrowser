@@ -168,6 +168,12 @@ private:
 
   void runItem(JobOptionsListWidgetItem *item, const QString &transferMode,
                const QString &requestId, bool dryrun = false);
+  // clipboard: the command Run would start, one line per selected task
+  void copySelectedTaskCommands();
+  // the rclone arguments of a mount task (runItem), and the same plus the
+  // default mount options and --config (addNewMount)
+  static QStringList mountTaskArgs(const JobOptions &jo);
+  static QStringList mountArgsWithDefaults(const QStringList &args);
   void editSelectedTask();
   QIcon mUploadIcon;
   QIcon mDownloadIcon;

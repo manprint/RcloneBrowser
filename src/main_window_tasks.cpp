@@ -2,6 +2,7 @@
 
 #include "main_window.h"
 #include <QTabBar>
+#include "command_line.h"
 #include "global.h"
 #include "job_options.h"
 #include "job_widget.h"
@@ -149,6 +150,7 @@ void MainWindow::setupTasksTab() {
           if (isRunning) {
             menu.addAction(ui.actionStop);
           }
+          menu.addAction(ui.actionCopyTaskCommand);
           menu.addSeparator();
           if (items.count() == 1) {
             menu.addAction(ui.actionEdit);
@@ -206,6 +208,9 @@ void MainWindow::setupTasksActions() {
       editSelectedTask();
     }
   });
+
+  QObject::connect(ui.actionCopyTaskCommand, &QAction::triggered, this,
+                   [=]() { copySelectedTaskCommands(); });
 
   QObject::connect(ui.actionDryRun, &QAction::triggered, this, [=]() {
     auto selection = ui.tasksListWidget->selectedItems();
@@ -1811,6 +1816,110 @@ void MainWindow::listTasks() {
 
 } // MainWindow::listTasks()
 
+// Copies, for every selected task, the command Run starts: one line per task,
+// quoted for the native shell (#176, #123). The stored task is not changed.
+void MainWindow::copySelectedTaskCommands() {
+  const bool sortTask = GetSettings()->value("Settings/sortTask").toBool();
+  const auto items =
+      sortListWidget(ui.tasksListWidget->selectedItems(), sortTask);
+  if (items.isEmpty()) {
+    return;
+  }
+
+  const QString program = QDir::toNativeSeparators(GetRclone());
+  QStringList lines;
+  for (QListWidgetItem *i : items) {
+    JobOptions jo = *static_cast<JobOptionsListWidgetItem *>(i)->GetData();
+    QStringList argv;
+    if (jo.operation == JobOptions::Mount) {
+      // buildMountLaunch drops --rc-user and --rc-pass (I-5); the random
+      // credentials are not used
+      argv = buildMountLaunch(mountArgsWithDefaults(mountTaskArgs(jo)),
+                              QProcessEnvironment(), generateRcCredentials())
+                 .args;
+    } else {
+      // a Dry Run leaves dryRun set on the stored task; Run does not
+      jo.dryRun = false;
+      argv = PrepareTransferArgs(jo.getOptions()).args + GetRcloneConf();
+    }
+    lines << commandLineForClipboard(program, argv, nativeShell());
+  }
+  QGuiApplication::clipboard()->setText(lines.join(QLatin1Char('\n')));
+}
+
+// The rclone arguments Run starts for a mount task (without the default mount
+// options and --config, see mountArgsWithDefaults).
+QStringList MainWindow::mountTaskArgs(const JobOptions &jo) {
+  QStringList args;
+
+  args << "mount";
+
+  args << jo.source;
+
+  args << jo.dest;
+
+  if (!jo.mountRcPort.isEmpty()) {
+
+    args << "--rc";
+    args << "--rc-addr";
+    args << "localhost:" + jo.mountRcPort;
+  }
+  if (jo.remoteType == "drive") {
+    if (jo.remoteMode == "shared") {
+      args << "--drive-shared-with-me";
+      if (!jo.mountReadOnly) {
+        args << "--read-only";
+      }
+    }
+    if (jo.remoteMode == "trash") {
+      args << "--drive-trashed-only";
+    }
+  }
+
+  if (jo.mountReadOnly) {
+    args << "--read-only";
+  }
+
+  if (!(jo.mountVolume.trimmed().isEmpty())) {
+    args << "--volname";
+    args << jo.mountVolume;
+  }
+
+  switch (jo.mountCacheLevel) {
+  case JobOptions::MountCacheLevel::Off:
+    break;
+  case JobOptions::MountCacheLevel::Minimal:
+    args << "--vfs-cache-mode";
+    args << "minimal";
+    break;
+  case JobOptions::MountCacheLevel::Writes:
+    args << "--vfs-cache-mode";
+    args << "writes";
+    break;
+  case JobOptions::MountCacheLevel::Full:
+    args << "--vfs-cache-mode";
+    args << "full";
+    break;
+  case JobOptions::MountCacheLevel::UnknownCacheLevel:
+    break;
+  }
+
+  if (!jo.extra.trimmed().isEmpty()) {
+    for (auto line : jo.extra.trimmed().split('\n')) {
+      if (!line.isEmpty()) {
+        for (QString arg :
+             line.split(QRegularExpression(" (?=[^\"]*(\"[^\"]*\"[^\"]*)*$)"))) {
+          if (!arg.isEmpty()) {
+            args << arg.replace("\"", "");
+          }
+        }
+      }
+    }
+  }
+
+  return args;
+}
+
 void MainWindow::runItem(JobOptionsListWidgetItem *item,
                          const QString &transferMode, const QString &requestId,
                          bool dryrun) {
@@ -1990,72 +2099,7 @@ void MainWindow::runItem(JobOptionsListWidgetItem *item,
   } else {
     // mount
 
-    QStringList args;
-
-    args << "mount";
-
-    args << jo->source;
-
-    args << jo->dest;
-
-    if (!jo->mountRcPort.isEmpty()) {
-
-      args << "--rc";
-      args << "--rc-addr";
-      args << "localhost:" + jo->mountRcPort;
-    }
-    if (jo->remoteType == "drive") {
-      if (jo->remoteMode == "shared") {
-        args << "--drive-shared-with-me";
-        if (!jo->mountReadOnly) {
-          args << "--read-only";
-        }
-      }
-      if (jo->remoteMode == "trash") {
-        args << "--drive-trashed-only";
-      }
-    }
-
-    if (jo->mountReadOnly) {
-      args << "--read-only";
-    }
-
-    if (!(jo->mountVolume.trimmed().isEmpty())) {
-      args << "--volname";
-      args << jo->mountVolume;
-    }
-
-    switch (jo->mountCacheLevel) {
-    case JobOptions::MountCacheLevel::Off:
-      break;
-    case JobOptions::MountCacheLevel::Minimal:
-      args << "--vfs-cache-mode";
-      args << "minimal";
-      break;
-    case JobOptions::MountCacheLevel::Writes:
-      args << "--vfs-cache-mode";
-      args << "writes";
-      break;
-    case JobOptions::MountCacheLevel::Full:
-      args << "--vfs-cache-mode";
-      args << "full";
-      break;
-    case JobOptions::MountCacheLevel::UnknownCacheLevel:
-      break;
-    }
-
-    if (!jo->extra.trimmed().isEmpty()) {
-      for (auto line : jo->extra.trimmed().split('\n')) {
-        if (!line.isEmpty()) {
-          for (QString arg :
-               line.split(QRegularExpression(" (?=[^\"]*(\"[^\"]*\"[^\"]*)*$)"))) {
-            if (!arg.isEmpty()) {
-              args << arg.replace("\"", "");
-            }
-          }
-        }
-      }
-    }
+    const QStringList args = mountTaskArgs(*jo);
 
     addNewMount(jo->source, jo->dest, jo->remoteType, args, jo->mountScript,
                 jo->uniqueId.toString(), "Mounting task: " + jo->description);

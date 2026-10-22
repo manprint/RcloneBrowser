@@ -28,7 +28,8 @@ private:
   QProcess *mRclone;
   QProcess *mPlayer;
 
-  QStringList mArgs;
+  // the command as the user would type it in the native shell
+  QString mCommand;
 
   // 0 - running, 1 - finished, 2 - error
   QString mStatus = "0_stream_streaming";

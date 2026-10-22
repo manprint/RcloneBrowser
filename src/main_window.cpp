@@ -2599,24 +2599,10 @@ void MainWindow::addTransfer(const QString &message, const QString &source,
   sortJobs();
 }
 
-void MainWindow::addNewMount(const QString &remote, const QString &folder,
-                             const QString &remoteType, const QStringList &args,
-                             const QString &script, const QString &uniqueId,
-                             const QString &info) {
-
-  if (remoteType == "") {
-  }
-
+// The mount arguments plus the default mount options of the preferences and
+// --config: what addNewMount hands to buildMountLaunch.
+QStringList MainWindow::mountArgsWithDefaults(const QStringList &args) {
   QStringList argsFinal = args;
-
-  QProcess *mount = new QProcess(this);
-  mount->setProcessChannelMode(QProcess::MergedChannels);
-
-  if (ui.jobs->count() == 2) {
-    ui.noJobsAvailable->hide();
-  }
-
-  ui.tabs->setTabText(1, QString("Jobs (%1)").arg(++mJobCount));
 
   // get default mount options
   auto settings = GetSettings();
@@ -2634,6 +2620,28 @@ void MainWindow::addNewMount(const QString &remote, const QString &folder,
   }
 
   argsFinal << GetRcloneConf();
+
+  return argsFinal;
+}
+
+void MainWindow::addNewMount(const QString &remote, const QString &folder,
+                             const QString &remoteType, const QStringList &args,
+                             const QString &script, const QString &uniqueId,
+                             const QString &info) {
+
+  if (remoteType == "") {
+  }
+
+  QProcess *mount = new QProcess(this);
+  mount->setProcessChannelMode(QProcess::MergedChannels);
+
+  if (ui.jobs->count() == 2) {
+    ui.noJobsAvailable->hide();
+  }
+
+  ui.tabs->setTabText(1, QString("Jobs (%1)").arg(++mJobCount));
+
+  const QStringList argsFinal = mountArgsWithDefaults(args);
 
   // the rc credentials go through the environment, never through an argv
   const MountLaunch ml = buildMountLaunch(
