@@ -1,7 +1,7 @@
 # Rclone Browser modernization — Implementation state
 
 Read this file first in every session. Updated 2026-10-22 by agent-1:opus (execute session 1).
-Plan ID: 001_plan-RcloneBrowserModernization. Revision: 20. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
+Plan ID: 001_plan-RcloneBrowserModernization. Revision: 21. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
 Plan baseline: `0a57f4f` (HEAD of `ci/macos-arm64-dmg`, which is master `1551dbd` plus the PR #1 commits). Pre-existing changes at planning time:
 - untracked `.serena/`, which is unrelated: never stage or modify it;
 - untracked `docs/plans/001_plan-RcloneBrowserModernization/`, this plan, authored by this planning session (provenance established).
@@ -65,16 +65,16 @@ Recover an unresolved audit completion commit first, without finalizing the susp
 - Active scope: plan 001, all phases 0–14 (invocation `/plan-execute-verify-mid execute 001`, 2026-10-21; phase 14 added by revision 11). User, 2026-10-21: "finisci il piano in autonomia".
 - Scope result: RUNNING
 - Type: sub-phase
-- ID / attempt: 8.1 / 1
-- Status: CLOSED (unit:8.1:1)
-- Intent: Bisync as a fourth transfer mode (#243): `Operation::Bisync`, classVersion 9 with five bisync fields (I-7 fixture recorded first), `getOptions()` without the sync-timing flags and the four flags bisync rejects, ignores or turns destructive (revision 20), the TransferDialog radio and group, task labels; T-JO-* unit tests and the bisync e2e.
-- Assigned: `pev-subphase-v2` workflow wf_cf35990b-a01 (see the ledger); agent-1:opus (coordinator, final reviewer, state writer).
-- File / unit heading: phase_09.md "8.1 Bisync mode (#243)"
-- Current step: done
-- Next action: open 8.2 with revision 21 (the 8.2 prefetch decisions, brief `scratchpad/brief-8.2.md`) and run it through `pev-subphase-v2`; B-REL2 still waits for the user.
-- Next eligible plan unit: 8.2 (phase_09.md).
-- Unit base: 795f6d7 (WIP open of 8.1 on unit:P14:1); branch: `dev/001-modernization`; owned changes: `src/job_options.h/.cpp`, `src/list_of_job_options.cpp`, `src/transfer_dialog.h/.cpp/.ui`, `src/main_window_tasks.cpp`, NEW `tests/tst_job_options.cpp`, NEW `tests/fixtures/synthetic/jobopts_v8.bin`, `tests/fixtures/synthetic/README.md`, NEW `tests/tst_e2e_bisync.cpp`, `tests/CMakeLists.txt`, `docs/triage/upstream-issues.md` (#243); plan revision 20 (phase_09.md, STATE.md).
-- Repo state: HEAD = unit:8.1:1; untracked `.serena/` (unrelated).
+- ID / attempt: 8.2 / 1
+- Status: OPEN
+- Intent: "Copy to…" (`rclone copyto`) and "Upload from URL…" (`rclone copyurl`) on the remote tree (#199): `remote_actions` helpers, `UrlUploadDialog`, the two actions and handlers; T-ACT-* unit tests and the e2e against `rclone serve http` on 127.0.0.1 (revision 21).
+- Assigned: `pev-subphase-v2` workflow (sonnet-5-5 implementer, haiku-5-5 gate runner, opus-5-5 reviewers, sonnet-5-5 prefetch for the P8 closure); agent-1:opus (coordinator, final reviewer, state writer).
+- File / unit heading: phase_09.md "8.2 copyto and copyurl actions (#199)"
+- Current step: implementation (workflow)
+- Next action: on the workflow result check the enabling rules, the root `r:` handling, the args, the e2e hygiene and the unchanged snapshot; rerun gates; review; flip triage #199; close 8.2; then the P8 closure.
+- Next eligible plan unit: P8 closure (phase_09.md), after unit:8.2:1.
+- Unit base: revision 21 on unit:8.1:1 (93174a0); branch: `dev/001-modernization`; owned changes: NEW `src/remote_actions.h/.cpp`, NEW `src/url_upload_dialog.h/.cpp`, `src/remote_widget.cpp/.ui` (`.h` only if needed), `src/CMakeLists.txt`, `tests/CMakeLists.txt`, NEW `tests/tst_remote_actions.cpp`, NEW `tests/tst_e2e_remote_actions.cpp`; STATE.md.
+- Repo state: HEAD = revision 21 + this opening on unit:8.1:1; untracked `.serena/` (unrelated).
 
 ## 2. Feature context and readiness
 
@@ -444,6 +444,7 @@ Cold-read note (1.4, agent-1:opus, 2026-10-21): every symbol 1.4 uses is defined
 | 18 | phase_15 14.4: e2e rows `fclone` and missing file only; problem message unspecified; terminal command semantics unspecified; #156 measured after construction only; files without the terminal launcher, `remote_widget` and `tests/CMakeLists.txt`; G-U14.4 `tst_startup|tst_mainwindow_snapshot` | the 14.4 prefetch read on the 14.3 tree: both contract rows already survive on the base, the quit needs an executable that exits non-zero; a blocking box would hang the tests that spin the loop with `/bin/false`; a bare `rclone` in Preferences works through PATH; the reported 1232 px needs a remote tab; `Settings/startMinimisedToTray` exists. Decided: rows `control`/`fclone`/`missing`/`exit1`/`/bin/false` with a logged `rclone problem:` line, a non-blocking box with a Preferences button, PATH lookup for bare names, terminal command = program without arguments, the remote-tab cases and a layout-policy fix in `remote_widget` if they fail, #208 no change, gates widened, totals 21/15 | agent-1:opus (14.4 brief) | 14.4 brief |
 | 19 | phase_15 14.5: #116 answered as a global limit through default options; #132 without the existing Refresh cache button; status forms without notes; `already implemented` cells (3.3) outside the forms; PR rows unspecified; README obligation as a list of changes; files without `src/remote_widget.cpp` | the 14.5 prefetch read on the 14.4 tree: `--bwlimit` is per rclone process (rclone v1.75.2 docs and `fs/accounting/token_bucket.go`) and every job is its own process; the mount widget has had a Refresh cache button since 5.3 (T-E2E-VFS-REFRESH); several fixed rows need a short note; the rename dialog's Cancel stays disabled like the mkdir dialog's did before 14.3. Decided: #116 deferred with a correct FAQ entry, #132 names the button, `; <note>` tails, explicit `faq-…` anchors, `already implemented` → answered with FAQ entries, PR rows in the same grammar, FAQ entries for the 14.1–14.4 changes plus Known limitations, the rename `allowToClose()` line with the build and suite gates | agent-1:opus (14.5 brief) | 14.5 brief |
 | 20 | phase_09 8.1: Bisync gets "the same common flags as Sync" minus the sync timing; `rbBisync` enabled in both modes for any item; conflict value from the combo text; G-U8.1 with 4 functions; T-JO-ROUNDTRIP with one record | the 8.1 reviews and probes against rclone 1.75.2: bisync rejects `--delete-empty-src-dirs`, ignores `--update` and `--no-traverse`, and `--delete-excluded` makes it delete Path2 files outside the delta queue (agent-1 probe, isolated container, 2026-10-22); a Bisync task leaves the four out and the dialog disables them; Bisync is not offered for a single downloaded file; relative workdir refused, missing local folder offered for creation; conflict stored by index; `operator<<`/`>>` declared in the header; tst_job_options `QTEST_MAIN` with T-JO-DIALOG (5 functions); T-JO-ROUNDTRIP two records with pinned v9 tails; P8 README covers the left-out flags, folders only and the absolute workdir | agent-1:opus (8.1 closure) | phase_09.md 8.1 "Revision 20" note and the P8 README obligation; §11 test map row 8.1; jobopts_v9.bin (13.1 S1) records the layout T-JO-ROUNDTRIP pins |
+| 21 | phase_09 8.2: files without the dialog and the CMake lists; `dirWithSlash` undefined; `joinRclonePath` a new joiner; enabling without the Drive views; placement "tools frame if that is where…"; no rule for an invalid name with autoName unchecked or a directory-like Copy to destination | the 8.2 prefetch read on the 8.1 tree and rclone 1.75.2: `r:` stays `r:` (`r:/` is a filesystem root), `joinRclonePath` reuses `RemoteOps::joinPath`, both actions off in the Drive shared/trashed views, context menu + Tools drop-down and no toolbar button, OK needs a valid name when not auto, a `/` or `:` destination gets the file name, extra cases as rows, e2e UNIX-only with merged channels | agent-1:opus | phase_09.md 8.2 "Revision 21" note; brief `scratchpad/brief-8.2.md` |
 
 Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 14.1 (new `actionCopyTaskCommand`, revision 15; R-SNAP of phase 14), 9.1 S2 (new `actionServes`) and 11.2 S2 (new `openDual` button). Each re-recording lists only the added lines here when it happens.
 
@@ -519,7 +520,7 @@ Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 1
 | 14.4 | phase_15.md | 14.3 | DONE | 1 | G-U14.4, G-U14.4e pass; unit:14.4:1 |
 | 14.5 | phase_15.md | 14.4 | DONE | 1 | G-U14.5 pass; unit:14.5:1 |
 | 8.1 | phase_09.md | P14 | DONE | 1 | G-U8.1, G-U8.1e pass; unit:8.1:1 |
-| 8.2 | phase_09.md | 8.1 | TODO | 1 | — |
+| 8.2 | phase_09.md | 8.1 | IN_PROGRESS | 1 | — |
 | 9.1 | phase_10.md | P14 | TODO | 1 | — |
 | 10.1 | phase_11.md | P8, P9 | TODO | 1 | — |
 | 10.2 | phase_11.md | 10.1 | TODO | 1 | — |

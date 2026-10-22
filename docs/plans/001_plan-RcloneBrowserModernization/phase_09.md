@@ -145,6 +145,15 @@ Plan revision: 1.
   - T-E2E-COPYURL-NOCLOBBER: repeating with `noClobber` after changing the local file to `local` leaves its content `local`. The exit code is recorded in the evidence, not asserted.
   - Gate G-U8.2e: `scripts/dev.sh e2e qt64 -- -R tst_e2e_remote_actions` passes with 3 functions.
 - **Done:** G-U8.2 and G-U8.2e pass; smoke passes; unit closed; completion commit.
+- **Revision 21** (agent-1:opus, from the 8.2 prefetch read on the 8.1 tree and rclone 1.75.2; replaces the matching points above):
+  - Files: also NEW `src/url_upload_dialog.h/.cpp`, `src/CMakeLists.txt` and `tests/CMakeLists.txt`; `src/remote_widget.h` only if a member is needed.
+  - `joinRclonePath(dir, name)` = `dir.endsWith(':') ? dir + name : RemoteOps::joinPath(dir, name)` (reuses 14.3; `joinPath("r:", "a")` alone gives `r:/a`). `dirWithSlash(dir)` appends `/` only when `dir` ends with neither `/` nor `:`, so the root of a remote stays `r:` (`r:/` is the filesystem root on sftp, ftp and local). Long flags only, `--no-clobber` last; no `--config` in the args (MainWindow::addTransfer appends it).
+  - Enabling: Copy to needs one selected item that is not a folder, not the top level and not Special; Upload from URL one selected folder or the root; both are off in the Google Drive shared-with-me and trashed views (the argv has no mode flag), and both are disabled explicitly in the loading/Special branch of the selection handler.
+  - Placement: the tree context menu (`upload`, Upload from URL…, `download`, Copy to…) and the Tools drop-down menu after `link`; no new toolbar button (the 14.4 button row stays as it is); the existing copy and upload icons.
+  - UrlUploadDialog: OK also needs a valid file name (`RemoteOps::isValidFolderName`) while autoName is unchecked; with autoName checked the empty name (auto form) is passed; the URL is passed as typed (trimmed).
+  - Copy to: a destination ending in `/` or `:` is completed with the file name; both handlers add only `GetDefaultOptionsList("defaultRcloneOptions")` and use two separate `QUuid::createUuid()` values, like upload and download.
+  - Tests: extra cases are rows or asserts inside the 4 + 3 functions (the #199 URL with literal brackets in T-ACT-URL, `r:` and `r:d/` in T-ACT-COPYURL, the named form against real rclone in T-E2E-COPYURL); the e2e file is in the `RB_TEST_RCLONE AND UNIX AND NOT APPLE` block (pgrep leftover check); the serve URL regex is `http://127\.0\.0\.1:\d+/`; the copyurl file name is a stdout line, so the e2e merges the channels. New totals: G-UNIT 23, G-E2E 17.
+  - The #199 triage row becomes `fixed in 8.2 (…)` at the 8.2 closure; the README (Copy to…, Upload from URL…, the URL shows in the job and the copied command, the name comes from the URL path) and CHANGELOG at the P8 closure.
 
 ## Phase gates and closure
 - Required gates: G-BUILD64, G-UNIT, G-E2E, G-SMOKE. G-BUILD610 if the image is present.
