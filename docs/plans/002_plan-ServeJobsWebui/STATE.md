@@ -68,16 +68,16 @@ this file. Tests never read the host rclone config (temp config only). No push, 
 - Active scope: plan 002 (all phases) — `/plan-execute-verify execute 002` (user, 2026-10-23); full-autonomous:true, WIP on (§3)
 - Scope result: RUNNING
 - Type: sub-phase
-- ID / attempt: 1.2 / 1
-- Status: OPEN (closing: commit unit:1.2:1)
-- Intent: Serve button in the remote tab button row (D2)
+- ID / attempt: 1.3 / 1
+- Status: OPEN (closing: commit unit:1.3:1)
+- Intent: README: Serve button in #faq-serve; icon scale wording
 - Assigned: agent-3:haiku (delegated worker); supervisor: agent-1:opus
-- File / unit heading: phase_02.md "1.2 Serve button in the remote tab button row"
+- File / unit heading: phase_02.md "1.3 Update README.md"
 - Current step: commit
-- Next action: commit 1.2; open 1.3 (agent-3:haiku).
-- Next eligible plan unit: 1.3 / phase_02.md
-- Unit base: `ce5068f`; branch: `dev/002-serve-jobs-webui`; owned changes: `src/remote_widget.ui`, `src/remote_widget.cpp`, `tests/tst_shortcuts.cpp`
-- Repo state: HEAD `ce5068f` (unit:1.1:1); untracked `.serena/` (unrelated)
+- Next action: commit 1.3; P1 when gates (running) finish.
+- Next eligible plan unit: P1 / phase_02.md
+- Unit base: `d577ba0`; branch: `dev/002-serve-jobs-webui`; owned changes: `README.md`
+- Repo state: HEAD `d577ba0` (unit:1.2:1); untracked `.serena/` (unrelated)
 
 ## 2. Feature context and readiness
 
@@ -148,6 +148,7 @@ Required supervisor reviews cannot be silently replaced by weaker self-review.
 | Type | ID / attempt | Plan revision | Agent | Changes | Evidence/review | Commit |
 |------|--------------|---------------|-------|---------|-----------------|--------|
 | plan | 002 / 1 | 1 | agent-1:opus | plan folder created (overview, phase_01–04, STATE) | user answers U1–U4; probes R2–R4 | uncommitted (committed with 0.2) |
+| sub-phase | 1.3 / 1 | 2 | agent-3:haiku | README `#faq-serve`: Serve button; S2 no icon-size text to update (recorded) | supervisor check | unit:1.3:1 |
 | sub-phase | 1.2 / 1 | 2 | agent-3:haiku | `buttonServe` in `remote_widget.ui`/`.cpp`; `T_SC_SERVE_BUTTON` | G-U12 §7; review §7 | unit:1.2:1 |
 | sub-phase | 1.1 / 1 | 2 | agent-2:sonnet | NEW `src/remote_list_layout.{h,cpp}`, `tests/tst_remote_list_layout.cpp`; `rcloneListRemotes` uses it; CMake registrations; plan revision 2 records | G-U11 §7; review §7; revision 2 §8 | unit:1.1:1 |
 | phase-close | P0 / 1 | 1 | agent-1:opus | phase 0 closure | G-BUILD64/G-UNIT/G-E2E §7; review §7 | unit:P0:1 |
@@ -169,7 +170,8 @@ reconcile. A SHA recorded by a later update is optional.
 
 ## 6. In-flight checkpoint
 
-Unit 1.2: S1–S3 done. Pending commit unit:1.2:1. Running resources: none.
+Unit 1.3: README L598 updated; S2: no icon-size description exists in README (only the changelog bullet L83, left unchanged per contract). Pending commit unit:1.3:1.
+Running resources: P1 gate run (logs /tmp/rb-gates/p1-*.log).
 
 ## 7. Verification and reviews
 
@@ -219,7 +221,7 @@ none.
 | 0.3 | phase_01.md | 0.2 | DONE | 1 | README dev sentence; supervisor checked; unit:0.3:1 |
 | 1.1 | phase_02.md | P0 | DONE | 1 | G-U11 pass; review approved; unit:1.1:1 |
 | 1.2 | phase_02.md | P0 | DONE | 1 | G-U12 pass; unit:1.2:1 |
-| 1.3 | phase_02.md | 1.1, 1.2 | TODO | 1 | — |
+| 1.3 | phase_02.md | 1.1, 1.2 | DONE | 1 | README L598; no icon-size section exists; unit:1.3:1 |
 | 2.1 | phase_03.md | P1 | TODO | 1 | — |
 | 2.2 | phase_03.md | 2.1 | TODO | 1 | — |
 | 2.3 | phase_03.md | 2.1, 2.2 | TODO | 1 | — |
@@ -276,7 +278,7 @@ Test IDs map to QtTest functions by replacing `-` with `_` (e.g. T-WEBUI-SEQ ⇒
 | Document/sections | Owning unit | Status | Evidence |
 |-------------------|-------------|--------|----------|
 | README dev section (`RB_RCLONE_WEBUI`) | 0.3 | DONE | README L299 |
-| README remote icon scale + Serve button | 1.3 | TODO | — |
+| README remote icon scale + Serve button | 1.3 | DONE | L598 Serve button; no icon-size description to fix (L83 changelog only) |
 | README `#faq-serve` Jobs behaviour, no Serves window | 2.4 | TODO | — |
 | README `#faq-serve` webdav-webui + CHANGELOG | 3.4 | TODO | — |
 
