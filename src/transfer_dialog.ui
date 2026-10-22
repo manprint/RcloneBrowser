@@ -987,7 +987,7 @@ QToolButton:pressed {
              </size>
             </property>
             <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Absolute local folder for the bisync listings and lock files. Empty uses rclone's default. Use a short path if rclone reports a file name that is too long.&lt;br/&gt;&lt;br/&gt;--workdir&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Absolute local folder for the bisync listings and lock files. Empty uses rclone's default. rclone names these files after both folder paths, so very long folder paths can make the names too long for the file system. A shorter path to the same folders helps (for example a short symbolic link or an rclone alias remote); this folder does not.&lt;br/&gt;&lt;br/&gt;--workdir&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
             </property>
             <property name="placeholderText">
              <string>rclone default</string>

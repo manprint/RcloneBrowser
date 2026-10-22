@@ -91,9 +91,9 @@ Count: 15
 | #138 | Really wish RcloneBrowser could support multi language, I can help translate. | 2020-09-21 | in-plan 12.1 | 12.1 | planned in 12.1 |  |
 | #148 | Tap to edit path | 2020-11-20 | in-plan 10.1 | 10.1 | planned in 10.1 |  |
 | #195 | Check for updates | 2022-01-06 | in-plan 3.2 | 3.2 | deferred: background update checks exist (T_E2E_UPD_NEWER), switched in Preferences and run at most once a day; an on-demand menu entry is not offered |  |
-| #199 | Need Support Remote Upload For Url | 2022-02-07 | in-plan 8.2 | 8.2 | fixed in 8.2 (T_ACT_URL, T_ACT_COPYURL, T_E2E_COPYURL) |  |
+| #199 | Need Support Remote Upload For Url | 2022-02-07 | in-plan 8.2 | 8.2 | fixed in 8.2 (T_ACT_URL, T_ACT_COPYURL, T_E2E_COPYURL); the action runs rclone copyurl, named from the address path (after redirects) or by the name typed, see README#faq-upload-from-url and README#faq-limit-url-name |  |
 | #233 | Generate error log in real time? | 2024-03-14 | in-plan 1.4 | 1.4 | fixed in 1.4 (T_JOB_RENDER_ERR, T_E2E_JOB_LOGFILE); errors and their file show in the job panel's Errors tooltip and the output goes to the --log-file; that the file is written while the job runs, and that it holds error lines, is code reading and not asserted by a test |  |
-| #243 | Support for bisync ? | 2025-03-05 | in-plan 8.1 | 8.1 | fixed in 8.1 (T_E2E_BISYNC_RESYNC, T_E2E_BISYNC_UPDATE, T_JO_BISYNC_ARGS) |  |
+| #243 | Support for bisync ? | 2025-03-05 | in-plan 8.1 | 8.1 | fixed in 8.1 (T_E2E_BISYNC_RESYNC, T_E2E_BISYNC_UPDATE, T_JO_BISYNC_ARGS); see README#faq-bisync and README#faq-limit-bisync |  |
 
 ## Feature-deferred
 
@@ -129,7 +129,7 @@ Count: 36
 | #178 | Hidden Remotes | 2021-10-02 | deferred | — | deferred: no setting hides individual remotes; not planned |  |
 | #181 | Command Line Interface? | 2021-10-30 | deferred | — | deferred: the program takes no command line arguments, so a task cannot be started from a script; not planned |  |
 | #188 | not an issue - feature suggestion | 2021-11-22 | needs-user | — | deferred: the remote tab's file list allows selecting several items and keeps Copy, Move, Download and Delete enabled for them, and the Transfer dialog's "Choose items to upload" takes several items through --filter rules (code reading only, no test, so not claimed as done) |  |
-| #192 | [Feature Request] 'Copy' Button in context menu and top bar | 2021-12-12 | needs-user | — | answered (README#faq-copy-action) |  |
+| #192 | [Feature Request] 'Copy' Button in context menu and top bar | 2021-12-12 | needs-user | — | answered (README#faq-copy-action); see also README#faq-copy-to |  |
 | #194 | Feature Request: Copy/Export Mount Command | 2021-12-29 | deferred | — | fixed in 14.1 (T_CMD_MOUNTCOPY); see README#faq-copy-command |  |
 | #200 | Scheduled Tasks | 2022-02-10 | needs-user | — | answered (README#faq-scheduler) |  |
 | #204 | Queue manager | 2022-03-29 | deferred | — | deferred: the Queue tab has Start, Stop, Up, Down, Remove and Purge for the order of jobs (code reading only, no test), but the order of files inside a job cannot be changed |  |

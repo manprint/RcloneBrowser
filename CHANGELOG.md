@@ -1,5 +1,13 @@
 # Change Log
 
+## [2.1.0] - unreleased
+Changes since 2.0.0.
+
+-   NEW: "Bisync" mode in the Transfer dialog runs `rclone bisync` between two folders (Upload and Download, saved tasks, Dry run, queue and scheduler), with "First run / resync", conflict resolution (none, newer, older, larger, smaller, path1, path2), "Resilient", "Recover" and a "Workdir"; a Bisync task leaves out the six options that bisync rejects, ignores, turns into deletions or cannot stay in sync with - #243
+-   NEW: "Copy to…" in a remote's right-click and Tools menus copies one file to a name and place you type, on the same remote, on another remote or to a local path (`rclone copyto`) - #192
+-   NEW: "Upload from URL…" in the same menus uploads a file from an http or https address into the selected folder (`rclone copyurl`), named from the address or by you, with an option not to overwrite an existing file - #199
+-   CHANGED: the tasks file (tasks.bin) has a new format version. Rclone Browser 2.0.0 and older cannot read it once this version has saved, edited, duplicated or deleted a task (a Run with a task name or "Auto task name" also saves one): they show no tasks and replace the file at their next save. To go back, copy tasks.bin before that first save, and keep the newer file too if you will return to this version
+
 ## [2.0.0] - 2026-10-22
 Changes since 2.0.0-beta.1. The older `[2.0.0] - 2020-03-` section further down is upstream's development history, not this release.
 
