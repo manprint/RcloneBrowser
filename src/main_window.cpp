@@ -1280,6 +1280,14 @@ MainWindow::~MainWindow() {
   // the daemon (a child) goes away after this body: nobody may use it then
   global.daemon = nullptr;
 
+  // a process still running here (the "rclone config" terminal, a transfer, a
+  // mount) is a child that ~QWidget deletes after the members are gone, and
+  // ~QProcess emits finished(): its handlers must not reach this window then
+  for (QProcess *p :
+       findChildren<QProcess *>(QString(), Qt::FindDirectChildrenOnly)) {
+    p->disconnect();
+  }
+
   auto settings = GetSettings();
   settings->setValue("MainWindow/geometry", saveGeometry());
 }

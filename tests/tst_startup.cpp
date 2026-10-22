@@ -492,9 +492,11 @@ private slots:
       QVERIFY(writeExecutable(
           prefTerm, "#!/bin/sh\nprintf '%s\\n' \"$@\" > '" +
                         prefMarker.toUtf8() + "'\n"));
+      // this terminal stays open, so the main window below is destroyed
+      // while its process runs (quitting with the config terminal open)
       QVERIFY(writeExecutable(
           envTerm, "#!/bin/sh\nprintf '%s\\n' \"$@\" > '" +
-                       envMarker.toUtf8() + "'\n"));
+                       envMarker.toUtf8() + "'\nexec /bin/sleep 30\n"));
       qputenv("TERMINAL", envTerm.toUtf8());
 
       Answerer answerer;
