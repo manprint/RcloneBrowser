@@ -11,7 +11,9 @@
 #include "mount_dialog.h"
 #include "progress_dialog.h"
 #include "remote_folder_dialog.h"
+#include "remote_actions.h"
 #include "remote_ops.h"
+#include "url_upload_dialog.h"
 #include "transfer_dialog.h"
 #include "rclone_process.h"
 #include "utils.h"
@@ -195,6 +197,10 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
       QIcon(":media/images/qbutton_icons/upload" + img_add + ".png"));
   ui.download->setIcon(
       QIcon(":media/images/qbutton_icons/download" + img_add + ".png"));
+  ui.actionCopyTo->setIcon(
+      QIcon(":media/images/qbutton_icons/copy" + img_add + ".png"));
+  ui.actionUploadFromUrl->setIcon(
+      QIcon(":media/images/qbutton_icons/upload" + img_add + ".png"));
   ui.actionCheck->setIcon(
       QIcon(":media/images/qbutton_icons/check" + img_add + ".png"));
   ui.getSize->setIcon(
@@ -386,6 +392,10 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
   ui.stream->setStatusTip("Stream file - rclone cat | player -");
   ui.upload->setStatusTip("Upload files/directories (ALT-u)");
   ui.download->setStatusTip("Download files/directories (ALT-d)");
+  ui.actionCopyTo->setStatusTip(
+      "Copy the file to a chosen name or place - rclone copyto");
+  ui.actionUploadFromUrl->setStatusTip(
+      "Upload a file from a URL - rclone copyurl");
   ui.getSize->setStatusTip("Get items size - rclone size");
   ui.getTree->setStatusTip("Show directory tree - rclone tree");
   ui.link->setStatusTip("Fetch public link - rclone link");
@@ -401,6 +411,8 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
   QMenu *menuMode = new QMenu(this);
   menuMode->addAction(ui.getTree);
   menuMode->addAction(ui.link);
+  menuMode->addAction(ui.actionCopyTo);
+  menuMode->addAction(ui.actionUploadFromUrl);
   menuMode->addAction(ui.export_);
   menuMode->addAction(ui.actionCheck);
 
@@ -587,6 +599,8 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
           ui.stream->setDisabled(true);
           ui.upload->setDisabled(true);
           ui.download->setDisabled(true);
+          ui.actionCopyTo->setDisabled(true);
+          ui.actionUploadFromUrl->setDisabled(true);
 
           ui.getSize->setDisabled(true);
 
@@ -616,6 +630,8 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
           ui.stream->setDisabled(isFolder);
           ui.upload->setDisabled(!isFolder || driveModeButtons);
           ui.download->setDisabled(false);
+          ui.actionCopyTo->setDisabled(isFolder || topLevel || driveModeButtons);
+          ui.actionUploadFromUrl->setDisabled(!isFolder || driveModeButtons);
 
           ui.getSize->setDisabled(false);
           ui.getTree->setDisabled(!isFolder);
@@ -1413,6 +1429,94 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
     }
   });
 
+  //!!! QObject::connect(ui.actionCopyTo
+  QObject::connect(ui.actionCopyTo, &QAction::triggered, this, [=]() {
+    setRemoteMode(ui.cb_GoogleDriveMode->currentIndex(), remoteType);
+
+    const QModelIndexList selection = ui.tree->selectionModel()->selectedRows();
+    if (selection.isEmpty()) {
+      return;
+    }
+    const QModelIndex index = selection.front();
+
+    const QString path = model->path(index).path();
+    const QString src = remote + ":" + path;
+    const QString name = RemoteOps::lastComponent(path);
+    const QString curDir = remote + ":" + model->path(index.parent()).path();
+    const QString def = joinRclonePath(curDir, name);
+
+    bool ok = false;
+    QString dst = QInputDialog::getText(
+        this, tr("Copy to"), tr("Destination (remote:path or local path)"),
+        QLineEdit::Normal, def, &ok);
+    dst = dst.trimmed();
+    if (!ok || dst.isEmpty()) {
+      return;
+    }
+#ifdef Q_OS_WIN
+    // rclone converts '\' to '/' for local paths; a bare drive "D:" is the
+    // drive-relative "D:name", so treat it as the drive root "D:/". Only an
+    // ASCII letter is a drive (rclone's IsDriveLetter): a remote named with a
+    // Unicode letter keeps "X:" as its base folder
+    dst = QDir::fromNativeSeparators(dst);
+    if (dst.size() == 2 && dst[0].unicode() < 0x80 && dst[0].isLetter() &&
+        dst[1] == ':') {
+      dst += '/';
+    }
+#endif
+    // a relative path without "remote:" would resolve against the rclone
+    // process working directory (unseen by the user): resolve it against the
+    // folder of the selected file instead
+    const int colonPos = dst.indexOf(':');
+    const int slashPos = dst.indexOf('/');
+    if (QDir::isRelativePath(dst) &&
+        (colonPos < 0 || (slashPos >= 0 && slashPos < colonPos))) {
+      dst = joinRclonePath(curDir, dst);
+    }
+    // rclone fails a file source copied to a directory-like destination
+    if (dst.endsWith('/') || dst.endsWith(':')) {
+      dst = joinRclonePath(dst, name);
+    }
+    // a destination that is the file itself would be a silent no-op job
+    if (dst == src) {
+      return;
+    }
+
+    emit addTransfer("Copy to " + dst, src, dst,
+                     buildCopytoArgs(src, dst) +
+                         GetDefaultOptionsList("defaultRcloneOptions"),
+                     QUuid::createUuid().toString(), "",
+                     QUuid::createUuid().toString());
+  });
+
+  //!!! QObject::connect(ui.actionUploadFromUrl
+  QObject::connect(ui.actionUploadFromUrl, &QAction::triggered, this, [=]() {
+    setRemoteMode(ui.cb_GoogleDriveMode->currentIndex(), remoteType);
+
+    const QModelIndexList selection = ui.tree->selectionModel()->selectedRows();
+    if (selection.isEmpty()) {
+      return;
+    }
+    const QModelIndex index = selection.front();
+
+    // plain string: the root has the path "", QDir("") would become "."
+    const QString destDir = remote + ":" + model->path(index).path();
+
+    UrlUploadDialog dlg(destDir, this);
+    if (dlg.exec() != QDialog::Accepted) {
+      return;
+    }
+    const QString url = dlg.url();
+
+    emit addTransfer(
+        "Upload from URL " + url, url, destDir,
+        buildCopyurlArgs(url, destDir,
+                         dlg.autoName() ? QString() : dlg.fileName(),
+                         dlg.noClobber()) +
+            GetDefaultOptionsList("defaultRcloneOptions"),
+        QUuid::createUuid().toString(), "", QUuid::createUuid().toString());
+  });
+
   //!!! QObject::connect(ui.getTree
   QObject::connect(ui.getTree, &QAction::triggered, this, [=]() {
     setRemoteMode(ui.cb_GoogleDriveMode->currentIndex(), remoteType);
@@ -1853,7 +1957,9 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
                      menu.addAction(ui.actionNewMount);
                      menu.addAction(ui.stream);
                      menu.addAction(ui.upload);
+                     menu.addAction(ui.actionUploadFromUrl);
                      menu.addAction(ui.download);
+                     menu.addAction(ui.actionCopyTo);
                      menu.addSeparator();
                      menu.addAction(ui.getSize);
                      menu.addAction(ui.getTree);

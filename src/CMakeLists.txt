@@ -65,6 +65,7 @@ set(MOC
   rclone_daemon.h
   config_flow.h
   remote_config_dialog.h
+  url_upload_dialog.h
 )
 
 set(OTHER
@@ -79,6 +80,7 @@ set(OTHER
   terminal_command.h
   command_line.h
   remote_ops.h
+  remote_actions.h
   rclone_process.h
   mount_launch.h
   job_options.h
@@ -134,6 +136,8 @@ set(SOURCE
   delete_progress_dialog.cpp
   file_dialog.cpp
   remote_folder_dialog.cpp
+  remote_actions.cpp
+  url_upload_dialog.cpp
 )
 
 if(APPLE)

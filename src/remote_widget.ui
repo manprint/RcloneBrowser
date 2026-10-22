@@ -679,6 +679,22 @@ rclone about</string>
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Clean up the remote&lt;/p&gt;&lt;p&gt;rclone cleanup&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </action>
+  <action name="actionCopyTo">
+   <property name="text">
+    <string>Copy to…</string>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Copy the file to a chosen name or place&lt;/p&gt;&lt;p&gt;rclone copyto&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </action>
+  <action name="actionUploadFromUrl">
+   <property name="text">
+    <string>Upload from URL…</string>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Upload a file from a URL&lt;/p&gt;&lt;p&gt;rclone copyurl&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </action>
  </widget>
  <tabstops>
   <tabstop>buttonRefresh</tabstop>
