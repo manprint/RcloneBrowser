@@ -139,7 +139,8 @@ private slots:
     // a top-level folder of a bucket-based remote is a bucket: kept
     for (const QString type :
          {"s3", "b2", "azureblob", "swift", "oracleobjectstorage", "oos",
-          "qingstor", "storj", "tardigrade", "google cloud storage", "gcs"}) {
+          "qingstor", "storj", "tardigrade", "google cloud storage",
+          "googlecloudstorage", "gcs"}) {
       QVERIFY2(!ok(true, type, "photos", "archive/photos", extra),
                qPrintable(type));
       QVERIFY2(!ok(true, type, "/photos/", "archive/photos", extra),

@@ -128,6 +128,7 @@ bool isBucketRemoteType(const QString &remoteType) {
       QStringLiteral("s3"),
       QStringLiteral("b2"),
       QStringLiteral("google cloud storage"),
+      QStringLiteral("googlecloudstorage"),
       QStringLiteral("gcs"),
       QStringLiteral("azureblob"),
       QStringLiteral("swift"),
