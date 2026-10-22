@@ -12,7 +12,7 @@ Phase closure: P13 = final closure; review by agent-1:opus.
 Read STATE.md §0–1 first for scope, ownership, recovery, checks and commit rules. Open a unit before editing it. Checkpoint at recovery boundaries. Close with evidence. A delegated worker follows its assigned OPEN unit. Missing design decisions go to agent-1:opus. No network access (U6); the S3 test uses a local `rclone serve s3` on 127.0.0.1.
 
 ## Local design context
-Plan revision: 1; revision 30 (agent-1:opus, before 13.1) replaces the points it names in 13.1.
+Plan revision: 1; revision 30 (agent-1:opus, before 13.1) replaces the points it names in 13.1; revision 31 (agent-1:opus, before 13.2) replaces the points it names in 13.2.
 - D13: xrp001 contributes only the idea (`036882904` upload headers, `74fdeb738` S3 tags as an `X-Amz-Tagging` header). iamnhx contributes only the OpenBSD/NetBSD CI jobs from `a2e96c64a`. totza2010 contributes its teldrive icon.
 - R16 (local probe, rclone 1.75.2, 2026-10-21):
   - `rclone copy src s3t:bkt --header-upload "X-Amz-Tagging: proj=rb&env=test" --header-upload "Cache-Control: no-cache" --dump headers` against an anonymous local `rclone serve s3 <dir> --addr 127.0.0.1:0` (remote `type = s3, provider = Rclone, endpoint = <url>, force_path_style = true`) exits 0;
@@ -124,6 +124,17 @@ Plan revision: 1; revision 30 (agent-1:opus, before 13.1) replaces the points it
   - Gate G-U13.2: `scripts/dev.sh test qt64 -- -R tst_remote_icons` passes with 2 functions.
 - **e2e tests:** N/A — the icon lookup is pure and resource-backed; the workflow jobs are verified only by G-CI (user push).
 - **Done:** gates pass; CI debt recorded; unit closed; completion commit.
+- **Revision 31** (agent-1:opus after unit:13.1:1, from the 13.x prefetch wf_051cfea6-946 `scratchpad/prefetch-13.2.md` and its probes `scratchpad/probe13-types/`, `scratchpad/probe13-view/`; superseded → now):
+  - Model: agent-3:haiku → the `pev-subphase-v2` workflow with a sonnet-5-5 implementer (the brief carries the probe facts and the alias table);
+  - "VM action versions pinned exactly as in iamnhx's commit" → `vmactions/openbsd-vm@v1` and `vmactions/netbsd-vm@v1` on `ubuntu-latest`: a2e96c64a ran the FreeBSD action `@v0` on `macos-12` for all three jobs and iamnhx later removed both BSD jobs as never working (379940c, 2c1850b); `@v1` is the major of the existing `freebsd-vm` job, and its README runs on `ubuntu-latest` (gh api 2026-10-22: openbsd-vm tags v1.4.x, netbsd-vm v1.5.x);
+  - packages: OpenBSD `pkg_add cmake qt6`, NetBSD `pkgin -y install cmake qt6-qtbase`, with the Qt6 prefixes of the README; git and qt6-multimedia left out (optional in CMake);
+  - G-CI for the BSD jobs: at most 3 dispatches on a temporary branch `ci/13.2-bsd` that change only those two jobs (packages, prefixes, generator, timeout); a job still red after that is removed from `build.yml` and recorded in STATE.md §9 and the README platform note; never `continue-on-error`;
+  - the BSD jobs have no upload-artifact step (`create_release` downloads every artifact of the run) and are not in the `needs` of `create_release`, with one comment line above it;
+  - `remoteIconBaseName`: lower-case, `' '`→`'_'`, a `^[a-z0-9_]+$` guard, then 4 aliases (`gcs`, `googlecloudstorage` → `google_cloud_storage`; `gphotos`, `googlephotos` → `google_photos`), then `QFile::exists(":media/images/remotes_icons/<base>.png")`, else `unknown`; a `remoteIconAliases()` accessor for T-ICON-EXISTS; no fuzzy vendor mappings (`smb`, `oos`, … get `unknown`);
+  - `rcloneListRemotes` no longer rewrites `type` for the icon: `Qt::UserRole`, the RemoteWidget and the tooltip get the real rclone type, which also fixes `isBucketRemoteType` for a "google cloud storage" remote opened from the list (CHANGELOG FIXED at P13);
+  - `teldrive.png` from `totza2010/master` (blob ddccf2f8…), `teldrive_inv.png` generated (white, same alpha), both listed in `src/resources.qrc`;
+  - `tst_remote_icons` compiles its own copy of `src/resources.qrc` (`qt6_add_resources` in `tests/CMakeLists.txt`) and checks in `initTestCase` that a known icon resource exists; 2 functions; unit total 30;
+  - macFUSE: the text and the link in `src/remote_widget.cpp`; README line 62 at P13.
 
 ## Phase gates and closure (final)
 - Required gates: G-BUILD64, G-BUILD610 (required at final; BLOCKED until P-2 if the image is absent), G-UNIT, G-E2E, G-SMOKE, G-FINAL (no G-I18N: revision 25). G-SERVERS (revision 11). G-CI is required for COMPLETE: the supervisor pushes and dispatches (user authorization, STATE.md §3) and records the run ID and job conclusions.

@@ -65,16 +65,16 @@ Recover an unresolved audit completion commit first, without finalizing the susp
 - Active scope: plan 001, all phases 0–14 (invocation `/plan-execute-verify-mid execute 001`, 2026-10-21; phase 14 added by revision 11). User, 2026-10-21: "finisci il piano in autonomia".
 - Scope result: RUNNING
 - Type: sub-phase
-- ID / attempt: 13.1 / 1
-- Status: CLOSED (unit:13.1:1)
-- Intent: upload headers and S3 object tags (revision 30): `src/upload_headers.*`, JobOptions classVersion 10 with `uploadHeaders` and `s3Tags`, the TransferDialog panel and its validation, `jobopts_v9.bin` compatibility, and T-E2E-S3-TAGS against an anonymous local `rclone serve s3`.
-- Assigned: `pev-subphase-v2` wf_fa9b5c9e-cd3 (sonnet-5-5 implementer and 1 fix round, haiku-5-5 gate runner, opus-5-5 reviewers and verifier, sonnet-5-5 prefetch for the P13 closure); agent-1:opus (coordinator, S1, final reviewer, state writer).
-- File / unit heading: phase_14.md "13.1 Upload headers and S3 tags"
-- Current step: closed
-- Next action: G-CI on the 13.1 commit; revision 31 (the 13.2 decisions, `scratchpad/notes13.md`); open 13.2.
-- Next eligible plan unit: 13.2 (phase_14.md).
-- Unit base: unit:P10:1 (4f0764e) + revision 30 (696ca7e); branch: `dev/001-modernization`.
-- Repo state: HEAD = unit:13.1:1; untracked `.serena/` (unrelated).
+- ID / attempt: 13.2 / 1
+- Status: OPEN
+- Intent: BSD CI jobs, remote icons, macFUSE text (revision 31): OpenBSD and NetBSD jobs in `build.yml`, NEW `src/remote_icons.h/.cpp` with `remoteIconBaseName` and its alias table, the real rclone type in the remote list, the teldrive icons, the macFUSE text, NEW `tests/tst_remote_icons.cpp`.
+- Assigned: `pev-subphase-v2` workflow (sonnet-5-5 implementer, haiku-5-5 gate runner, opus-5-5 reviewers); agent-1:opus (coordinator, final reviewer, BSD G-CI, state writer).
+- File / unit heading: phase_14.md "13.2 BSD CI jobs, remote icons, macFUSE text"
+- Current step: S1
+- Next action: run the workflow from the brief (`scratchpad/brief-13.2.md`); then G-CI with the BSD policy of revision 31.
+- Next eligible plan unit: P13 (phase_14.md "Phase gates and closure (final)"), after unit:13.2:1.
+- Unit base: unit:13.1:1 + revision 31; branch: `dev/001-modernization`; owned changes: `.github/workflows/build.yml`, NEW `src/remote_icons.h/.cpp`, NEW `src/images/remotes_icons/teldrive.png` and `teldrive_inv.png`, `src/resources.qrc`, `src/main_window.cpp`, `src/remote_widget.cpp`, `src/CMakeLists.txt`, NEW `tests/tst_remote_icons.cpp`, `tests/CMakeLists.txt`; STATE.md.
+- Repo state: HEAD = revision 31 + this opening on unit:13.1:1; untracked `.serena/` (unrelated).
 
 ## 2. Feature context and readiness
 
@@ -527,6 +527,7 @@ Cold-read note (1.4, agent-1:opus, 2026-10-21): every symbol 1.4 uses is defined
 | 28 | phase_11 10.2 (plan revision 1): the Tasks filter matches `{text, toolTip}`; hidden items deselected only when the filter runs; the Jobs filter "after each job insertion or `sortJobs`"; only T-E2E-FILTER-TASKS | the 10.2 prefetch (sonnet-5-5, wf_66d6d182-544) decisions D1–D11, approved by agent-1:opus: no code sets a task tooltip, so the Tasks filter also matches the task's source and dest; an `itemSelectionChanged` guard deselects hidden tasks (select all reaches them, every task action reads `selectedItems()`); `applyJobsFilter()` after each `insertWidget` pair and at the end of `sortJobs` (early returns under `mDoNotSort`); T-E2E-FILTER-JOBS and T-E2E-FILTER-FIELDS added in `tst_e2e_filter.cpp`; the snapshot re-record pre-approved for exactly the two filter lines; triage #16/#21/#94 at the P10 closure | agent-1:opus (10.1 close) | phase_11.md "Revision 28" note and 10.2 contract; §11 test map row 10.2 |
 | 29 | phase_11 10.3 (plan revision 1 and revision 27): Alt+M on `mount`; the Close lambda uses the constructor's `parent`; Ctrl+1–5 plain `setCurrentIndex`; the snapshot re-record "under supervisor approval" | the 10.3 prefetch (sonnet-5-5, wf_d65be388-a01) decisions D1–D10, approved by agent-1:opus: `mount` is never connected (Alt+M on `actionNewMount`); the Close shortcut walks `parentWidget()` to the QTabWidget with null/-1 guards; tab keys skip hidden tabs; Ctrl+F also selects the text; unnamed window actions; no tooltip changes; T-MW-SNAPSHOT pre-approved for exactly the three shortcut columns of actionRun, actionEdit, actionDryRun (`3 3`); `tst_shortcuts` Linux-only with an `internetarchive` RemoteWidget; README "Keyboard shortcuts" only in 10.3 | agent-1:opus (10.2 close) | phase_11.md "Revision 29" note, shortcut map and 10.3 contract; §11 test map row 10.3 |
 | 30 | phase_14 13.1 (plan revision 1): "disables OK"; "collapsible" field placement open; tst_job_options "6 = 4 + 2"; the e2e port and oracle unspecified; tag and header parse details | the 13.1 prefetch (opus-5-5, wf_051cfea6-946) decisions D-COUNT, D-DLGTEST, D-PLACE (Extra options tab), D-REC, D-V9FIX, D-ARGPOS, D-TAGDUP, D-DUPTAGHDR, D-NORM, D-REMEMBER, D-STORE, D-E2EPATH, D-PORT, all as recommended, with the probe `scratchpad/probe13-s3hdr/out.txt` (rclone 1.75.2, isolated container) | agent-1:opus | phase_14.md "Revision 30" note; §11 test map row 13.1; brief `scratchpad/brief-13.1.md` |
+| 31 | phase_14 13.2 (plan revision 1): agent-3:haiku; VM actions "pinned exactly as iamnhx"; no G-CI policy for two jobs that never ran green; alias table open; `rcloneListRemotes` rewrote the type it also stores | the 13.x prefetch (wf_051cfea6-946) decisions: VM actions `@v1` on `ubuntu-latest`, at most 3 BSD dispatches then drop a red job, no BSD artifacts, 4 spelling aliases with the resource check, the real type in `Qt::UserRole`, generated `teldrive_inv.png`, the test's own qrc copy, packages without git and qt6-multimedia; all as recommended | agent-1:opus | phase_14.md "Revision 31" note; §11 test map row 13.2 |
 
 ## 9. Blockers
 
@@ -624,7 +625,7 @@ Cold-read note (1.4, agent-1:opus, 2026-10-21): every symbol 1.4 uses is defined
 | 12.2 | phase_13.md | 12.1 | SKIPPED | 1 | revision 25: dropped at the user's request |
 | 12.3 | phase_13.md | 12.2 | SKIPPED | 1 | revision 25: dropped at the user's request |
 | 13.1 | phase_14.md | P10 (revision 25) | DONE | 1 | G-U13.1, G-U13.1e pass; unit:13.1:1 |
-| 13.2 | phase_14.md | 13.1, P-1 (B-P1) | TODO | 1 | — |
+| 13.2 | phase_14.md | 13.1, P-1 (B-P1) | IN_PROGRESS | 1 | — |
 
 Units run in ID order. A prerequisite must be DONE; SKIPPED never satisfies it implicitly. A sub-phase whose prefetch is missing is BLOCKED, and the next eligible unit continues only if it does not depend on it (for example 0.4 may run while 0.3 waits for P-1; P0 cannot close until 0.3 is DONE).
 
@@ -694,7 +695,7 @@ Every ID below is a QtTest function (or a named check) defined in its owning uni
 | 12.2 | G-I18N (without the flag), G-E2E | T-MW-SNAPSHOT unchanged (SKIPPED, revision 25) |
 | 12.3 | G-U12.3, G-I18N | T-I18N-IT-STRINGS, T-I18N-IT-WINDOW (SKIPPED, revision 25) |
 | 13.1 | G-U13.1, G-U13.1e | T-HDR-PARSE, T-TAG-PARSE, T-TAG-HEADER, T-JO-COMPAT-V9, T-JO-UPLOAD-HEADERS, T-JO-HEADERS-DIALOG (revision 30); e2e T-E2E-S3-TAGS (with the drive negative run) |
-| 13.2 | G-U13.2, G-YAML | T-ICON-ALIAS, T-ICON-EXISTS |
+| 13.2 | G-U13.2, G-YAML, G-CI (BSD jobs, revision 31) | T-ICON-ALIAS (the 4 aliases and the guard), T-ICON-EXISTS |
 
 ### Documentation
 | Document/sections | Owning unit | Status | Evidence |
