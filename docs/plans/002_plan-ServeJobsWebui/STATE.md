@@ -68,16 +68,16 @@ this file. Tests never read the host rclone config (temp config only). No push, 
 - Active scope: plan 002 (all phases) — `/plan-execute-verify execute 002` (user, 2026-10-23); full-autonomous:true, WIP on (§3)
 - Scope result: RUNNING
 - Type: sub-phase
-- ID / attempt: 1.1 / 1
-- Status: OPEN (closing: commit unit:1.1:1)
-- Intent: remote list geometry helper (D1) + use in rcloneListRemotes; I-1 tests
-- Assigned: agent-2:sonnet (delegated worker); supervisor: agent-1:opus
-- File / unit heading: phase_02.md "1.1 Remote list geometry helper and its use"
+- ID / attempt: 1.2 / 1
+- Status: OPEN (closing: commit unit:1.2:1)
+- Intent: Serve button in the remote tab button row (D2)
+- Assigned: agent-3:haiku (delegated worker); supervisor: agent-1:opus
+- File / unit heading: phase_02.md "1.2 Serve button in the remote tab button row"
 - Current step: commit
-- Next action: commit 1.1; open 1.2 (agent-3:haiku).
-- Next eligible plan unit: 1.2 / phase_02.md
-- Unit base: `a809b8b`; branch: `dev/002-serve-jobs-webui`; owned changes: `src/main_window.cpp` (rcloneListRemotes), `src/CMakeLists.txt`, `src/remote_list_layout.{h,cpp}`, `tests/tst_remote_list_layout.cpp`, `tests/CMakeLists.txt`
-- Repo state: HEAD `a809b8b` (unit:P0:1); untracked `.serena/` (unrelated)
+- Next action: commit 1.2; open 1.3 (agent-3:haiku).
+- Next eligible plan unit: 1.3 / phase_02.md
+- Unit base: `ce5068f`; branch: `dev/002-serve-jobs-webui`; owned changes: `src/remote_widget.ui`, `src/remote_widget.cpp`, `tests/tst_shortcuts.cpp`
+- Repo state: HEAD `ce5068f` (unit:1.1:1); untracked `.serena/` (unrelated)
 
 ## 2. Feature context and readiness
 
@@ -148,6 +148,7 @@ Required supervisor reviews cannot be silently replaced by weaker self-review.
 | Type | ID / attempt | Plan revision | Agent | Changes | Evidence/review | Commit |
 |------|--------------|---------------|-------|---------|-----------------|--------|
 | plan | 002 / 1 | 1 | agent-1:opus | plan folder created (overview, phase_01–04, STATE) | user answers U1–U4; probes R2–R4 | uncommitted (committed with 0.2) |
+| sub-phase | 1.2 / 1 | 2 | agent-3:haiku | `buttonServe` in `remote_widget.ui`/`.cpp`; `T_SC_SERVE_BUTTON` | G-U12 §7; review §7 | unit:1.2:1 |
 | sub-phase | 1.1 / 1 | 2 | agent-2:sonnet | NEW `src/remote_list_layout.{h,cpp}`, `tests/tst_remote_list_layout.cpp`; `rcloneListRemotes` uses it; CMake registrations; plan revision 2 records | G-U11 §7; review §7; revision 2 §8 | unit:1.1:1 |
 | phase-close | P0 / 1 | 1 | agent-1:opus | phase 0 closure | G-BUILD64/G-UNIT/G-E2E §7; review §7 | unit:P0:1 |
 | sub-phase | 0.3 / 1 | 1 | agent-3:haiku | README `Development (Docker)`: `RB_RCLONE_WEBUI` sentence | supervisor check vs `scripts/dev.sh` | unit:0.3:1 |
@@ -168,13 +169,13 @@ reconcile. A SHA recorded by a later update is optional.
 
 ## 6. In-flight checkpoint
 
-Unit 1.1: S1–S4 done (revision 2). Pending commit unit:1.1:1.
-Running resources: none.
+Unit 1.2: S1–S3 done. Pending commit unit:1.2:1. Running resources: none.
 
 ## 7. Verification and reviews
 
 | Gate/test | Command | Result | Test count/named evidence | Tested revision/diff | When |
 |-----------|---------|--------|--------------------------|---------------------|------|
+| G-U12 | §3 | pass | build 0 warnings; `PASS   : TestShortcuts::T_SC_SERVE_BUTTON()`, Totals 6 passed 0 failed; buttonServe/buttonStream statements 7/7; full unit 31/31; layout index check used (no fallback) | 1.2 working diff on `ce5068f` | 2026-10-23 |
 | G-U11 | §3 | pass | build 0 warnings; `tst_remote_list_layout` Totals 22 passed 0 failed (T_ICON_GRID_LEGACY: legacy tiles 7, list 0, longlist 13; T_ICON_GRID 18 rows; T_ICON_GRID_EMPTY); full unit 31/31; worker e2e 21/21 | 1.1 working diff on `a809b8b` (rev 2) | 2026-10-23 |
 | G-BUILD64 (P0) | §3, `RB_RCLONE_WEBUI` exported | pass | exit 0, 0 warnings (/tmp/rb-gates/p0-build64.log) | `5d9cdba` + README-only 0.3 diff (= `0e20ab7`) | 2026-10-23 |
 | G-UNIT (P0) | §3 | pass | 30/30 (= G-BASE) | same | 2026-10-23 |
@@ -184,6 +185,7 @@ Running resources: none.
 
 | Review | Reviewer | Plan revision / reviewed change | Invariants/assertions checked | Verdict |
 |--------|----------|---------------------------------|------------------------------|---------|
+| 1.2 | agent-1:opus | rev 2 / 1.2 working diff on `ce5068f` | D2 parity (default action, 6 styling statements mirrored, tabstop), test asserts all 3 styles | approved |
 | 1.1 | agent-1:opus | rev 2 / 1.1 working diff on `a809b8b` | D1 formula line-by-line (kPad 6, label bounds, tiles/list/longlist sizes, grid, spacing, elide, wordWrap false, uniform sizes, per-item SizeHint); rcloneListRemotes keeps order/icons/tooltips/`_inv`/macOS 1.5×; hoisted size block; oracle C1–C4 per revision 2 with `.ui` properties; S1 legacy evidence | approved (note: `kPad` is a header-level constexpr, no clash in src/) |
 | P0 | agent-1:opus | rev 1 / `0e20ab7` | dev.sh/CMake diff for I-9 and backwards compatibility (no variable ⇒ identical behaviour plus a notice on e2e); counts equal G-BASE; README 0.3 accurate | approved |
 | 0.2 diff | agent-1:opus | rev 1 / 0.2 working diff on `19e93fa` | D11 exact; I-9 (no host HOME/config; fork mounted ro; only `version` run on host); `set -u` empty-array form; backwards compatibility without the variable; worker deviations (extra version-mismatch message, line split) accepted | approved |
@@ -216,7 +218,7 @@ none.
 | 0.2 | phase_01.md | 0.1 | DONE | 1 | G-U02 pass; review approved; unit:0.2:1 |
 | 0.3 | phase_01.md | 0.2 | DONE | 1 | README dev sentence; supervisor checked; unit:0.3:1 |
 | 1.1 | phase_02.md | P0 | DONE | 1 | G-U11 pass; review approved; unit:1.1:1 |
-| 1.2 | phase_02.md | P0 | TODO | 1 | — |
+| 1.2 | phase_02.md | P0 | DONE | 1 | G-U12 pass; unit:1.2:1 |
 | 1.3 | phase_02.md | 1.1, 1.2 | TODO | 1 | — |
 | 2.1 | phase_03.md | P1 | TODO | 1 | — |
 | 2.2 | phase_03.md | 2.1 | TODO | 1 | — |
@@ -244,7 +246,7 @@ SKIPPED retains a reason and does not automatically satisfy dependent units.
 | T-ICON-GRID-LEGACY (`tst_remote_list_layout`) | 1.1 | G-U11 | pass | G-U11 §7 |
 | T-ICON-GRID (I-1) | 1.1 | G-U11 | pass | G-U11 §7 |
 | T-ICON-GRID-EMPTY | 1.1 | G-U11 | pass | G-U11 §7 |
-| T-SC-SERVE-BUTTON (`tst_shortcuts`) | 1.2 | G-U12 | TODO | — |
+| T-SC-SERVE-BUTTON (`tst_shortcuts`) | 1.2 | G-U12 | pass | G-U12 §7 |
 | T-SRV-TOKENS (`tst_serve_manager`) | 2.1 | G-U21 | TODO | — |
 | T-SRV-BROWSER-URL | 2.1 | G-U21 | TODO | — |
 | T-SRV-FLOW (adapted) | 2.1 | G-U21 | TODO | — |
