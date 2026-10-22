@@ -65,15 +65,15 @@ Recover an unresolved audit completion commit first, without finalizing the susp
 - Active scope: plan 001, all phases 0–14 (invocation `/plan-execute-verify-mid execute 001`, 2026-10-21; phase 14 added by revision 11). User, 2026-10-21: "finisci il piano in autonomia".
 - Scope result: RUNNING
 - Type: sub-phase
-- ID / attempt: 7.1 / 1
-- Status: CLOSED (unit:7.1:1)
-- Intent: golden widget-state snapshot T-MW-SNAPSHOT recorded against the unchanged `MainWindow`, then the constructor split into named setup methods (D14: moved lines only).
-- Assigned: `pev-subphase-v2` workflow wf_7358bbea-561 (see the ledger); agent-1:opus (coordinator, final reviewer, state writer).
-- File / unit heading: phase_08.md "7.1 Golden snapshot test; constructor split"
-- Current step: done
-- Next action: G-CI on the 7.1 commit (revision 13), then 7.2 through `pev-subphase-v2` (agent-3:haiku = haiku-5-5 implementer as the plan assigns; move list of revision 14).
-- Next eligible plan unit: 7.2 (phase_08.md), after G-CI on unit:7.1:1.
-- Unit base: 69784c4 (unit:P6:1) + revision 13 (9f742f8); branch: `dev/001-modernization`; owned changes: `src/main_window.h/.cpp`, NEW `tests/tst_mainwindow_snapshot.cpp`, NEW `tests/fixtures/synthetic/mainwindow_snapshot.txt`, `tests/CMakeLists.txt`; plan `phase_08.md` (revision 14), STATE.md.
+- ID / attempt: 7.2 / 1
+- Status: OPEN
+- Intent: move the tasks/queue/scheduler methods of `MainWindow` verbatim to NEW `src/main_window_tasks.cpp` (D14: moved lines only; revision 14 move list: 9 setup methods in call order, then 12 plan methods in file order).
+- Assigned: `pev-subphase-v2` workflow (agent-3:haiku = haiku-5-5 implementer, haiku-5-5 gate runner, opus-5-5 reviewer `moved`, sonnet-5-5 prefetch for 14.1); agent-1:opus (coordinator, final reviewer, state writer).
+- File / unit heading: phase_08.md "7.2 Move tasks/queue/scheduler methods to main_window_tasks.cpp"
+- Current step: implementation (workflow)
+- Next action: on the workflow result, verify the move independently (span cmp, deletions-only diff, helper audit), rerun the gates, review, close 7.2; then P7 closure (README source layout, CHANGELOG 2.0.0 unreleased, phase gates, G-CI).
+- Next eligible plan unit: P7 (phase_08.md), after unit:7.2:1.
+- Unit base: 1c318b3 (unit:7.1:1); branch: `dev/001-modernization`; owned changes: NEW `src/main_window_tasks.cpp`, `src/main_window.cpp`, `src/CMakeLists.txt`, `src/main_window_p.h` only if a helper is shared; STATE.md.
 - Repo state: HEAD = unit:7.1:1; untracked `.serena/` (unrelated).
 
 ## 2. Feature context and readiness
@@ -274,6 +274,7 @@ Research checkpoint: N/A. Planning research is complete (R1–R16).
 | G-SMOKE (P6) | `scripts/dev.sh smoke qt64` | pass | `smoke: alive after 10s` | eb3f36f + README | 2026-10-22 |
 | G-SERVERS (P6) | `scripts/dev.sh servers qt64 -- -V`; then the two docker listings | pass | exit 0, `100% tests passed, 0 tests failed out of 1`; 16 `PASS` lines (`T_PROTO_CONFIG`, `T_PROTO_LISTING`, `T_PROTO_TRANSFER`, `T_PROTO_OPS` × 4 rows); 0 `SKIP`, 0 `FAIL!`; both docker listings empty | eb3f36f + README | 2026-10-22 |
 | G-CI (P6) | `gh workflow run build.yml --ref dev/001-modernization` on 69784c4 (run 39695528004) | pass | Windows x64, Windows ARM64, Linux (AppImage, unit + e2e), macOS (Apple Silicon), FreeBSD `success`; `create_release` skipped | 69784c4 | 2026-10-22 |
+| G-CI (7.1) | `gh workflow run build.yml --ref dev/001-modernization` on 1c318b3 (run 39699854555) | pass | Windows x64, Windows ARM64, Linux (AppImage, unit + e2e), macOS (Apple Silicon), FreeBSD `success`; `create_release` skipped | 1c318b3 | 2026-10-22 |
 | G-U7.1 | workflow G1–G8 (`scripts/dev.sh build qt64`, I-8, `scripts/dev.sh test qt64 -- -R tst_mainwindow_snapshot -V`, shape and moved-code checks, qt610 build + snapshot, unit, e2e, smoke); coordinator: fixture on the unsplit code in a worktree at 9f742f8 with only the 3 test files copied, order-aware reconstruction, gate rerun (logs `scratchpad/g71/`) | pass | worktree (src identical to 9f742f8): build exit 0, `T_MW_SNAPSHOT` PASS, actual file `cmp`-identical to the fixture; reconstruction: the 23 calls match the 23 definitions in order, inlining their bodies gives the original constructor except blank lines, the 7 icon promotions and the recomputed `GetSettings()`; outside the constructor and the setup methods the file is unchanged; `#if`/`#endif` balanced in every method; the original constructor has no top-level `return`; build qt64 exit 0, 0 `warning:`, I-8 prints `0`; `scripts/dev.sh test qt64 -- -V`: `100% tests passed, 0 tests failed out of 15`, `PASS   : TestMainWindowSnapshot::T_MW_SNAPSHOT()`, no `FAIL!`, no SKIP; e2e `out of 11`; smoke alive; qt610 build exit 0, 0 `warning:`, snapshot PASS against the same fixture; fixture sha256 unchanged | 9f742f8 + 7.1 diff | 2026-10-22 |
 | G-CI (B-CI2) | `gh workflow run build.yml` on `dev` (61a4b90) and `release` (023198d); watcher | fail | runs 39681749700 and 39681753176: Linux, FreeBSD, macOS (arm64) success; Windows x64/ARM64 `tst_rclone_log` fails: `FAIL! : TestRcloneLog::T_LOG_GARBAGE()` Actual `"panic: … dereference"`, Expected `"…dereference\r"` (CRLF checkout) → B-CI3 | 61a4b90, 023198d | 2026-10-21 |
 | G-CI | `gh workflow run build.yml` on `dev` 93e043b (run 39683777687) and `release` e95c328 (run 39683781325); push of 93e043b to `master` (run 39685379597); tag push `v2.0.0-beta.1` on 13c63cc (run 39687268047) | pass | every run: Windows x64, Windows ARM64, Linux (AppImage, unit + e2e), macOS (Apple Silicon), FreeBSD `success`; `create_release` skipped on branches, `success` on the tag | 93e043b, e95c328, 13c63cc | 2026-10-22 |
@@ -449,7 +450,7 @@ Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 9
 | 6.2 | phase_07.md | 6.1 | DONE | 1 | G-U6.2 pass; unit:6.2:1 |
 | 6.3 | phase_07.md | 6.1, P-6 | DONE | 1 | G-U6.3, G-SERVERS pass; unit:6.3:1 |
 | 7.1 | phase_08.md | P6 | DONE | 1 | G-U7.1 pass; unit:7.1:1 |
-| 7.2 | phase_08.md | 7.1 | TODO | 1 | — |
+| 7.2 | phase_08.md | 7.1 | IN_PROGRESS | 1 | — |
 | 14.1 | phase_15.md | P7, 6.3 | TODO | 1 | — |
 | 14.2 | phase_15.md | 14.1 | TODO | 1 | — |
 | 14.3 | phase_15.md | 14.2 | TODO | 1 | — |
