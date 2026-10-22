@@ -1,7 +1,7 @@
 # Rclone Browser modernization — Implementation state
 
 Read this file first in every session. Updated 2026-10-22 by agent-1:opus (execute session 1).
-Plan ID: 001_plan-RcloneBrowserModernization. Revision: 14. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
+Plan ID: 001_plan-RcloneBrowserModernization. Revision: 15. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
 Plan baseline: `0a57f4f` (HEAD of `ci/macos-arm64-dmg`, which is master `1551dbd` plus the PR #1 commits). Pre-existing changes at planning time:
 - untracked `.serena/`, which is unrelated: never stage or modify it;
 - untracked `docs/plans/001_plan-RcloneBrowserModernization/`, this plan, authored by this planning session (provenance established).
@@ -395,8 +395,9 @@ Cold-read note (1.4, agent-1:opus, 2026-10-21): every symbol 1.4 uses is defined
 | 12 | phase_07 6.2 assumed Cancel while editing leaves the remote unchanged ("nothing to clean up") | rclone saves every `config/update` answer as it is given (agent-1 probe 2026-10-22, isolated container); the P6 README obligation now states that Cancel while editing keeps the answers already confirmed with Next, and Cancel while creating removes the new remote. No restore on cancel: a delete/re-create restore could lose the remote on encrypted or OAuth configs. (b) G-SERVERS required the literal `Total Tests: 1`, which `ctest -V` never prints (only `ctest -N` does; found by the 6.3 gate runner): the oracle is `100% tests passed, 0 tests failed out of 1` | agent-1:opus (6.2 final review; 6.3 gate wording) | P6 README; follow-up F-W4 (§9); no test change (T-RCD-CANCEL covers the Create cleanup) |
 | 13 | phase_08 7.1: T-MW-SNAPSHOT as a unit test on every platform, recorded with `RB_RECORD_SNAPSHOT=1 scripts/dev.sh test …`, `SetRclone(rbRclone())` when set | Linux-only registration (platform branches in the constructor; CI runs unit tests on Windows, macOS and FreeBSD), recording by copying the actual file the test always writes (dev.sh forwards no host variables), `/bin/false` always, `qt_`/`_q_` names skipped, field escaping, `<VERSION>`/`<TESTDIR>` normalization, a no-rcd oracle; G-CI on the 7.1 commit before 7.2 | agent-1:opus (7.1 pre-dispatch, advisor-checked) | 7.1 brief; G-U7.1 also on qt610; G-CI moves from P7 debt to the 7.1 closure |
 | 14 | phase_08 7.2 moves the setup methods `setupTasksTab`, `setupQueue` and `setupScheduler` | 7.1 had to split the interleaved constructor into 23 contiguous methods; 7.2 moves the 9 that hold only tasks/queue/scheduler code (setupInitialStatus, setupTasksTab, setupQueueContextMenu, setupTasksActions, setupScheduler, setupSchedulerAdd, setupQueue, setupQueueEditing, setupRestoredState), first in the new file in call order, then the 12 plan methods in file order; `setupListSignalsAndIcons` stays | agent-1:opus (7.1 final review) | 7.2 brief |
+| 15 | phase_15 14.1: "button or context-menu action", `setRetainSizeWhenHidden` for #169, G-U14.1 with 5 functions, no test for #194/#176/#123 | the prefetch read on the 7.2 tree: the per-file rows are created and deleted (not hidden); the mount argv is built inline in `runItem`/`addNewMount`; R-ROW needs a test ID for every fixed issue. Decided: context-menu action only; argv = what Run starts; mount argv extracted by code motion into two private static members; grid-row minimum height (high-water mark); NEW `tests/tst_copy_sites.cpp` (T-CMD-MOUNTCOPY, T-CMD-TASKCOPY) and `tests/tst_e2e_cmdline.cpp`; G-U14.1 7 functions + snapshot; Transfer dialog preview left to the 14.5 triage | agent-1:opus (P7 closure, 14.1 brief) | 14.1 brief |
 
-Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 9.1 S2 (new `actionServes`) and 11.2 S2 (new `openDual` button). Each re-recording lists only the added lines here when it happens.
+Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 14.1 (new `actionCopyTaskCommand`, revision 15; R-SNAP of phase 14), 9.1 S2 (new `actionServes`) and 11.2 S2 (new `openDual` button). Each re-recording lists only the added lines here when it happens.
 
 ## 9. Blockers
 
@@ -533,7 +534,7 @@ Every ID below is a QtTest function (or a named check) defined in its owning uni
 | 6.3 | G-SERVERS | T-PROTO-CONFIG, T-PROTO-LISTING, T-PROTO-TRANSFER, T-PROTO-OPS (4 rows each: sftp, ftp, webdav, s3) |
 | 7.1 | G-U7.1 | T-MW-SNAPSHOT |
 | 7.2 | G-U7.1 (re-run), G-E2E, G-SMOKE | T-MW-SNAPSHOT unchanged |
-| 14.1 | G-U14.1, G-U14.1e | T-CMD-POSIX, T-CMD-WIN, T-CMD-ISSUE226, T-JW-STABLE, T-JW-OVERLAP; e2e T-E2E-CMD-ROUNDTRIP |
+| 14.1 | G-U14.1, G-U14.1e | T-CMD-POSIX, T-CMD-WIN, T-CMD-ISSUE226, T-JW-STABLE, T-JW-OVERLAP, T-CMD-MOUNTCOPY, T-CMD-TASKCOPY (revision 15); e2e T-E2E-CMD-ROUNDTRIP |
 | 14.2 | G-U14.2, G-U14.2e | T-TASK-DUP, T-TASK-MULTI, T-TASK-CONFIRM; e2e T-E2E-EXCLUDE, T-E2E-JOB-RESTART |
 | 14.3 | G-U14.3, G-U14.3e, G-SERVERS | T-OPS-MOVEARGS, T-OPS-MKDIRARGS; e2e T-E2E-OPS-MOVEFOLDER, T-PROTO-MOVEFOLDER |
 | 14.4 | G-U14.4, G-U14.4e | T-START-RCLONEPATH, T-START-TERMINAL, T-START-MINWIDTH, T-START-TABS; e2e T-E2E-START-BADRCLONE |

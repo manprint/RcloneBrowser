@@ -57,6 +57,14 @@ Plan revision: 11.
   - Gate G-U14.1: `scripts/dev.sh test qt64 -- -R 'tst_command_line|tst_jobwidget_layout|tst_mainwindow_snapshot'` passes with 5 functions (+1 snapshot).
 - **e2e tests:** T-E2E-CMD-ROUNDTRIP (in `tests/tst_e2e_terminal.cpp` or a new `tests/tst_e2e_cmdline.cpp`): the POSIX clipboard text of a local copy job (temp dirs with `a b.txt` and `it's.txt`) run through `sh -c` with the real rclone copies both files. Gate G-U14.1e runs it.
 - **Done:** gates pass; R-REPRO outcome of #83 recorded; reviews; unit closed; completion commit.
+- **Revision 15** (agent-1:opus, from the 14.1 prefetch read on the 7.2 tree; replaces the matching points above):
+  - #176/#123: a QAction `actionCopyTaskCommand` ("Copy command") in the Tasks context menu after Run/Stop; no toolbar button. It copies, for each selected task (sorted like Run, one line per task), the argv Run starts: `PrepareTransferArgs(copy.getOptions()).args + GetRcloneConf()` on a copy of the stored task with `dryRun = false`; for a mount task `buildMountLaunch(mountArgsWithDefaults(mountTaskArgs(jo)), …).args` (no rc credentials, I-5).
+  - Mount argv: `runItem`'s inline mount argv and `addNewMount`'s defaults step move (code motion, no new logic) into the private static members `MainWindow::mountTaskArgs(const JobOptions &)` (main_window_tasks.cpp) and `MainWindow::mountArgsWithDefaults(const QStringList &)` (main_window.cpp).
+  - JobWidget copies program + `args + GetRcloneConf()` (the argv `addTransfer` starts, conf last), never `GetRcloneCmd()` output (it pre-quotes). StreamWidget quotes the rclone part and appends ` | ` and the player string raw.
+  - #169: the per-file rows are created and deleted, not hidden, so `setRetainSizeWhenHidden` does not apply. The grid row of `ui.progress` gets a minimum height: one row from the constructor, a high-water mark while running, released when the job finishes.
+  - #83: T-JW-OVERLAP hosts the widget in a QScrollArea with a 600 px viewport (the details grid's minimum width may exceed 600 px) and records the effective width; the status text is the `showDetails` button.
+  - R-ROW: NEW `tests/tst_copy_sites.cpp` (Linux only, like T-MW-SNAPSHOT): T-CMD-MOUNTCOPY (#194) and T-CMD-TASKCOPY (#176/#123). G-U14.1 runs `-R 'tst_command_line|tst_jobwidget_layout|tst_copy_sites|tst_mainwindow_snapshot'`: 7 functions plus the snapshot. The e2e test lives in NEW `tests/tst_e2e_cmdline.cpp`. Expected totals: G-UNIT 18, G-E2E 12.
+  - The Transfer dialog preview and the remote folder dialog still show `GetRcloneCmd(...).join(" ")` (display only); 14.5 records them in the triage.
 
 ### 14.2 Transfer and task options (#179, #144, #139, #80, #98, #118)
 - **Model:** agent-2:sonnet
