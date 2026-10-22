@@ -1,6 +1,6 @@
 # Change Log
 
-## [2.0.0] - unreleased
+## [2.0.0] - 2026-10-22
 Changes since 2.0.0-beta.1. The older `[2.0.0] - 2020-03-` section further down is upstream's development history, not this release.
 
 -   NEW: a private `rclone rcd` backend lists folders; it listens on `127.0.0.1` with a random port and gets random credentials through its environment. `rclone lsjson` remains the fallback when the backend is unavailable or "Default rclone options" is set
