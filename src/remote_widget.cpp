@@ -2083,10 +2083,24 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
     }
   }
 
-  QShortcut *close = new QShortcut(QKeySequence::Close, this);
-  QObject::connect(close, &QShortcut::activated, this, [=]() {
-    auto tabs = qobject_cast<QTabWidget *>(parent);
-    tabs->removeTab(tabs->indexOf(this));
+  // Ctrl+W closes the tab like its x button: the tab widget is found at
+  // activation time (after addTab the parent is its QStackedWidget, and the
+  // widget may have been built with no parent)
+  QShortcut *closeTab = new QShortcut(QKeySequence::Close, this);
+  QObject::connect(closeTab, &QShortcut::activated, this, [this]() {
+    QTabWidget *tabs = nullptr;
+    for (QWidget *w = parentWidget(); w && !tabs; w = w->parentWidget()) {
+      tabs = qobject_cast<QTabWidget *>(w);
+    }
+    if (!tabs) {
+      return;
+    }
+    const int idx = tabs->indexOf(this);
+    if (idx < 0) {
+      return;
+    }
+    // the same path as the tab's x: slotCloseTab, deleteLater, removeTab
+    emit tabs->tabCloseRequested(idx);
   });
 
   // the path field: type a path and press Enter or Go (Ctrl+L focuses it)
@@ -2102,6 +2116,15 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
     ui.tree->setFocus();
   });
   addAction(ui.actionGoToPath);
+  // the keys work while this remote's tab is current (a hidden widget never
+  // matches a shortcut), also with the button row hidden and for the actions
+  // that live only in a menu
+  for (QAction *a :
+       {ui.refresh, ui.mkdir, ui.rename, ui.purge, ui.upload, ui.download,
+        ui.getInfo, ui.getSize, ui.getTree, ui.link, ui.actionNewMount,
+        ui.stream, ui.move, ui.actionCopyTo, ui.actionServe}) {
+    addAction(a);
+  }
   QObject::connect(ui.actionGoToPath, &QAction::triggered, this, [=]() {
     ui.path->setFocus();
     ui.path->selectAll();

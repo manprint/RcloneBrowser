@@ -1017,6 +1017,9 @@
    <property name="toolTip">
     <string>Edit selected task</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+E</string>
+   </property>
   </action>
   <action name="actionDelete">
    <property name="text">
@@ -1033,6 +1036,9 @@
    <property name="toolTip">
     <string>Run all selected tasks at once</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+Return</string>
+   </property>
   </action>
   <action name="actionDryRun">
    <property name="text">
@@ -1040,6 +1046,9 @@
    </property>
    <property name="toolTip">
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Dry Run all selected tasks at once&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+Return</string>
    </property>
   </action>
   <action name="actionCopyTaskCommand">

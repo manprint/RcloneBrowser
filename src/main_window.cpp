@@ -115,6 +115,7 @@ MainWindow::MainWindow() {
   setupQueueEditing();
   setupListSignalsAndIcons();
   setupTabs();
+  setupShortcuts();
   setupRestoredState();
   setupTrayAndStartup();
 }
@@ -1181,6 +1182,47 @@ void MainWindow::setupTabs() {
 
   ApplyOptionalTabsVisibility(ui.tabs);
   ApplyFixedTabsTextColor(ui.tabs);
+}
+
+void MainWindow::setupShortcuts() {
+  // window-wide keys; the actions are unnamed (a named one is listed by the
+  // main window snapshot test)
+  auto add = [this](const QString &text, const QString &keys) {
+    auto *a = new QAction(text, this);
+    a->setShortcut(QKeySequence(keys, QKeySequence::PortableText));
+    a->setShortcutContext(Qt::WindowShortcut);
+    addAction(a);
+    return a;
+  };
+
+  // Ctrl+1..Ctrl+5: Remotes, Jobs, Tasks, Queue, Scheduler (a tab hidden by
+  // Preferences is skipped)
+  for (int n = 0; n < 5; ++n) {
+    QObject::connect(add(QString("Show tab %1").arg(n + 1),
+                         QString("Ctrl+%1").arg(n + 1)),
+                     &QAction::triggered, this, [this, n]() {
+                       if (ui.tabs->isTabVisible(n)) {
+                         ui.tabs->setCurrentIndex(n);
+                       }
+                     });
+  }
+
+  // Ctrl+F: the filter of the current tab (Tasks, Jobs)
+  QObject::connect(add("Search in the current tab", "Ctrl+F"),
+                   &QAction::triggered, this, [this]() {
+                     const int i = ui.tabs->currentIndex();
+                     QLineEdit *f = i == 2   ? ui.tasksFilter
+                                    : i == 1 ? ui.jobsFilter
+                                             : nullptr;
+                     if (f) {
+                       f->setFocus(Qt::ShortcutFocusReason);
+                       f->selectAll();
+                     }
+                   });
+
+  // Ctrl+R: the Refresh button of the remote list
+  QObject::connect(add("Refresh remotes", "Ctrl+R"), &QAction::triggered, this,
+                   [this]() { ui.refresh->click(); });
 }
 
 void MainWindow::setupTrayAndStartup() {

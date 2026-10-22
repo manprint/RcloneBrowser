@@ -64,15 +64,15 @@ A|actionConfig|Config|1|0|0|
 A|actionCopyTaskCommand|Copy command|1|0|0|
 A|actionDelete|Delete|1|0|0|
 A|actionDownQueue|Down|0|0|0|
-A|actionDryRun|Dry Run|1|0|0|
+A|actionDryRun|Dry Run|1|0|0|Ctrl+Shift+Return
 A|actionDuplicateTask|Duplicate|1|0|0|
-A|actionEdit|Edit|1|0|0|
+A|actionEdit|Edit|1|0|0|Ctrl+E
 A|actionOpen|Open|1|0|0|
 A|actionPurgeQueue|Purge|1|0|0|
 A|actionQueueScriptRun|queueScriptRun|1|0|0|
 A|actionRefresh|Refresh|1|0|0|
 A|actionRemoveFromQueue|Remove|0|0|0|
-A|actionRun|Run|1|0|0|
+A|actionRun|Run|1|0|0|Ctrl+Return
 A|actionServes|Serves…|1|0|0|
 A|actionSortByStatus|Sort|1|0|0|
 A|actionSortByTime|Sort|1|0|0|

@@ -111,6 +111,7 @@ private:
   void setupQueueEditing();
   void setupListSignalsAndIcons();
   void setupTabs();
+  void setupShortcuts();
   void setupRestoredState();
   void setupTrayAndStartup();
 

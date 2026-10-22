@@ -537,6 +537,9 @@ rclone mount</string>
 
 rclone cat | player -</string>
    </property>
+   <property name="shortcut">
+    <string>Alt+V</string>
+   </property>
   </action>
   <action name="mkdir">
    <property name="text">
@@ -608,6 +611,9 @@ rclone purge|delete</string>
 
 rclone size</string>
    </property>
+   <property name="shortcut">
+    <string>Alt+S</string>
+   </property>
   </action>
   <action name="getTree">
    <property name="text">
@@ -617,6 +623,9 @@ rclone size</string>
     <string>Show folders tree
 
 rclone tree</string>
+   </property>
+   <property name="shortcut">
+    <string>Alt+T</string>
    </property>
   </action>
   <action name="export_">
@@ -634,6 +643,9 @@ rclone tree</string>
    <property name="toolTip">
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Server side move&lt;/p&gt;&lt;p&gt;rclone move&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
+   <property name="shortcut">
+    <string>F6</string>
+   </property>
   </action>
   <action name="shared">
    <property name="text">
@@ -649,6 +661,9 @@ rclone tree</string>
 
 rclone link</string>
    </property>
+   <property name="shortcut">
+    <string>Alt+L</string>
+   </property>
   </action>
   <action name="getInfo">
    <property name="text">
@@ -658,6 +673,9 @@ rclone link</string>
     <string>Get remote info
 
 rclone about</string>
+   </property>
+   <property name="shortcut">
+    <string>Alt+I</string>
    </property>
   </action>
   <action name="actionCheck">
@@ -691,6 +709,9 @@ rclone about</string>
    <property name="toolTip">
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Mount remote to local filesystem&lt;/p&gt;&lt;p&gt;rclone mount&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
+   <property name="shortcut">
+    <string>Alt+M</string>
+   </property>
   </action>
   <action name="copy">
    <property name="text">
@@ -715,6 +736,9 @@ rclone about</string>
    <property name="toolTip">
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Copy the file to a chosen name or place&lt;/p&gt;&lt;p&gt;rclone copyto&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
+   <property name="shortcut">
+    <string>Shift+F5</string>
+   </property>
   </action>
   <action name="actionUploadFromUrl">
    <property name="text">
@@ -730,6 +754,9 @@ rclone about</string>
    </property>
    <property name="toolTip">
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Serve this folder over http, webdav, ftp, sftp, dlna, nfs, restic or s3&lt;/p&gt;&lt;p&gt;rclone serve&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+   <property name="shortcut">
+    <string>Alt+E</string>
    </property>
   </action>
   <action name="actionGoToPath">

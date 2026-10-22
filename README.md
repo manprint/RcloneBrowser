@@ -37,6 +37,7 @@ Table of contents
 *   [Development (Docker)](#development-docker)
 *   [Portable vs standard mode](#portable-vs-standard-mode)
 *   [Transfers and logging](#transfers-and-logging)
+*   [Keyboard shortcuts](#keyboard-shortcuts)
 *   [rclone version, updates and config password](#rclone-version-updates-and-config-password)
 *   [Backend](#backend)
 *   [FAQ and known limitations](#faq-and-known-limitations)
@@ -356,6 +357,44 @@ Rclone Browser reads the progress of every transfer (stats, per-file progress an
 *   `--log-file <path>` is honored: the job appends a readable text log to that file (the same lines as the output panel, followed by the final stats).
 *   rclone's logging environment variables (`RCLONE_VERBOSE`, `RCLONE_LOG_LEVEL`, `RCLONE_LOG_FILE`, `RCLONE_STATS*`, `RCLONE_USE_JSON_LOG`, `RCLONE_PROGRESS`, `RCLONE_QUIET`, `RCLONE_COLOR`, ...) are not passed to the rclone processes whose output the app reads. `RCLONE_LOG_FILE` and `RCLONE_LOG_LEVEL` still count as `--log-file` and `--log-level` for transfers. All other `RCLONE_*` settings apply as usual; the `rclone config` terminal keeps the full environment.
 *   Combined short flags such as `-vP` are passed to rclone unchanged; write logging flags separately.
+
+Keyboard shortcuts
+------------------
+
+| Scope | Key | Action |
+|-------|-----|--------|
+| Remote tab | F5 | Refresh |
+| Remote tab | F7 | New folder |
+| Remote tab | F2 | Rename |
+| Remote tab | Del | Delete |
+| Remote tab | Alt+U | Upload |
+| Remote tab | Alt+D | Download |
+| Remote tab | Alt+I | Info |
+| Remote tab | Alt+S | Size |
+| Remote tab | Alt+T | DirTree |
+| Remote tab | Alt+L | Link |
+| Remote tab | Alt+M | Mount |
+| Remote tab | Alt+V | Stream |
+| Remote tab | F6 | Move |
+| Remote tab | Shift+F5 | Copy to… |
+| Remote tab | Alt+E | Serve… |
+| Remote tab | Ctrl+L | Go to path: focus the path field to type a path |
+| Remote tab | Esc | In the path field: put back the path of the selection |
+| Remote tab | Ctrl+W | Close the remote tab (the platform's standard Close key) |
+| Main window | Ctrl+1 to Ctrl+5 | Show the Remotes, Jobs, Tasks, Queue or Scheduler tab |
+| Main window | Ctrl+F | Go to the filter of the Tasks or Jobs tab (nothing on the other tabs) |
+| Main window | Ctrl+R | Refresh the remote list |
+| Tasks tab | Ctrl+Return | Run the selected tasks |
+| Tasks tab | Ctrl+E | Edit the selected task |
+| Tasks tab | Ctrl+Shift+Return | Dry Run the selected tasks |
+| Main window | Alt+P | Preferences |
+| Main window | Ctrl+Q | Quit |
+| Main window | Alt+F, Alt+H (not on macOS) | Open the File or Help menu |
+
+*   The keys of a remote tab work only while that remote's tab is the current one, also when the row of buttons is hidden.
+*   A key does nothing while its action, or on the Tasks tab its button, is disabled: Edit needs exactly one selected task, Run and Dry Run need selected tasks that are not running, and Dry Run is off for a mount task.
+*   On macOS Ctrl is the Command key and Alt is the Option key; there are no menu mnemonics on macOS, and Del is Fn+Delete on a Mac keyboard. Because a remote tab's Alt keys are shortcuts, on macOS they take precedence over the Option+letter characters (accents, @, €) typed into the path field.
+*   On Linux, while the cursor is in the Tasks filter, Ctrl+E moves to the end of the text instead of editing the task; press Tab first.
 
 rclone version, updates and config password
 -------------------------------------------
