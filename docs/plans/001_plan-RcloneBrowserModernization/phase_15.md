@@ -83,6 +83,15 @@ Plan revision: 11.
   - Gate G-U14.2: `scripts/dev.sh test qt64 -- -R 'tst_task_actions|tst_mainwindow_snapshot'` passes with 3 functions (+1 snapshot).
 - **e2e tests:** `tests/tst_e2e_exclude.cpp`: T-E2E-EXCLUDE (the #179 cases above with the real rclone) and T-E2E-JOB-RESTART (a failing copy to a missing dest dir under a read-only parent, then Restart creates a second job widget with the same args). Gate G-U14.2e: `scripts/dev.sh e2e qt64 -- -R tst_e2e_exclude` passes with 2 functions.
 - **Done:** gates pass; the R-REPRO outcome of #179 recorded; reviews; unit closed; completion commit.
+- **Revision 16** (agent-1:opus, from the 14.2 prefetch read on the 14.1 tree; replaces the matching points above):
+  - #144: the fork already asks before Run and Dry run, so `Settings/confirmTaskRun` defaults to `true` and the Preferences checkbox turns the question off (default `false` would silently remove an existing safety). T-TASK-CONFIRM also checks that `false` shows no box.
+  - #179: rclone adds every `--include` rule before every `--exclude` rule whatever the argv order, so reordering flags cannot fix it. If the Include + Exclude case fails on the base, `getOptions()` emits ordered `--filter` rules (`- exclude`, `+ include`, the user's Filter lines, `- **`) only when both texts are non-empty; `--exclude` in the extra options with Include text stays a documented rclone rule (14.5 FAQ).
+  - #139: "Duplicate" is a context-menu action (`actionDuplicateTask`, single selection, after Edit); no button. The snapshot gains exactly that line.
+  - #80/#98: Run already starts every selected task in list order and never uses the queue (the parenthesis above has no basis in the code). No code change: T-TASK-MULTI is a regression guard and the triage row says "not reproduced"; 14.5 points to "Add to queue" for one-by-one runs.
+  - #118: Restart is shown for every ended job (finished, error, stopped), uses a fresh request id and the same unique id, and is refused while a job with that id runs; transfers only.
+  - Files: `src/list_of_job_options.h` (make `RestoreFromUserData` public for T-TASK-DUP). Tests that spin the event loop with a MainWindow use a fake rclone script (valid `version`, exit 0) and both update checks off.
+  - T-E2E-JOB-RESTART fails the first job with a nonexistent source directory (deterministic for any uid).
+  - G-U14.2 runs `-R 'tst_task_actions|tst_jobwidget_layout|tst_jobwidget_render|tst_copy_sites|tst_mainwindow_snapshot'`. Expected totals: G-UNIT 19, G-E2E 13.
 
 ### 14.3 Remote operations (#171, #220)
 - **Model:** agent-2:sonnet

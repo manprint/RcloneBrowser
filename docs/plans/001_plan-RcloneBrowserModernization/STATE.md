@@ -1,7 +1,7 @@
 # Rclone Browser modernization — Implementation state
 
 Read this file first in every session. Updated 2026-10-22 by agent-1:opus (execute session 1).
-Plan ID: 001_plan-RcloneBrowserModernization. Revision: 15. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
+Plan ID: 001_plan-RcloneBrowserModernization. Revision: 16. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
 Plan baseline: `0a57f4f` (HEAD of `ci/macos-arm64-dmg`, which is master `1551dbd` plus the PR #1 commits). Pre-existing changes at planning time:
 - untracked `.serena/`, which is unrelated: never stage or modify it;
 - untracked `docs/plans/001_plan-RcloneBrowserModernization/`, this plan, authored by this planning session (provenance established).
@@ -65,16 +65,16 @@ Recover an unresolved audit completion commit first, without finalizing the susp
 - Active scope: plan 001, all phases 0–14 (invocation `/plan-execute-verify-mid execute 001`, 2026-10-21; phase 14 added by revision 11). User, 2026-10-21: "finisci il piano in autonomia".
 - Scope result: RUNNING
 - Type: sub-phase
-- ID / attempt: 14.1 / 1
-- Status: CLOSED (unit:14.1:1)
-- Intent: copy-command sites quote each argument for the native shell (NEW `src/command_line.h/.cpp`), Tasks "Copy command" action, mount argv extracted by code motion, job widget keeps its height (#169), #83 R-REPRO (revision 15).
-- Assigned: `pev-subphase-v2` workflow wf_23dcc73d-9fe (see the ledger); agent-1:opus (coordinator, final reviewer, state writer).
-- File / unit heading: phase_15.md "14.1 Command lines and job widget (#226, #194, #176, #123, #169, #83)"
-- Current step: done
-- Next action: G-CI on the 14.1 commit (Windows-only test code and `nativeShell()`), in parallel with 14.2 through `pev-subphase-v2` (decisions of the 14.2 prefetch, `scratchpad/prefetch142.txt`, settled in the 14.2 brief and a plan revision if they change the contract).
-- Next eligible plan unit: 14.2 (phase_15.md).
-- Unit base: d474a95 (WIP open of 14.1 on revision 15); branch: `dev/001-modernization`; owned changes: NEW `src/command_line.h/.cpp`, `src/CMakeLists.txt`, `src/job_widget.h/.cpp`, `src/mount_widget.h/.cpp`, `src/stream_widget.h/.cpp`, `src/main_window.h/.cpp/.ui`, `src/main_window_tasks.cpp`, NEW `tests/tst_command_line.cpp`, `tests/tst_jobwidget_layout.cpp`, `tests/tst_copy_sites.cpp`, `tests/tst_e2e_cmdline.cpp`, `tests/CMakeLists.txt`, the snapshot fixture; STATE.md.
-- Repo state: HEAD = unit:14.1:1; untracked `.serena/` (unrelated).
+- ID / attempt: 14.2 / 1
+- Status: OPEN
+- Intent: #179 R-REPRO and ordered filter rules if it reproduces, confirmation opt-out (#144), Duplicate task (#139), multi-Run guard (#80/#98), Restart for ended transfers (#118) (revision 16).
+- Assigned: `pev-subphase-v2` workflow (agent-2:sonnet = sonnet-5-5 implementer, haiku-5-5 gate runner, opus-5-5 reviewers, sonnet-5-5 prefetch for 14.3); agent-1:opus (coordinator, final reviewer, state writer).
+- File / unit heading: phase_15.md "14.2 Transfer and task options (#179, #144, #139, #80, #98, #118)"
+- Current step: implementation (workflow); G-CI on unit:14.1:1 (run 39707048048) runs in parallel.
+- Next action: record G-CI (14.1); on the workflow result check the #179 R-REPRO evidence, the fixture diff (+1 line), Restart semantics; rerun gates; review; close 14.2; then 14.3.
+- Next eligible plan unit: 14.3 (phase_15.md), after unit:14.2:1.
+- Unit base: revision 16 on unit:14.1:1 (f9fdde5); branch: `dev/001-modernization`; owned changes: the 14.2 file list of revision 16; STATE.md.
+- Repo state: HEAD = revision 16 + this opening; untracked `.serena/` (unrelated).
 
 ## 2. Feature context and readiness
 
@@ -400,6 +400,7 @@ Cold-read note (1.4, agent-1:opus, 2026-10-21): every symbol 1.4 uses is defined
 | 13 | phase_08 7.1: T-MW-SNAPSHOT as a unit test on every platform, recorded with `RB_RECORD_SNAPSHOT=1 scripts/dev.sh test …`, `SetRclone(rbRclone())` when set | Linux-only registration (platform branches in the constructor; CI runs unit tests on Windows, macOS and FreeBSD), recording by copying the actual file the test always writes (dev.sh forwards no host variables), `/bin/false` always, `qt_`/`_q_` names skipped, field escaping, `<VERSION>`/`<TESTDIR>` normalization, a no-rcd oracle; G-CI on the 7.1 commit before 7.2 | agent-1:opus (7.1 pre-dispatch, advisor-checked) | 7.1 brief; G-U7.1 also on qt610; G-CI moves from P7 debt to the 7.1 closure |
 | 14 | phase_08 7.2 moves the setup methods `setupTasksTab`, `setupQueue` and `setupScheduler` | 7.1 had to split the interleaved constructor into 23 contiguous methods; 7.2 moves the 9 that hold only tasks/queue/scheduler code (setupInitialStatus, setupTasksTab, setupQueueContextMenu, setupTasksActions, setupScheduler, setupSchedulerAdd, setupQueue, setupQueueEditing, setupRestoredState), first in the new file in call order, then the 12 plan methods in file order; `setupListSignalsAndIcons` stays | agent-1:opus (7.1 final review) | 7.2 brief |
 | 15 | phase_15 14.1: "button or context-menu action", `setRetainSizeWhenHidden` for #169, G-U14.1 with 5 functions, no test for #194/#176/#123 | the prefetch read on the 7.2 tree: the per-file rows are created and deleted (not hidden); the mount argv is built inline in `runItem`/`addNewMount`; R-ROW needs a test ID for every fixed issue. Decided: context-menu action only; argv = what Run starts; mount argv extracted by code motion into two private static members; grid-row minimum height (high-water mark); NEW `tests/tst_copy_sites.cpp` (T-CMD-MOUNTCOPY, T-CMD-TASKCOPY) and `tests/tst_e2e_cmdline.cpp`; G-U14.1 7 functions + snapshot; Transfer dialog preview left to the 14.5 triage | agent-1:opus (P7 closure, 14.1 brief) | 14.1 brief |
+| 16 | phase_15 14.2: `Settings/confirmTaskRun` default `false`; #179 fixed by flag order; Run with several tasks "adds each to the queue"; Restart for finished or failed jobs; no test seam for reloading tasks | the 14.2 prefetch read on the 14.1 tree: the fork already confirms Run/Dry run; rclone adds include rules before exclude rules whatever the argv order; Run never uses the queue; #118 also mentions stopped jobs; `RestoreFromUserData` is private. Decided: default `true` (opt-out), ordered `--filter` rules only when Include and Exclude are both set and the case reproduces, #80/#98 not reproduced (guard test), Restart for every ended transfer with a fresh request id, `RestoreFromUserData` public, fake rclone script for event-loop tests, nonexistent source for the e2e failure, G-U14.2 regex widened, totals 19/13 | agent-1:opus (14.2 brief) | 14.2 brief |
 
 Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 14.1 (new `actionCopyTaskCommand`, revision 15; R-SNAP of phase 14), 9.1 S2 (new `actionServes`) and 11.2 S2 (new `openDual` button). Each re-recording lists only the added lines here when it happens.
 
@@ -469,7 +470,7 @@ Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 1
 | 7.1 | phase_08.md | P6 | DONE | 1 | G-U7.1 pass; unit:7.1:1 |
 | 7.2 | phase_08.md | 7.1 | DONE | 1 | G-U7.2 pass; unit:7.2:1 |
 | 14.1 | phase_15.md | P7, 6.3 | DONE | 1 | G-U14.1, G-U14.1e pass; unit:14.1:1 |
-| 14.2 | phase_15.md | 14.1 | TODO | 1 | — |
+| 14.2 | phase_15.md | 14.1 | IN_PROGRESS | 1 | — |
 | 14.3 | phase_15.md | 14.2 | TODO | 1 | — |
 | 14.4 | phase_15.md | 14.3 | TODO | 1 | — |
 | 14.5 | phase_15.md | 14.4 | TODO | 1 | — |
