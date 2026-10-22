@@ -1,7 +1,7 @@
 # Rclone Browser modernization — Implementation state
 
 Read this file first in every session. Updated 2026-10-22 by agent-1:opus (execute session 1).
-Plan ID: 001_plan-RcloneBrowserModernization. Revision: 18. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
+Plan ID: 001_plan-RcloneBrowserModernization. Revision: 19. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
 Plan baseline: `0a57f4f` (HEAD of `ci/macos-arm64-dmg`, which is master `1551dbd` plus the PR #1 commits). Pre-existing changes at planning time:
 - untracked `.serena/`, which is unrelated: never stage or modify it;
 - untracked `docs/plans/001_plan-RcloneBrowserModernization/`, this plan, authored by this planning session (provenance established).
@@ -65,16 +65,16 @@ Recover an unresolved audit completion commit first, without finalizing the susp
 - Active scope: plan 001, all phases 0–14 (invocation `/plan-execute-verify-mid execute 001`, 2026-10-21; phase 14 added by revision 11). User, 2026-10-21: "finisci il piano in autonomia".
 - Scope result: RUNNING
 - Type: sub-phase
-- ID / attempt: 14.4 / 1
-- Status: CLOSED (unit:14.4:1)
-- Intent: #159 (reproduced: an rclone that exits non-zero quit the app) and a non-blocking rclone problem box with a Preferences button, `rcloneExecutableProblem` (#145/#209), terminal command preference (#175), #208/#201 checks, minimum width (#156/#228, reproduced at button size 3 and 4) (revision 18).
-- Assigned: `pev-subphase-v2` workflow wf_f944c64e-930 (see the ledger); agent-1:opus (coordinator, final reviewer, state writer).
-- File / unit heading: phase_15.md "14.4 Startup, rclone path, terminal, tray, window size (#159, #145, #209, #175, #208, #201, #156, #228)"
-- Current step: done
-- Next action: revision 19 (14.5 decisions from the prefetch, `scratchpad/prefetch145.txt`), open 14.5 and run it through `pev-subphase-v2`; G-CI on the 14.4 commit in parallel; then P14 closure.
-- Next eligible plan unit: 14.5 (phase_15.md).
-- Unit base: 27fb7ca (revision 18 + WIP open of 14.4); branch: `dev/001-modernization`; owned changes: `src/main_window.h/.cpp/.ui`, `src/preferences_dialog.h/.cpp/.ui`, `src/utils.h/.cpp`, `src/terminal_command.h/.cpp`, `src/remote_widget.cpp`, NEW `tests/tst_startup.cpp`, NEW `tests/tst_e2e_startup.cpp`, `tests/CMakeLists.txt`, the snapshot fixture; STATE.md.
-- Repo state: HEAD = unit:14.4:1; untracked `.serena/` (unrelated).
+- ID / attempt: 14.5 / 1
+- Status: OPEN
+- Intent: README "FAQ and known limitations" (the contract answers plus the user-visible changes of 14.1–14.4), a Fork status for all 129 issues and the 10 PRs, `scripts/check-triage.py`, the rename dialog's Cancel (revision 19).
+- Assigned: `pev-subphase-v2` workflow (agent-2:sonnet = sonnet-5-5 implementer, haiku-5-5 gate runner, opus-5-5 reviewers, sonnet-5-5 prefetch for the P14 closure); agent-1:opus (coordinator, final reviewer, state writer).
+- File / unit heading: phase_15.md "14.5 README answers and triage (all remaining issues)"
+- Current step: implementation (workflow); G-CI on unit:14.4:1 (run 39724250732) runs in parallel.
+- Next action: record G-CI (14.4); on the workflow result check every status against its evidence, the FAQ facts against the code and rclone v1.75.2, the checker's negative runs; rerun gates; review; close 14.5; then the P14 closure.
+- Next eligible plan unit: P14 closure (phase_15.md), after unit:14.5:1.
+- Unit base: revision 19 on unit:14.4:1 (e7468c4); branch: `dev/001-modernization`; owned changes: `README.md`, `docs/triage/upstream-issues.md`, NEW `scripts/check-triage.py`, `src/remote_widget.cpp` (one line); STATE.md.
+- Repo state: HEAD = revision 19 + this opening; untracked `.serena/` (unrelated).
 
 ## 2. Feature context and readiness
 
@@ -420,6 +420,7 @@ Cold-read note (1.4, agent-1:opus, 2026-10-21): every symbol 1.4 uses is defined
 | 16 | phase_15 14.2: `Settings/confirmTaskRun` default `false`; #179 fixed by flag order; Run with several tasks "adds each to the queue"; Restart for finished or failed jobs; no test seam for reloading tasks | the 14.2 prefetch read on the 14.1 tree: the fork already confirms Run/Dry run; rclone adds include rules before exclude rules whatever the argv order; Run never uses the queue; #118 also mentions stopped jobs; `RestoreFromUserData` is private. Decided: default `true` (opt-out), ordered `--filter` rules only when Include and Exclude are both set and the case reproduces, #80/#98 not reproduced (guard test), Restart for every ended transfer with a fresh request id, `RestoreFromUserData` public, fake rclone script for event-loop tests, nonexistent source for the e2e failure, G-U14.2 regex widened, totals 19/13 | agent-1:opus (14.2 brief) | 14.2 brief |
 | 17 | phase_15 14.3: `folderMoveArgs` gives `moveto <remote>:p/F <remote>:L/F --delete-empty-src-dirs`; the dialog says "Move 'F' into:"; the rejected folder names unspecified; a timeout for the move and create-folder lambdas | the 14.3 prefetch read on the 14.2 tree and the rclone source: `moveto` has no `--delete-empty-src-dirs`/`--create-empty-src-dirs`; the fork already moves `p/F` to `L/F`; the leftover is the empty source root after rclone's file-by-file fallback; the create-folder progress dialog never enables Cancel; the move dialog already shows From/To. Decided: keep `move` plus a guarded `rmdir` of the source after a successful folder move (dropped if R-REPRO finds no leftover), no dialog text change, rejected names = empty/whitespace/`/`/`.`/`..`, `allowToClose()` plus a 60 s timeout for mkdir only, totals 20/14, G-SERVERS 5 functions | agent-1:opus (14.3 brief) | 14.3 brief |
 | 18 | phase_15 14.4: e2e rows `fclone` and missing file only; problem message unspecified; terminal command semantics unspecified; #156 measured after construction only; files without the terminal launcher, `remote_widget` and `tests/CMakeLists.txt`; G-U14.4 `tst_startup|tst_mainwindow_snapshot` | the 14.4 prefetch read on the 14.3 tree: both contract rows already survive on the base, the quit needs an executable that exits non-zero; a blocking box would hang the tests that spin the loop with `/bin/false`; a bare `rclone` in Preferences works through PATH; the reported 1232 px needs a remote tab; `Settings/startMinimisedToTray` exists. Decided: rows `control`/`fclone`/`missing`/`exit1`/`/bin/false` with a logged `rclone problem:` line, a non-blocking box with a Preferences button, PATH lookup for bare names, terminal command = program without arguments, the remote-tab cases and a layout-policy fix in `remote_widget` if they fail, #208 no change, gates widened, totals 21/15 | agent-1:opus (14.4 brief) | 14.4 brief |
+| 19 | phase_15 14.5: #116 answered as a global limit through default options; #132 without the existing Refresh cache button; status forms without notes; `already implemented` cells (3.3) outside the forms; PR rows unspecified; README obligation as a list of changes; files without `src/remote_widget.cpp` | the 14.5 prefetch read on the 14.4 tree: `--bwlimit` is per rclone process (rclone v1.75.2 docs and `fs/accounting/token_bucket.go`) and every job is its own process; the mount widget has had a Refresh cache button since 5.3 (T-E2E-VFS-REFRESH); several fixed rows need a short note; the rename dialog's Cancel stays disabled like the mkdir dialog's did before 14.3. Decided: #116 deferred with a correct FAQ entry, #132 names the button, `; <note>` tails, explicit `faq-…` anchors, `already implemented` → answered with FAQ entries, PR rows in the same grammar, FAQ entries for the 14.1–14.4 changes plus Known limitations, the rename `allowToClose()` line with the build and suite gates | agent-1:opus (14.5 brief) | 14.5 brief |
 
 Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 14.1 (new `actionCopyTaskCommand`, revision 15; R-SNAP of phase 14), 9.1 S2 (new `actionServes`) and 11.2 S2 (new `openDual` button). Each re-recording lists only the added lines here when it happens.
 
@@ -492,7 +493,7 @@ Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 1
 | 14.2 | phase_15.md | 14.1 | DONE | 1 | G-U14.2, G-U14.2e pass; unit:14.2:1 |
 | 14.3 | phase_15.md | 14.2 | DONE | 1 | G-U14.3, G-U14.3e, G-SERVERS pass; unit:14.3:1 |
 | 14.4 | phase_15.md | 14.3 | DONE | 1 | G-U14.4, G-U14.4e pass; unit:14.4:1 |
-| 14.5 | phase_15.md | 14.4 | TODO | 1 | — |
+| 14.5 | phase_15.md | 14.4 | IN_PROGRESS | 1 | — |
 | 8.1 | phase_09.md | P14 | TODO | 1 | — |
 | 8.2 | phase_09.md | 8.1 | TODO | 1 | — |
 | 9.1 | phase_10.md | P14 | TODO | 1 | — |
