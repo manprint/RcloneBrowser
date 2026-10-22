@@ -285,7 +285,11 @@ private slots:
                                            "synthetic/jobopts_v8.bin"))));
       list->Forget(jo);
       delete jo;
-      QSKIP("jobopts_v8.bin recorded (RB_RECORD_JO_V8=1)");
+      // QSKIP with one argument is a C++20 extension for clang -Werror
+      // (macOS, FreeBSD); this is what the macro expands to
+      QTest::qSkip("jobopts_v8.bin recorded (RB_RECORD_JO_V8=1)", __FILE__,
+                   __LINE__);
+      return;
     }
 
     // default options that the argv rows below expect
