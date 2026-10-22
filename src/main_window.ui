@@ -273,6 +273,16 @@
          </spacer>
         </item>
         <item>
+         <widget class="QLineEdit" name="jobsFilter">
+          <property name="placeholderText">
+           <string>Filter</string>
+          </property>
+          <property name="clearButtonEnabled">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QScrollArea" name="jobsArea">
           <property name="widgetResizable">
            <bool>true</bool>
@@ -512,6 +522,16 @@
            </size>
           </property>
          </spacer>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="tasksFilter">
+          <property name="placeholderText">
+           <string>Filter</string>
+          </property>
+          <property name="clearButtonEnabled">
+           <bool>true</bool>
+          </property>
+         </widget>
         </item>
         <item>
          <widget class="QListWidget" name="tasksListWidget">

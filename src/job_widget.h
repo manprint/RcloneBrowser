@@ -19,6 +19,8 @@ public:
   bool isRunning = true;
   QDateTime getStartDateTime();
   QString getStatus();
+  // The texts the Jobs filter searches (#21), read live.
+  QStringList filterFields() const;
 
   TransferMonitor *monitor() const { return mMonitor; }
   // Writes a rendered text log of the job (rclone --log-file). Call before the

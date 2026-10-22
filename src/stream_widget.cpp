@@ -211,3 +211,7 @@ void StreamWidget::updateStartFinishInfo() {
 }
 
 QString StreamWidget::getStatus() { return mStatus; }
+
+QStringList StreamWidget::filterFields() const {
+  return {ui.info->text(), ui.remote->text(), ui.stream->text()};
+}

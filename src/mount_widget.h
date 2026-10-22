@@ -16,6 +16,8 @@ public:
   bool isRunning = true;
   QDateTime getStartDateTime();
   QString getStatus();
+  // The texts the Jobs filter searches (#21), read live.
+  QStringList filterFields() const;
   // The credentials the mount process got through its environment (I-5) and
   // whether it runs with --rc. Call before the mount prints its rc endpoint.
   void setRcCredentials(const RcCredentials &creds, bool rcEnabled);

@@ -24,6 +24,7 @@ W|buttonUpQueue|QToolButton|0|0|Up|Move task up in the queue|-
 W|config|QToolButton|1|1|Config|<html><head/><body><p>rclone config</p><p>Terminal: set &quot;Terminal command&quot; in Preferences,<br/>or define the $TERMINAL env variable e.g.:<br/>TERMINAL=/usr/local/bin/myterminal</p></body></html>|-
 W|jobsArea|QScrollArea|1|0|||-
 W|jobsArea_2|QScrollArea|1|0|||-
+W|jobsFilter|QLineEdit|1|0|||-
 W|labelQueueInfoStart|QLabel|1|0|||-
 W|labelQueueInfoStop|QLabel|1|0|Queue is not running.||-
 W|labelSchedulerInfoStart|QLabel|1|0|Scheduler is running.||-
@@ -49,6 +50,7 @@ W|statusBar|QStatusBar|1|1|||-
 W|tab|QWidget|1|0|||-
 W|tab_2|QWidget|1|0|||-
 W|tabs|QTabWidget|1|1|||-
+W|tasksFilter|QLineEdit|1|0|||-
 W|tasksListWidget|QListWidget|1|0|||-
 W|tasksTab|QWidget|1|0|||-
 W|widget|QWidget|1|1|||-

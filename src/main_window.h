@@ -186,6 +186,8 @@ private:
   // set screen buttons logic mess in one place
   void setQueueButtons(void);
   void setTasksButtons(void);
+  // hides the tasks the Tasks filter does not match (#21)
+  void applyTasksFilter();
 
   void addEmptyJobsMessage();
 
@@ -238,6 +240,7 @@ private:
   void restoreSchedulersFromFile();
 
   void sortJobs();
+  void applyJobsFilter();
   bool mJobsTimeSortOrder = false;
   bool mJobsStatusSortOrder = false;
   QString mJobsSort = "byDate";

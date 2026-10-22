@@ -510,3 +510,7 @@ void JobWidget::updateStartFinishInfo() {
 }
 
 QString JobWidget::getStatus() { return mStatus; }
+
+QStringList JobWidget::filterFields() const {
+  return {ui.info->text(), ui.source->text(), ui.dest->text()};
+}

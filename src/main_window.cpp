@@ -5,6 +5,7 @@
 #include "global.h"
 #include "job_options.h"
 #include "job_widget.h"
+#include "list_filter.h"
 #include "list_of_job_options.h"
 #include "mount_dialog.h"
 #include "mount_launch.h"
@@ -970,6 +971,9 @@ void MainWindow::setupRemotesTab() {
 }
 
 void MainWindow::setupJobsTab() {
+  QObject::connect(ui.jobsFilter, &QLineEdit::textChanged, this,
+                   [this]() { applyJobsFilter(); });
+
   QObject::connect(ui.actionCleanNotRunning, &QAction::triggered, this, [=]() {
     int jobsCount = ((ui.jobs->count() - 2) / 2 - mJobCount);
 
@@ -1203,6 +1207,10 @@ void MainWindow::setupTrayAndStartup() {
 
     ui.tabs->setCurrentIndex(1);
     if (mLastFinished) {
+      if (mLastFinished->isHidden()) {
+        // the Jobs filter hides it: show the job the message is about
+        ui.jobsFilter->clear();
+      }
       mLastFinished->showDetails();
       ui.jobsArea->ensureWidgetVisible(mLastFinished);
     }
@@ -2758,6 +2766,7 @@ void MainWindow::addTransfer(const QString &message, const QString &source,
 
   ui.jobs->insertWidget(0, widget);
   ui.jobs->insertWidget(1, line);
+  applyJobsFilter();
   ++mTransferJobCount;
 
   int _jobsCount = (ui.jobs->count() - 2) / 2;
@@ -2865,6 +2874,7 @@ void MainWindow::addNewMount(const QString &remote, const QString &folder,
 
   ui.jobs->insertWidget(0, widget);
   ui.jobs->insertWidget(1, line);
+  applyJobsFilter();
 
   int _jobsCount = (ui.jobs->count() - 2) / 2;
   ui.buttonSortByTime->setEnabled(_jobsCount > 1);
@@ -3018,6 +3028,7 @@ void MainWindow::addStream(const QString &remote, const QString &stream,
 
   ui.jobs->insertWidget(0, widget);
   ui.jobs->insertWidget(1, line);
+  applyJobsFilter();
 
   int _jobsCount = (ui.jobs->count() - 2) / 2;
   ui.buttonSortByTime->setEnabled(_jobsCount > 1);
@@ -3175,5 +3186,35 @@ void MainWindow::sortJobs() {
     }
   } //  for (int i
 
+  applyJobsFilter();
+
   return;
+}
+
+// Hides the jobs, and their separator, that the Jobs filter does not match
+// (#21). The caller may hold mJobsSortMutex: no lock here, no sorting.
+void MainWindow::applyJobsFilter() {
+  const QString filter = ui.jobsFilter->text();
+  const int pairs = (ui.jobs->count() - 2) / 2;
+  for (int p = 0; p < pairs; ++p) {
+    QWidget *widget = ui.jobs->itemAt(p * 2)->widget();
+    QWidget *line = ui.jobs->itemAt(p * 2 + 1)->widget();
+    QStringList fields;
+    if (auto transfer = qobject_cast<JobWidget *>(widget)) {
+      fields = transfer->filterFields();
+    } else if (auto mount = qobject_cast<MountWidget *>(widget)) {
+      fields = mount->filterFields();
+    } else if (auto stream = qobject_cast<StreamWidget *>(widget)) {
+      fields = stream->filterFields();
+    } else {
+      continue;
+    }
+    const bool show = filterMatches(filter, fields);
+    // always set: a widget not yet shown reports isHidden() without having
+    // been hidden, and an explicit hide is kept through remove/insertWidget
+    widget->setVisible(show);
+    if (line) {
+      line->setVisible(show);
+    }
+  }
 }

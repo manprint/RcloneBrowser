@@ -445,3 +445,7 @@ void MountWidget::updateStartFinishInfo() {
 }
 
 QString MountWidget::getStatus() { return mStatus; }
+
+QStringList MountWidget::filterFields() const {
+  return {ui.info->text(), ui.remote->text(), ui.folder->text()};
+}

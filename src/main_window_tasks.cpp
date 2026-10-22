@@ -6,6 +6,7 @@
 #include "global.h"
 #include "job_options.h"
 #include "job_widget.h"
+#include "list_filter.h"
 #include "list_of_job_options.h"
 #include "mount_dialog.h"
 #include "mount_launch.h"
@@ -56,8 +57,25 @@ void MainWindow::setupTasksTab() {
   QObject::connect(ui.tasksListWidget, &QListWidget::itemChanged, this,
                    [=]() { setTasksButtons(); });
 
+  // Ctrl+A or a shift range can select hidden rows: a hidden task must never
+  // be run or deleted. The second pass finds nothing, so this ends.
+  QObject::connect(ui.tasksListWidget, &QListWidget::itemSelectionChanged, this,
+                   [this]() {
+                     const auto selected = ui.tasksListWidget->selectedItems();
+                     for (QListWidgetItem *item : selected) {
+                       if (item->isHidden()) {
+                         item->setSelected(false);
+                       }
+                     }
+                   });
+
   QObject::connect(ui.tasksListWidget, &QListWidget::itemSelectionChanged, this,
                    [=]() { setTasksButtons(); });
+
+  QObject::connect(ui.tasksFilter, &QLineEdit::textChanged, this, [this]() {
+    applyTasksFilter();
+    setTasksButtons();
+  });
 
   QObject::connect(ui.tasksListWidget, &QListWidget::itemDoubleClicked, this,
                    [=]() { editSelectedTask(); });
@@ -1807,6 +1825,8 @@ void MainWindow::listTasks() {
     }
   }
 
+  applyTasksFilter();
+
   ui.queueListWidget->setFocus();
   setQueueButtons();
   ui.tasksListWidget->setFocus();
@@ -1814,6 +1834,25 @@ void MainWindow::listTasks() {
   saveSchedulerFile();
 
 } // MainWindow::listTasks()
+
+// Hides the tasks the Tasks filter does not match and deselects them, so that
+// no selection based action reaches a hidden task (#21). Does not rebuild the
+// list: listTasks() also rewrites the queue and scheduler files.
+void MainWindow::applyTasksFilter() {
+  const QString filter = ui.tasksFilter->text();
+  for (int i = 0; i < ui.tasksListWidget->count(); ++i) {
+    QListWidgetItem *item = ui.tasksListWidget->item(i);
+    const JobOptions *jo =
+        static_cast<JobOptionsListWidgetItem *>(item)->GetData();
+    const bool show = filterMatches(
+        filter,
+        QStringList{item->text(), item->toolTip(), jo->source, jo->dest});
+    item->setHidden(!show);
+    if (!show && item->isSelected()) {
+      item->setSelected(false);
+    }
+  }
+}
 
 // Copies, for every selected task, the command Run starts: one line per task,
 // quoted for the native shell (#176, #123). The stored task is not changed.
