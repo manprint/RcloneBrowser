@@ -65,16 +65,16 @@ Recover an unresolved audit completion commit first, without finalizing the susp
 - Active scope: plan 001, all phases 0–14 (invocation `/plan-execute-verify-mid execute 001`, 2026-10-21; phase 14 added by revision 11). User, 2026-10-21: "finisci il piano in autonomia".
 - Scope result: RUNNING
 - Type: sub-phase
-- ID / attempt: 10.2 / 1
-- Status: CLOSED (unit:10.2:1)
-- Intent: #21 search filter for the Tasks list and the Jobs area (`list_filter`, `tasksFilter`, `jobsFilter`, `filterFields()`), per phase_11.md 10.2 as revised by revision 28; T-MW-SNAPSHOT re-record (two lines).
-- Assigned: `pev-subphase-v2` wf_d65be388-a01 (sonnet-5-5 implementer, haiku-5-5 gate runner, opus-5-5 reviewers); agent-1:opus (coordinator, final reviewer, state writer).
-- File / unit heading: phase_11.md "10.2 Search filter for Tasks and Jobs (#21)"
-- Current step: closed
-- Next action: G-CI on the 10.2 commit; revision 29 (the 10.3 decisions from the prefetch); open 10.3.
-- Next eligible plan unit: 10.3 (phase_11.md).
-- Unit base: unit:10.1:1 (af327c1) + revision 28 (fbf759d); branch: `dev/001-modernization`.
-- Repo state: HEAD = unit:10.2:1; untracked `.serena/` (unrelated).
+- ID / attempt: 10.3 / 1
+- Status: OPEN
+- Intent: #94 keyboard shortcuts per the phase_11.md shortcut map (revisions 27 and 29): RemoteWidget actions, MainWindow window actions (Ctrl+1–5, Ctrl+F, Ctrl+R), Tasks actions, the Close shortcut through `tabCloseRequested`; README "Keyboard shortcuts"; T-MW-SNAPSHOT re-record (three shortcut columns).
+- Assigned: `pev-subphase-v2` workflow (sonnet-5-5 implementer, haiku-5-5 gate runner, opus-5-5 reviewers); agent-1:opus (coordinator, final reviewer, state writer).
+- File / unit heading: phase_11.md "10.3 Keyboard shortcuts (#94)"
+- Current step: S1
+- Next action: run the workflow from the brief (`scratchpad/brief-10.3.md`); record G-CI (10.2) at the 10.3 close.
+- Next eligible plan unit: P10 closure (phase_11.md "Phase gates and closure"), after unit:10.3:1.
+- Unit base: unit:10.2:1 + revision 29; branch: `dev/001-modernization`; owned changes: `src/remote_widget.ui/.cpp`, `src/main_window.ui/.h/.cpp`, `README.md` (Keyboard shortcuts), NEW `tests/tst_shortcuts.cpp`, `tests/CMakeLists.txt`, `tests/fixtures/synthetic/mainwindow_snapshot.txt`; STATE.md.
+- Repo state: HEAD = revision 29 + this opening on unit:10.2:1; untracked `.serena/` (unrelated).
 
 ## 2. Feature context and readiness
 
@@ -503,6 +503,7 @@ Cold-read note (1.4, agent-1:opus, 2026-10-21): every symbol 1.4 uses is defined
 | 26 | phase_10 9.1 (revisions 23–24): `serveStartParams` sends only type, fs, addr, user, pass and read_only ("no other key is ever added") | the P9 review (rclone-facts F5, probed in `scratchpad/rfprobe2`–`rfprobe4`): without `authorized_keys` rclone 1.75.2 `serve sftp` loads the backend account's `~/.ssh/authorized_keys`, accepts those keys under any user name, drops their options, and loops forever on a line that is not a key, holding the serve lock (every later serve/* call hangs, rcd ignores core/quit). An sftp serve/start always carries `"authorized_keys": ""` (rclone then skips the file); T_SRV_PARAMS and T_E2E_SERVE_TYPES (a temporary HOME with a comment-only authorized_keys) pin it; README: sftp logs in only with the dialog's user name and password | agent-1:opus (P9 closure) | phase_10.md "Revision 26" note; B-T5 (§4); §11 test map row 9.1 |
 | 27 | phase_11 (plan revision 1): fixed tabs 0–3 and remote tabs from 4, Ctrl+1–4; a MainWindow Ctrl+W; RemoteWidget actions in `Qt::WidgetWithChildrenShortcut`; uniqueness per scope; `normalizeEnteredPath(text, isLocal)`; no rule for the path field during a Drive mode switch, for typed roots on that switch, for the `QDir` root paths or for the focus after Go; G-CI only at phase closure | agent-1:opus read the code after P7–P9 before 10.1 (advisor-checked): the Scheduler tab is index 4, so remote tabs start at 5 and the tab shortcuts are Ctrl+1–5; every RemoteWidget already has `QShortcut(QKeySequence::Close)` (Ctrl+W) that only calls `removeTab` (the widget is never deleted, unlike the tab's ×), so the MainWindow Ctrl+W is dropped and 10.3 routes the shortcut through `tabCloseRequested`; with the dual pane skipped (revision 25) only one RemoteWidget is visible and Qt never matches a hidden widget's shortcut, while WidgetWithChildrenShortcut would stop F5/F2/Del after a click on the tab bar, so the actions keep `Qt::WindowShortcut` and are added to the RemoteWidget; uniqueness is checked over every scope active at once (Qt runs neither of two ambiguous shortcuts); `isLocal` is true only on Windows; the default root of a non-local remote has the `QDir` path `"."` and differs from `"/"`; the path field ignores selection writes while focused, is read-only during the Drive switch wait, Go moves focus to the tree, the Drive switch removes typed roots; the error-row oracle uses `Item::Special` and `"⚠ "`; MSVC `/W4 /WX` applies since B-T4, so G-CI runs after every 10.x commit; P10 gates also G-SERVERS, check-triage and the leftover check | agent-1:opus | phase_11.md "Revision 27" note and the updated 10.1–10.3 contracts and tests; §1 |Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 14.1 (new `actionCopyTaskCommand`, revision 15; R-SNAP of phase 14), 9.1 S2 (new `actionServes`); the 11.2 S2 re-record (`openDual` button) is dropped with phase 11 (revision 25). Each re-recording lists only the added lines here when it happens. 9.1 S2 (done): `+A|actionServes|Serves…|1|0|0|` only (`git diff --numstat` `1 0`), sha256 `fccc386d5b1fa157378e67e2d43a401d0f8f0de01b8eb750760213c5370f31ae`. 10.2 S2 (done, revision 28): `+W|jobsFilter|QLineEdit|1|0|||-` and `+W|tasksFilter|QLineEdit|1|0|||-` only (`2 0`), sha256 `23531335c972fe683b2342dfe2bbef5d0bbe77721f07b2f92d87d89d2fecb421`.
 | 28 | phase_11 10.2 (plan revision 1): the Tasks filter matches `{text, toolTip}`; hidden items deselected only when the filter runs; the Jobs filter "after each job insertion or `sortJobs`"; only T-E2E-FILTER-TASKS | the 10.2 prefetch (sonnet-5-5, wf_66d6d182-544) decisions D1–D11, approved by agent-1:opus: no code sets a task tooltip, so the Tasks filter also matches the task's source and dest; an `itemSelectionChanged` guard deselects hidden tasks (select all reaches them, every task action reads `selectedItems()`); `applyJobsFilter()` after each `insertWidget` pair and at the end of `sortJobs` (early returns under `mDoNotSort`); T-E2E-FILTER-JOBS and T-E2E-FILTER-FIELDS added in `tst_e2e_filter.cpp`; the snapshot re-record pre-approved for exactly the two filter lines; triage #16/#21/#94 at the P10 closure | agent-1:opus (10.1 close) | phase_11.md "Revision 28" note and 10.2 contract; §11 test map row 10.2 |
+| 29 | phase_11 10.3 (plan revision 1 and revision 27): Alt+M on `mount`; the Close lambda uses the constructor's `parent`; Ctrl+1–5 plain `setCurrentIndex`; the snapshot re-record "under supervisor approval" | the 10.3 prefetch (sonnet-5-5, wf_d65be388-a01) decisions D1–D10, approved by agent-1:opus: `mount` is never connected (Alt+M on `actionNewMount`); the Close shortcut walks `parentWidget()` to the QTabWidget with null/-1 guards; tab keys skip hidden tabs; Ctrl+F also selects the text; unnamed window actions; no tooltip changes; T-MW-SNAPSHOT pre-approved for exactly the three shortcut columns of actionRun, actionEdit, actionDryRun (`3 3`); `tst_shortcuts` Linux-only with an `internetarchive` RemoteWidget; README "Keyboard shortcuts" only in 10.3 | agent-1:opus (10.2 close) | phase_11.md "Revision 29" note, shortcut map and 10.3 contract; §11 test map row 10.3 |
 
 ## 9. Blockers
 
@@ -588,7 +589,7 @@ Cold-read note (1.4, agent-1:opus, 2026-10-21): every symbol 1.4 uses is defined
 | 9.1 | phase_10.md | P14 | DONE | 1 | G-U9.1, G-U9.1e pass; unit:9.1:1 |
 | 10.1 | phase_11.md | P8, P9 | DONE | 1 | G-U10.1, G-U10.1e pass; unit:10.1:1 |
 | 10.2 | phase_11.md | 10.1 | DONE | 1 | G-U10.2, G-U10.2e pass; unit:10.2:1 |
-| 10.3 | phase_11.md | 10.2 | TODO | 1 | — |
+| 10.3 | phase_11.md | 10.2 | IN_PROGRESS | 1 | — |
 | 11.1 | phase_12.md | P10 | SKIPPED | 1 | revision 25: dropped at the user's request |
 | 11.2 | phase_12.md | 11.1 | SKIPPED | 1 | revision 25: dropped at the user's request |
 | 12.1 | phase_13.md | P11, P-5 (B-P5) | SKIPPED | 1 | revision 25: dropped at the user's request |
@@ -658,7 +659,7 @@ Every ID below is a QtTest function (or a named check) defined in its owning uni
 | 9.1 | G-U9.1, G-U9.1e | T-SRV-PARAMS, T-SRV-LIST, T-SRV-URL, T-SRV-FLOW, T-SRV-RULES (revision 23), T-SRV-DIALOG, T-SRV-WINDOW (revision 24); e2e T-E2E-SERVE-HTTP, T-E2E-SERVE-RO, T-E2E-SERVE-BADTYPE, T-E2E-SERVE-QUIT, T-E2E-SERVE-TYPES (revision 23); T-SRV-PARAMS sftp `authorized_keys` and T-E2E-SERVE-TYPES with the comment-only authorized_keys (revision 26, B-T5) |
 | 10.1 | G-U10.1, G-U10.1e | T-PATH-NORMALIZE, T-PATH-PREFIX, T-PATH-ROOTLESS; e2e T-E2E-PATH-GO, T-E2E-PATH-DUP, T-E2E-PATH-MISSING |
 | 10.2 | G-U10.2, G-U10.2e | T-FILTER-MATCH; e2e T-E2E-FILTER-TASKS, T-E2E-FILTER-JOBS, T-E2E-FILTER-FIELDS (revision 28) |
-| 10.3 | G-U10.3 | T-SC-REMOTE-CONTEXT, T-SC-UNIQUE, T-SC-MAINWINDOW |
+| 10.3 | G-U10.3 | T-SC-REMOTE-CONTEXT, T-SC-UNIQUE, T-SC-MAINWINDOW (revision 29: hidden tab, Ctrl+F focus widget, actionNewMount, Close guard) |
 | 11.1 | G-U11.1, G-U11.1e | T-MIME-ROUNDTRIP, T-MIME-BAD, T-MIME-CANDROP; e2e T-E2E-DRAG-MIME, T-E2E-DRAG-DROP, T-E2E-DRAG-LOCALURL (SKIPPED, revision 25) |
 | 11.2 | G-U11.2e | e2e T-E2E-DUAL-PANES, T-E2E-DUAL-COPY, T-E2E-DUAL-PICKER (SKIPPED, revision 25) |
 | 12.1 | G-U12.1 | T-I18N-SELECT, T-I18N-RESOURCE (SKIPPED, revision 25) |

@@ -11,7 +11,7 @@ Phase closure: P10; review by agent-1:opus.
 Read STATE.md §0–1 first for scope, ownership, recovery, checks and commit rules. Open a unit before editing it. Checkpoint at recovery boundaries. Close with evidence. A delegated worker follows its assigned OPEN unit. Missing design decisions go to agent-1:opus. No network access (U6).
 
 ## Local design context
-Plan revision: 1; revision 27 (agent-1:opus, before 10.1, on the code after P7–P9) and revision 28 (agent-1:opus, before 10.2) replace the points they name; the text below is already updated.
+Plan revision: 1; revision 27 (agent-1:opus, before 10.1, on the code after P7–P9) revision 28 (agent-1:opus, before 10.2) and revision 29 (agent-1:opus, before 10.3) replace the points they name; the text below is already updated.
 - **Revision 27** (superseded → now):
   - the fixed tabs were "0 Remotes, 1 Jobs, 2 Tasks, 3 Queue, then remote tabs" → there is also 4 Scheduler; remote tabs start at index 5, so the tab shortcuts are Ctrl+1 to Ctrl+5;
   - "MainWindow (window) Ctrl+W closes the current remote tab (index ≥ 4)" → dropped: every RemoteWidget already has `QShortcut(QKeySequence::Close)` (Ctrl+W; Cmd+W on macOS; also Ctrl+F4 on Windows); 10.3 makes it go through `tabCloseRequested` because today it only calls `removeTab` and the widget is never deleted (the tab's × deletes it);
@@ -26,6 +26,12 @@ Plan revision: 1; revision 27 (agent-1:opus, before 10.1, on the code after P7�
   - the Jobs half had no test → `tst_e2e_filter.cpp` also has T-E2E-FILTER-JOBS (jobs added through `addTransfer` with rclone `/bin/false`: the other job and its separator hide, a job added while the filter is set follows it, the tab text counts all jobs) and T-E2E-FILTER-FIELDS (`filterFields()` of JobWidget, MountWidget and StreamWidget); the file count and G-E2E 20 are unchanged;
   - `tst_e2e_filter` is in the `RB_TEST_RCLONE AND UNIX AND NOT APPLE` block with `Settings/rclone` = `/bin/false` (it never runs rclone); the filters only hide rows: Stop All, Clean and Delete act as before, and a filter that hides everything shows no extra label;
   - T-MW-SNAPSHOT: the re-record is pre-approved only for exactly `+W|jobsFilter|QLineEdit|1|0|||-` and `+W|tasksFilter|QLineEdit|1|0|||-` (numstat `2 0`); the triage rows #16, #21 and #94 are updated at the P10 closure.
+- **Revision 29** (agent-1:opus at the 10.2 close, from the 10.3 prefetch; superseded → now):
+  - Alt+M on `mount` → on `actionNewMount`: `mount` is never connected or shown (the Mount button, the context menu and the triggered handler use `actionNewMount`), so a key on it would never fire; `mount` keeps no shortcut;
+  - the Close shortcut used the constructor's `parent` → it walks `parentWidget()` up to the QTabWidget when activated (after `addTab` the parent is the tab widget's QStackedWidget, and a RemoteWidget can be built with a null parent), with null and index -1 guards;
+  - Ctrl+1–5 call `setCurrentIndex(n)` → only when `isTabVisible(n)` (Preferences can hide the Tasks, Queue and Scheduler tabs); Ctrl+F also selects the filter's text (like Ctrl+L);
+  - the window actions are unnamed QActions (the snapshot lists only named actions); no text, toolTip or statusTip changes; T-MW-SNAPSHOT re-record pre-approved for exactly the shortcut column of `actionRun` (Ctrl+Return), `actionEdit` (Ctrl+E) and `actionDryRun` (Ctrl+Shift+Return) (numstat `3 3`);
+  - `tst_shortcuts` is in the Linux-only block (it builds MainWindow like T-MW-SNAPSHOT); its RemoteWidget has the type `internetarchive`, which starts no rclone; README in 10.3: the "Keyboard shortcuts" section only.
 - D16: the path field becomes editable with Go and adds the typed path as a root. Search is a filter field over the tasks list and the jobs list. The shortcut map is below.
 - D13: the TommyandTina idea (editable path, Internet Archive) is reimplemented generically. No code is taken.
 - Current code (anchors):
@@ -60,7 +66,7 @@ Plan revision: 1; revision 27 (agent-1:opus, before 10.1, on the code after P7�
   | RemoteWidget | `getSize` | Alt+S |
   | RemoteWidget | `getTree` | Alt+T |
   | RemoteWidget | `link` | Alt+L |
-  | RemoteWidget | `mount` | Alt+M |
+  | RemoteWidget | `actionNewMount` (revision 29; `mount` is unused) | Alt+M |
   | RemoteWidget | `stream` | Alt+V |
   | RemoteWidget | `move` | F6 |
   | RemoteWidget | `actionCopyTo` (8.2) | Shift+F5 |
@@ -174,14 +180,14 @@ Plan revision: 1; revision 27 (agent-1:opus, before 10.1, on the code after P7�
   - NEW `tests/tst_shortcuts.cpp` (unit, `QTEST_MAIN`).
 - **Change:**
   - Preconditions: 10.2 DONE.
-  - Contract: the shortcut map in the local design context (revision 27). The tab shortcuts call `ui.tabs->setCurrentIndex(n)` for n 0–4. The RemoteWidget's Close shortcut emits `tabs->tabCloseRequested(tabs->indexOf(this))` instead of calling `removeTab`, so it runs the same path as the tab's × (`slotCloseTab`, `deleteLater`, `removeTab`). Ctrl+F focuses `tasksFilter` or `jobsFilter` for tab 2 or 1, and does nothing otherwise.
+  - Contract: the shortcut map in the local design context (revision 27). The tab shortcuts call `ui.tabs->setCurrentIndex(n)` for n 0–4 when that tab is visible (revision 29). The RemoteWidget's Close shortcut emits `tabs->tabCloseRequested(tabs->indexOf(this))` instead of calling `removeTab`, so it runs the same path as the tab's × (`slotCloseTab`, `deleteLater`, `removeTab`). Ctrl+F focuses `tasksFilter` or `jobsFilter` for tab 2 or 1 and selects its text (revision 29), and does nothing otherwise.
   - Steps:
     1. S1 — Collision check (recorded), then assignments.
     2. S2 — Tests; re-record T-MW-SNAPSHOT under supervisor approval (only the action shortcut columns may change; record the diff); full gates.
 - **Unit tests:** `tests/tst_shortcuts.cpp`:
   - T-SC-REMOTE-CONTEXT: for a RemoteWidget (as in 10.1) inside a `QTabWidget`, every `QAction` with a non-empty shortcut has `shortcutContext() == Qt::WindowShortcut` and `associatedObjects()` containing the RemoteWidget. The new map entries exist with the exact key sequences. Its `QShortcut` with `QKeySequence::Close`, when activated, emits `tabCloseRequested` with the RemoteWidget's index (QSignalSpy on the QTabWidget).
   - T-SC-UNIQUE: over the union of the RemoteWidget actions and its Close shortcut keys, the Tasks tab actions, the MainWindow window actions and Alt+F and Alt+H, no two entries share a key sequence (`QKeySequence` compare, every sequence of `shortcuts()` counted).
-  - T-SC-MAINWINDOW: the MainWindow actions for Ctrl+1–5, Ctrl+F, Ctrl+R and Ctrl+Return exist, with the expected sequences. Triggering the Ctrl+2 action programmatically sets the current index to 1.
+  - T-SC-MAINWINDOW: the MainWindow actions for Ctrl+1–5, Ctrl+F, Ctrl+R and Ctrl+Return exist, with the expected sequences. Triggering the Ctrl+2 action programmatically sets the current index to 1. Revision 29: Ctrl+4 with the Queue tab hidden leaves the index unchanged; Ctrl+F on tab 2 or 1 makes the filter the window's focus widget, and does nothing on another tab; `actionNewMount` has Alt+M and `mount` none (T-SC-REMOTE-CONTEXT); the Close shortcut of a RemoteWidget in no tab emits nothing.
   - Gate G-U10.3: `scripts/dev.sh test qt64 -- -R tst_shortcuts` passes with 3 functions.
 - **e2e tests:** N/A — shortcuts invoke existing actions whose behavior is covered elsewhere. Dispatch is guarded by the context and uniqueness tests, and key-event delivery under the offscreen platform is not a reliable oracle.
   - Totals after 10.3: G-UNIT 28, G-E2E 20.
