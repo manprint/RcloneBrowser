@@ -64,17 +64,17 @@ Recover an unresolved audit completion commit first, without finalizing the susp
 
 - Active scope: plan 001, all phases 0–14 (invocation `/plan-execute-verify-mid execute 001`, 2026-10-21; phase 14 added by revision 11). User, 2026-10-21: "finisci il piano in autonomia".
 - Scope result: RUNNING
-- Type: phase
-- ID / attempt: P7 / 1
-- Status: CLOSED (unit:P7:1)
-- Intent: phase 7 closure: README "Source layout" note, CHANGELOG `## [2.0.0] - unreleased`, phase gates, G-CI, P7 review.
-- Assigned: agent-1:opus (coordinator, reviewer, state writer).
-- File / unit heading: phase_08.md "Phase gates and closure"
-- Current step: done
-- Next action: revision 15 (14.1 decisions from the prefetch), then 14.1 through `pev-subphase-v2` (agent-2:sonnet = sonnet-5-5 implementer as the plan assigns; brief `scratchpad/brief-14.1.md` + prefetch).
-- Next eligible plan unit: 14.1 (phase_15.md), revision 11 order P7 → P14 → P8.
-- Unit base: 34de509 (unit:7.2:1); branch: `dev/001-modernization`; owned changes: `README.md`, `CHANGELOG.md`, STATE.md.
-- Repo state: HEAD = unit:P7:1; untracked `.serena/` (unrelated).
+- Type: sub-phase
+- ID / attempt: 14.1 / 1
+- Status: OPEN
+- Intent: copy-command sites quote each argument for the native shell (NEW `src/command_line.h/.cpp`), Tasks "Copy command" action, mount argv extracted by code motion, job widget keeps its height (#169), #83 R-REPRO (revision 15).
+- Assigned: `pev-subphase-v2` workflow (agent-2:sonnet = sonnet-5-5 implementer, haiku-5-5 gate runner, opus-5-5 reviewers `argv` and `widget`, sonnet-5-5 prefetch for 14.2); agent-1:opus (coordinator, final reviewer, state writer).
+- File / unit heading: phase_15.md "14.1 Command lines and job widget (#226, #194, #176, #123, #169, #83)"
+- Current step: implementation (workflow)
+- Next action: on the workflow result, check R-REPRO evidence (T_JW_STABLE failing on the base), the fixture diff (+1 line), the D8 code motion and the copy-site argv; rerun gates; review; close 14.1; then 14.2.
+- Next eligible plan unit: 14.2 (phase_15.md), after unit:14.1:1.
+- Unit base: 5919fc6 (revision 15 on unit:P7:1 e5d1d32); branch: `dev/001-modernization`; owned changes: the 14.1 file list of revision 15 (`src/command_line.*`, job/mount/stream widgets, `src/main_window*.{h,cpp,ui}`, `src/CMakeLists.txt`, 4 NEW test files, `tests/CMakeLists.txt`, the snapshot fixture); STATE.md.
+- Repo state: HEAD = revision 15 (5919fc6); untracked `.serena/` (unrelated).
 
 ## 2. Feature context and readiness
 
@@ -464,7 +464,7 @@ Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 1
 | 6.3 | phase_07.md | 6.1, P-6 | DONE | 1 | G-U6.3, G-SERVERS pass; unit:6.3:1 |
 | 7.1 | phase_08.md | P6 | DONE | 1 | G-U7.1 pass; unit:7.1:1 |
 | 7.2 | phase_08.md | 7.1 | DONE | 1 | G-U7.2 pass; unit:7.2:1 |
-| 14.1 | phase_15.md | P7, 6.3 | TODO | 1 | — |
+| 14.1 | phase_15.md | P7, 6.3 | IN_PROGRESS | 1 | — |
 | 14.2 | phase_15.md | 14.1 | TODO | 1 | — |
 | 14.3 | phase_15.md | 14.2 | TODO | 1 | — |
 | 14.4 | phase_15.md | 14.3 | TODO | 1 | — |
@@ -496,7 +496,7 @@ Units run in ID order. A prerequisite must be DONE; SKIPPED never satisfies it i
 | 5 | phase_06.md | P5 | DONE | P5 review (§7); unit:P5:1 |
 | 6 | phase_07.md | P6 | DONE | P6 review (§7); unit:P6:1 |
 | 7 | phase_08.md | P7 | DONE | P7 review (§7); unit:P7:1 |
-| 14 | phase_15.md | P14 (runs after P7, before P8; v2.0.0 readiness) | TODO | — |
+| 14 | phase_15.md | P14 (runs after P7, before P8; v2.0.0 readiness) | IN_PROGRESS | — |
 | 8 | phase_09.md | P8 | TODO | — |
 | 9 | phase_10.md | P9 | TODO | — |
 | 10 | phase_11.md | P10 | TODO | — |
