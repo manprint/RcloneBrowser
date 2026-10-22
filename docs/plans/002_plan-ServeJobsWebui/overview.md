@@ -169,7 +169,7 @@ built offline (`GOPROXY=off go build`, fork HEAD `a527815ae`, reports `rclone v1
 
 | ID | Meaning | Guarding test |
 |----|---------|---------------|
-| I-1 | For layouts tiles/list/longlist × scales {0.5,1,1.5,2,4,8} with short and 40-char names: no two item `visualRect`s intersect, `indexAt(visualRect(i).center())` is item i, and in grid layouts each `visualRect(i)` fits inside `gridSize`. | T-ICON-GRID |
+| I-1 | (revision 2) For layouts tiles/list/longlist × scales {0.5,1,1.5,2,4,8} with short and 40-char names, after the `.ui` properties (wordWrap true): no two item `visualRect`s intersect, `indexAt(visualRect(i).center())` is item i, in grid layouts each `visualRect(i)` fits inside `gridSize`, and each item leaves label room ≥ min(text width, 6 average chars) (phase_02.md). | T-ICON-GRID |
 | I-2 | Serve password and webui `Secret` travel only in rc POST bodies; never logged, never in QSettings, never in `ServeEntry`; the Restart copy lives only in the widget's memory. | T-SRV-PARAMS (existing), T-WEBUI-REMEMBER, review |
 | I-3 | On a webui-capable rclone every webdav start is `options/set` (all 19 keys, `Enabled` = flavor is webui) immediately followed by its `serve/start`, with no other rc start between. | T-WEBUI-SEQ, T-E2E-WEBUI-CLASSIC |
 | I-4 | `serveStartParams` never emits a key starting with `webui`. | T-SRV-PARAMS (extended) |

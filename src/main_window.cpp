@@ -15,6 +15,7 @@
 #include "rclone_daemon.h"
 #include "rclone_version.h"
 #include "remote_icons.h"
+#include "remote_list_layout.h"
 #include "remote_config_dialog.h"
 #include "remote_widget.h"
 #include "scheduler_widget.h"
@@ -2061,115 +2062,91 @@ void MainWindow::rcloneListRemotes() {
           QString iconsColour =
               settings->value("Settings/iconsColour").toString();
 
+          QString img_add = "";
+          int size;
+
+          // medium scale by default
+          double darkModeIconScale = 1.333;
+          double lightModeiconScale = 2;
+          // to avoid "variable not used" compiler error
+          if (darkModeIconScale == lightModeiconScale) {
+          };
+
+          // icons scale from preferences (number, or old letter values)
+          lightModeiconScale = RemotesIconScaleFromSetting(iconSize);
+          darkModeIconScale = lightModeiconScale;
+
+          // disable scaling - all is fusion now
+          // let's leave scaling logic for now
+          darkModeIconScale = lightModeiconScale;
+
+#if !defined(Q_OS_MACOS)
+          // _inv only for dark mode
+          // we use darkModeIni to apply mode active at startup
+          if (darkModeIni) {
+            if (iconsColour == "white") {
+              img_add = "_inv";
+            } else {
+              img_add = "";
+            }
+          } else {
+            img_add = "";
+          }
+#if defined(Q_OS_WIN)
+          // on Windows dark theme changes PM_ListViewIconSize size
+          // so we have to adjust
+          if (darkModeIni) {
+            size = darkModeIconScale *
+                   style->pixelMetric(QStyle::PM_ListViewIconSize);
+          } else {
+            size = lightModeiconScale *
+                   style->pixelMetric(QStyle::PM_ListViewIconSize);
+          }
+#else
+           // for Linux/BSD PM_ListViewIconSize stays the same
+           size = lightModeiconScale * style->pixelMetric(QStyle::PM_ListViewIconSize);
+#endif
+#else
+           QString sysInfo = QSysInfo::productVersion();
+           // dark mode on older macOS
+           if (sysInfo == "10.9" ||
+               sysInfo == "10.10" ||
+               sysInfo == "10.11" ||
+               sysInfo == "10.12" ||
+               sysInfo == "10.13") {
+
+             // on older macOS we also have to adjust icon size per mode
+             if (darkModeIni) {
+               size = darkModeIconScale * style->pixelMetric(QStyle::PM_ListViewIconSize);
+               if (iconsColour == "white") {
+                 img_add = "_inv";
+               } else {
+                 img_add = "";
+               }
+             } else {
+               size = lightModeiconScale * style->pixelMetric(QStyle::PM_ListViewIconSize);
+               img_add = "";
+             }
+
+           } else {
+             // for macOS > 10.13 native dark mode does not change IconSize base
+             size = 1.5 * lightModeiconScale * style->pixelMetric(QStyle::PM_ListViewIconSize);
+             if (iconsColour == "white") {
+                img_add = "_inv";
+             } else {
+                 img_add = "";
+             }
+           }
+#endif
+
+          QStringList names;
           for (const RemoteInfo &ri : *remotes) {
             QString name = ri.name;
+            names << name;
             const QString type = ri.type;
             QString tooltip = "type: " + type + "\n\nname: " + name;
             if (!ri.description.isEmpty()) {
               tooltip += "\n\ndescription: " + ri.description;
-            }
-
-            QString img_add = "";
-            int size;
-
-            // medium scale by default
-            double darkModeIconScale = 1.333;
-            double lightModeiconScale = 2;
-            // to avoid "variable not used" compiler error
-            if (darkModeIconScale == lightModeiconScale) {
-            };
-
-            // icons scale from preferences (number, or old letter values)
-            lightModeiconScale = RemotesIconScaleFromSetting(iconSize);
-            darkModeIconScale = lightModeiconScale;
-
-            // disable scaling - all is fusion now
-            // let's leave scaling logic for now
-            darkModeIconScale = lightModeiconScale;
-
-#if !defined(Q_OS_MACOS)
-            // _inv only for dark mode
-            // we use darkModeIni to apply mode active at startup
-            if (darkModeIni) {
-              if (iconsColour == "white") {
-                img_add = "_inv";
-              } else {
-                img_add = "";
-              }
-            } else {
-              img_add = "";
-            }
-#if defined(Q_OS_WIN)
-            // on Windows dark theme changes PM_ListViewIconSize size
-            // so we have to adjust
-            if (darkModeIni) {
-              size = darkModeIconScale *
-                     style->pixelMetric(QStyle::PM_ListViewIconSize);
-            } else {
-              size = lightModeiconScale *
-                     style->pixelMetric(QStyle::PM_ListViewIconSize);
-            }
-#else
-             // for Linux/BSD PM_ListViewIconSize stays the same
-             size = lightModeiconScale * style->pixelMetric(QStyle::PM_ListViewIconSize);
-#endif
-#else
-             QString sysInfo = QSysInfo::productVersion();
-             // dark mode on older macOS
-             if (sysInfo == "10.9" ||
-                 sysInfo == "10.10" ||
-                 sysInfo == "10.11" ||
-                 sysInfo == "10.12" ||
-                 sysInfo == "10.13") {
-
-               // on older macOS we also have to adjust icon size per mode
-               if (darkModeIni) {
-                 size = darkModeIconScale * style->pixelMetric(QStyle::PM_ListViewIconSize);
-                 if (iconsColour == "white") {
-                   img_add = "_inv";
-                 } else {
-                   img_add = "";
-                 }
-               } else {
-                 size = lightModeiconScale * style->pixelMetric(QStyle::PM_ListViewIconSize);
-                 img_add = "";
-               }
-
-             } else {
-               // for macOS > 10.13 native dark mode does not change IconSize base
-               size = 1.5 * lightModeiconScale * style->pixelMetric(QStyle::PM_ListViewIconSize);
-               if (iconsColour == "white") {
-                  img_add = "_inv";
-               } else {
-                   img_add = "";
-               }
-             }
-#endif
-            ui.remotes->setIconSize(QSize(size, size));
-
-            if (mIconsLayout == "tiles") {
-              ui.remotes->setViewMode(QListWidget::IconMode);
-              // disable drag and drop
-              ui.remotes->setMovement(QListView::Static);
-              // always adjust icons after the window is resized
-              ui.remotes->setResizeMode(QListView::Adjust);
-              ui.remotes->setWrapping(true);
-              ui.remotes->setGridSize(QSize(size + 20, size + 40));
-              ui.remotes->setSpacing(10);
-              ui.remotes->setTextElideMode(Qt::ElideMiddle);
-            }
-            if (mIconsLayout == "longlist") {
-              ui.remotes->setViewMode(QListWidget::ListMode);
-              ui.remotes->setResizeMode(QListView::Adjust);
-              ui.remotes->setWrapping(false);
-              ui.remotes->setGridSize(QSize(size + 8, size + 8));
-            }
-            if (mIconsLayout == "list") {
-              ui.remotes->setViewMode(QListWidget::ListMode);
-              ui.remotes->setResizeMode(QListView::Adjust);
-              ui.remotes->setWrapping(true);
-              ui.remotes->setGridSize(QSize(size + 100, size + 20));
-              ui.remotes->setSpacing(10);
             }
 
             const QString base = remoteIconBaseName(type);
@@ -2185,6 +2162,11 @@ void MainWindow::rcloneListRemotes() {
             item->setToolTip(tooltip);
             ui.remotes->addItem(item);
           }
+
+          applyRemotesListGeometry(
+              ui.remotes,
+              remotesListGeometry(mIconsLayout, size,
+                                  ui.remotes->fontMetrics(), names));
         } else {
           if (p->error() != QProcess::FailedToStart) {
             if (getConfigPassword(code, p->readAllStandardError()) ==

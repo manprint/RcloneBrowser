@@ -1,7 +1,7 @@
 # Serves in Jobs, webdav-webui, remote grid fix — Implementation state
 
 Read first at every session. Updated 2026-10-23 by agent-1:opus (planning session).
-Plan ID: 002_plan-ServeJobsWebui. Revision: 1. Repo root: /mnt/fabio/dati/Git/SperimentazioniAI/rclone-and-rcbrowser-forked/RcloneBrowser.
+Plan ID: 002_plan-ServeJobsWebui. Revision: 2. Repo root: /mnt/fabio/dati/Git/SperimentazioniAI/rclone-and-rcbrowser-forked/RcloneBrowser.
 Plan baseline: `19e93fa54a260a3e3318a74ade157d9e66bb226e` (HEAD of `dev/001-modernization`); pre-existing changes:
 - untracked `.serena/` — unrelated: never stage or modify it;
 - untracked `docs/plans/002_plan-ServeJobsWebui/` — this plan, authored by the planning session of 2026-10-23
@@ -67,17 +67,17 @@ this file. Tests never read the host rclone config (temp config only). No push, 
 
 - Active scope: plan 002 (all phases) — `/plan-execute-verify execute 002` (user, 2026-10-23); full-autonomous:true, WIP on (§3)
 - Scope result: RUNNING
-- Type: phase-close
-- ID / attempt: P0 / 1
-- Status: OPEN (closing: commit unit:P0:1)
-- Intent: phase 0 gates and supervisor review
-- Assigned: agent-1:opus; supervisor: agent-1:opus
-- File / unit heading: phase_01.md "Phase gates and closure"
+- Type: sub-phase
+- ID / attempt: 1.1 / 1
+- Status: OPEN (closing: commit unit:1.1:1)
+- Intent: remote list geometry helper (D1) + use in rcloneListRemotes; I-1 tests
+- Assigned: agent-2:sonnet (delegated worker); supervisor: agent-1:opus
+- File / unit heading: phase_02.md "1.1 Remote list geometry helper and its use"
 - Current step: commit
-- Next action: commit P0; open 1.1 (agent-2:sonnet).
-- Next eligible plan unit: 1.1 / phase_02.md (1.2 after it: shared build dir)
-- Unit base: `0e20ab7`; branch: `dev/002-serve-jobs-webui`; owned changes: STATE.md
-- Repo state: HEAD `0e20ab7`; untracked `.serena/` (unrelated)
+- Next action: commit 1.1; open 1.2 (agent-3:haiku).
+- Next eligible plan unit: 1.2 / phase_02.md
+- Unit base: `a809b8b`; branch: `dev/002-serve-jobs-webui`; owned changes: `src/main_window.cpp` (rcloneListRemotes), `src/CMakeLists.txt`, `src/remote_list_layout.{h,cpp}`, `tests/tst_remote_list_layout.cpp`, `tests/CMakeLists.txt`
+- Repo state: HEAD `a809b8b` (unit:P0:1); untracked `.serena/` (unrelated)
 
 ## 2. Feature context and readiness
 
@@ -148,6 +148,7 @@ Required supervisor reviews cannot be silently replaced by weaker self-review.
 | Type | ID / attempt | Plan revision | Agent | Changes | Evidence/review | Commit |
 |------|--------------|---------------|-------|---------|-----------------|--------|
 | plan | 002 / 1 | 1 | agent-1:opus | plan folder created (overview, phase_01–04, STATE) | user answers U1–U4; probes R2–R4 | uncommitted (committed with 0.2) |
+| sub-phase | 1.1 / 1 | 2 | agent-2:sonnet | NEW `src/remote_list_layout.{h,cpp}`, `tests/tst_remote_list_layout.cpp`; `rcloneListRemotes` uses it; CMake registrations; plan revision 2 records | G-U11 §7; review §7; revision 2 §8 | unit:1.1:1 |
 | phase-close | P0 / 1 | 1 | agent-1:opus | phase 0 closure | G-BUILD64/G-UNIT/G-E2E §7; review §7 | unit:P0:1 |
 | sub-phase | 0.3 / 1 | 1 | agent-3:haiku | README `Development (Docker)`: `RB_RCLONE_WEBUI` sentence | supervisor check vs `scripts/dev.sh` | unit:0.3:1 |
 | sub-phase | 0.2 / 1 | 1 | agent-2:sonnet | CMake cache `RB_TEST_RCLONE_WEBUI`, test env, dev.sh `RB_RCLONE_WEBUI` mount/def/notice; plan folder committed (provenance: planning session 2026-10-23) | G-U02 §7; review §7 | unit:0.2:1 |
@@ -167,13 +168,14 @@ reconcile. A SHA recorded by a later update is optional.
 
 ## 6. In-flight checkpoint
 
-P0: gates passed, review recorded. Pending commit unit:P0:1.
+Unit 1.1: S1–S4 done (revision 2). Pending commit unit:1.1:1.
 Running resources: none.
 
 ## 7. Verification and reviews
 
 | Gate/test | Command | Result | Test count/named evidence | Tested revision/diff | When |
 |-----------|---------|--------|--------------------------|---------------------|------|
+| G-U11 | §3 | pass | build 0 warnings; `tst_remote_list_layout` Totals 22 passed 0 failed (T_ICON_GRID_LEGACY: legacy tiles 7, list 0, longlist 13; T_ICON_GRID 18 rows; T_ICON_GRID_EMPTY); full unit 31/31; worker e2e 21/21 | 1.1 working diff on `a809b8b` (rev 2) | 2026-10-23 |
 | G-BUILD64 (P0) | §3, `RB_RCLONE_WEBUI` exported | pass | exit 0, 0 warnings (/tmp/rb-gates/p0-build64.log) | `5d9cdba` + README-only 0.3 diff (= `0e20ab7`) | 2026-10-23 |
 | G-UNIT (P0) | §3 | pass | 30/30 (= G-BASE) | same | 2026-10-23 |
 | G-E2E (P0) | §3 | pass | 21/21 (= G-BASE) | same | 2026-10-23 |
@@ -182,6 +184,7 @@ Running resources: none.
 
 | Review | Reviewer | Plan revision / reviewed change | Invariants/assertions checked | Verdict |
 |--------|----------|---------------------------------|------------------------------|---------|
+| 1.1 | agent-1:opus | rev 2 / 1.1 working diff on `a809b8b` | D1 formula line-by-line (kPad 6, label bounds, tiles/list/longlist sizes, grid, spacing, elide, wordWrap false, uniform sizes, per-item SizeHint); rcloneListRemotes keeps order/icons/tooltips/`_inv`/macOS 1.5×; hoisted size block; oracle C1–C4 per revision 2 with `.ui` properties; S1 legacy evidence | approved (note: `kPad` is a header-level constexpr, no clash in src/) |
 | P0 | agent-1:opus | rev 1 / `0e20ab7` | dev.sh/CMake diff for I-9 and backwards compatibility (no variable ⇒ identical behaviour plus a notice on e2e); counts equal G-BASE; README 0.3 accurate | approved |
 | 0.2 diff | agent-1:opus | rev 1 / 0.2 working diff on `19e93fa` | D11 exact; I-9 (no host HOME/config; fork mounted ro; only `version` run on host); `set -u` empty-array form; backwards compatibility without the variable; worker deviations (extra version-mismatch message, line split) accepted | approved |
 | plan readiness | agent-1:opus (+ advisor review) | revision 1 | quality checklist; cold read of 2.3 found (1) adopted-duplicate race during Restart ⇒ D4 adoption guard (`mPendingServes` empty) added to 2.3 S3; (2) object names `actionCleanNotRunning`, `buttonSortByStatus/Time`, `jobsFilter` and tab text `Jobs`/`Jobs (N)` verified in source; (3) CI `build.yml` runs `ctest -L e2e` with upstream rclone ⇒ D11/I-9 conditional registration of `tst_e2e_serve_webui`; (4) 3.2 settings via `GetSettings()` + `rbInitTestEnvironment()`; (5) `options/get` read-back format probed (R4 addendum); (6) G-U12 wording and per-phase `RB_RCLONE_WEBUI` reminder fixed | READY |
@@ -190,6 +193,7 @@ Running resources: none.
 
 | Revision | Previous decision/step | Approved replacement and reason | Supervisor | Dependents/revalidation |
 |----------|------------------------|---------------------------------|------------|------------------------|
+| 2 (2026-10-23) | I-1 oracle C1–C3; 1.1 S1 legacy repro tiles+list at 800×600 without `.ui` properties | I-1 adds C4 label room; legacy repro applies `.ui` properties (wordWrap true) and covers longlist; asserts tiles (C4) and longlist (overlap), list logged only. Reason: worker S1 found 0 violations — with a grid `visualItemRect` is the cell; supervisor diagnosis with grabs/measurements (longlist 13 violations from wrapped 30 px rects; tiles labels squeezed to 28 px). Requirement (item 1) unchanged; acceptance strengthened, not weakened. | agent-1:opus | phase_02.md 1.1 S1/I-1, overview I-1; only 1.1 affected (not started beyond S1) |
 
 ## 9. Blockers
 none.
@@ -211,7 +215,7 @@ none.
 | 0.1 | phase_01.md | none | DONE | 1 | branch, images, fork binary, G-BASE (unit 30, e2e 21) |
 | 0.2 | phase_01.md | 0.1 | DONE | 1 | G-U02 pass; review approved; unit:0.2:1 |
 | 0.3 | phase_01.md | 0.2 | DONE | 1 | README dev sentence; supervisor checked; unit:0.3:1 |
-| 1.1 | phase_02.md | P0 | TODO | 1 | — |
+| 1.1 | phase_02.md | P0 | DONE | 1 | G-U11 pass; review approved; unit:1.1:1 |
 | 1.2 | phase_02.md | P0 | TODO | 1 | — |
 | 1.3 | phase_02.md | 1.1, 1.2 | TODO | 1 | — |
 | 2.1 | phase_03.md | P1 | TODO | 1 | — |
@@ -227,7 +231,7 @@ none.
 | ID | File | Closure unit | Status | Review / commit reference |
 |----|------|--------------|--------|---------------------------|
 | 0 | phase_01.md | P0 | DONE | review §7; unit:P0:1 |
-| 1 | phase_02.md | P1 | TODO | — |
+| 1 | phase_02.md | P1 | IN_PROGRESS | — |
 | 2 | phase_03.md | P2 | TODO | — |
 | 3 | phase_04.md | P3 | TODO | — |
 
@@ -237,9 +241,9 @@ SKIPPED retains a reason and does not automatically satisfy dependent units.
 ### Tests
 | ID/name | Owning unit | Gate | Status | Evidence |
 |---------|-------------|------|--------|----------|
-| T-ICON-GRID-LEGACY (`tst_remote_list_layout`) | 1.1 | G-U11 | TODO | — |
-| T-ICON-GRID (I-1) | 1.1 | G-U11 | TODO | — |
-| T-ICON-GRID-EMPTY | 1.1 | G-U11 | TODO | — |
+| T-ICON-GRID-LEGACY (`tst_remote_list_layout`) | 1.1 | G-U11 | pass | G-U11 §7 |
+| T-ICON-GRID (I-1) | 1.1 | G-U11 | pass | G-U11 §7 |
+| T-ICON-GRID-EMPTY | 1.1 | G-U11 | pass | G-U11 §7 |
 | T-SC-SERVE-BUTTON (`tst_shortcuts`) | 1.2 | G-U12 | TODO | — |
 | T-SRV-TOKENS (`tst_serve_manager`) | 2.1 | G-U21 | TODO | — |
 | T-SRV-BROWSER-URL | 2.1 | G-U21 | TODO | — |

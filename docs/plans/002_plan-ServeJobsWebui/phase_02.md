@@ -23,9 +23,18 @@ Plan revision: 1.
   (supervisor inference, proven by T-ICON-GRID-LEGACY in 1.1 S1).
 - D1: geometry from icon size **and font metrics**, applied once per listing, with an explicit item size
   hint on every item so each item rect is known and fits its grid cell.
-- I-1: layouts tiles/list/longlist × scales {0.5,1,1.5,2,4,8}, short and 40-char names ⇒ no two
+- I-1 (revision 2): layouts tiles/list/longlist × scales {0.5,1,1.5,2,4,8}, short and 40-char names ⇒ no two
   `visualItemRect`s intersect; `indexAt(rect.center())` returns that item; with a grid every item rect
-  fits in `gridSize`.
+  fits in `gridSize`; and (**C4 label room**) every item leaves room for its label: `avail ≥ min(textW, 6*ch)`
+  with `m = style()->pixelMetric(QStyle::PM_FocusFrameHMargin, nullptr, &w) + 1`, `textW =
+  fm.horizontalAdvance(name)`, `ch = fm.averageCharWidth()`, `avail = rect.width() - 2*m` in IconMode and
+  `rect.width() - w.iconSize().width() - 3*m` in ListMode.
+- Revision 2 evidence (supervisor, 2026-10-23, Qt 6.4.2 offscreen, Sans Serif 9pt, ch 6): the
+  revision-1 oracle found 0 legacy violations for tiles/list because with a grid `visualItemRect` is the
+  cell itself. The legacy defects are: (a) the `.ui` sets `wordWrap=true`, so in `longlist` a wrapped
+  name (`ÄÖÜ-umlauts`) gets a 30 px rect in a 24 px grid row and overlaps its neighbour (13 violations);
+  (b) in `tiles` the 36 px cell leaves 28 px for the label (`photos` ⇒ "p…s"), unreadable and imprecise
+  to pick. The legacy list layout at scale 1 shows no violation (rect 116 px wide).
 - D2: `buttonServe` after `buttonStream`, default action `actionServe`, styled exactly like `buttonStream`.
 - I-8: no warnings (`-Werror`).
 
@@ -80,14 +89,17 @@ void applyRemotesListGeometry(QListWidget *list, const RemotesListGeometry &g);
   Steps:
   1. S1 — NEW `tests/tst_remote_list_layout.cpp` with a helper `static int violations(QListWidget&)`
      returning the number of I-1 violations (pairs whose `visualItemRect` intersect + items whose
-     `indexAt(center)` differs + rects not inside `gridSize` when the grid is valid), and
-     `T_ICON_GRID_LEGACY`: builds a 800×600 `QListWidget` with the 12 names below and a 64×64 filled
-     pixmap icon, applies the **legacy** settings copied from today's code for `tiles` and `list` with
-     `size = 16` (scale 1.0), shows it, `QVERIFY(QTest::qWaitForWindowExposed(&w))`, `w.doItemsLayout()`,
-     and `QVERIFY(violations(w) > 0)` for tiles **and** for list.
+     `indexAt(center)` differs + rects not inside `gridSize` when the grid is valid + C4 label-room
+     failures), and `T_ICON_GRID_LEGACY`: builds a 260×300 `QListWidget` with the 12 names below and a
+     64×64 filled pixmap icon, first applies the `.ui` properties of `remotes` (`wordWrap` true,
+     `textElideMode` ElideMiddle, `selectionBehavior` SelectRows), then the **legacy** per-layout settings
+     copied from today's code for `tiles`, `list` and `longlist` with `size = 16` (scale 1.0), shows it,
+     `QVERIFY(QTest::qWaitForWindowExposed(&w))`, `w.doItemsLayout()`, logs each count with `qInfo`, and
+     asserts `QVERIFY(violations > 0)` for **tiles** (C4) and **longlist** (overlap); list is logged only.
+     The post-fix tests (S3) use the same `.ui` properties before applying the helper.
      Names: `a`, `gd`, `drive`, `s3`, `photos`, `backup-2026`, `a_remote_with_a_rather_long_name_xyz_1234`,
      `ÄÖÜ-umlauts`, `onedrive_business`, `x`, `pcloud`, `mega`.
-     Register the test, build, run it on the unchanged main_window. Expected: PASS (legacy overlaps).
+     Register the test, build, run it on the unchanged main_window. Expected: PASS (supervisor measured tiles C4 > 0, longlist 13).
      If it fails (no overlap reproduced), STOP and escalate to agent-1:opus with the numbers: the
      oracle does not capture the bug.
   2. S2 — NEW `src/remote_list_layout.{h,cpp}` with D1 exactly. Register in `src/CMakeLists.txt`.
