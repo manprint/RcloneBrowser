@@ -1,7 +1,7 @@
 # Change Log
 
-## [2.1.0] - unreleased
-Changes since 2.0.0.
+## [2.1.0-beta.1] - 2026-10-22
+Changes since 2.0.0. They include the fixes for two bugs of 2.0.0 that could delete data: Delete on a multi-selection that included a top-level row could purge that whole folder, and a folder Move with "Delete empty source directories" could remove an emptied Google Cloud Storage bucket (the first two FIXED lines).
 
 -   NEW: "Bisync" mode in the Transfer dialog runs `rclone bisync` between two folders (Upload and Download, saved tasks, Dry run, queue and scheduler), with "First run / resync", conflict resolution (none, newer, older, larger, smaller, path1, path2), "Resilient", "Recover" and a "Workdir"; a Bisync task leaves out the six options that bisync rejects, ignores, turns into deletions or cannot stay in sync with - #243
 -   NEW: "Copy to…" in a remote's right-click and Tools menus copies one file to a name and place you type, on the same remote, on another remote or to a local path (`rclone copyto`) - #192
