@@ -11,7 +11,7 @@ Phase closure: P10; review by agent-1:opus.
 Read STATE.md §0–1 first for scope, ownership, recovery, checks and commit rules. Open a unit before editing it. Checkpoint at recovery boundaries. Close with evidence. A delegated worker follows its assigned OPEN unit. Missing design decisions go to agent-1:opus. No network access (U6).
 
 ## Local design context
-Plan revision: 1; revision 27 (agent-1:opus, before 10.1, on the code after P7–P9) replaces the points it names; the text below is already updated.
+Plan revision: 1; revision 27 (agent-1:opus, before 10.1, on the code after P7–P9) and revision 28 (agent-1:opus, before 10.2) replace the points they name; the text below is already updated.
 - **Revision 27** (superseded → now):
   - the fixed tabs were "0 Remotes, 1 Jobs, 2 Tasks, 3 Queue, then remote tabs" → there is also 4 Scheduler; remote tabs start at index 5, so the tab shortcuts are Ctrl+1 to Ctrl+5;
   - "MainWindow (window) Ctrl+W closes the current remote tab (index ≥ 4)" → dropped: every RemoteWidget already has `QShortcut(QKeySequence::Close)` (Ctrl+W; Cmd+W on macOS; also Ctrl+F4 on Windows); 10.3 makes it go through `tabCloseRequested` because today it only calls `removeTab` and the widget is never deleted (the tab's × deletes it);
@@ -19,6 +19,13 @@ Plan revision: 1; revision 27 (agent-1:opus, before 10.1, on the code after P7�
   - uniqueness was checked per scope → over the union of every scope that can be active at once (below);
   - `normalizeEnteredPath(text, isLocal)` with the remote "passed separately" → `normalizeEnteredPath(text, remote, isLocal)`; the path field focus rule, the Drive mode switch and the typed roots, Go moving focus to the tree, the root path rules (`QDir`) and the error-row oracle are now explicit;
   - gates: G-CI is dispatched after every 10.x commit (MSVC `/W4 /WX` applies to src since B-T4 and finds warnings the Linux gates cannot).
+- **Revision 28** (agent-1:opus at the 10.1 close, from the 10.2 prefetch; superseded → now):
+  - the Tasks filter matched `{item->text(), item->toolTip()}` → `{item->text(), item->toolTip(), source, dest}` of the task's JobOptions: no code sets a task tooltip, so the old pair matched the description only, while the Jobs filter matches source and dest;
+  - "selection of hidden items is cleared" (only when the filter runs) → also an `itemSelectionChanged` guard, connected before the `setTasksButtons` connection, deselects hidden items (Ctrl+A and range selection select hidden rows, and every task action reads `selectedItems()`);
+  - the Jobs filter ran "after each job insertion or `sortJobs`" → `applyJobsFilter()` right after the widget/HLine `insertWidget` pair in `addTransfer`, `addNewMount` and `addStream` and at the end of `sortJobs` (which returns early under `mDoNotSort`); it takes no mutex and never calls `sortJobs`;
+  - the Jobs half had no test → `tst_e2e_filter.cpp` also has T-E2E-FILTER-JOBS (jobs added through `addTransfer` with rclone `/bin/false`: the other job and its separator hide, a job added while the filter is set follows it, the tab text counts all jobs) and T-E2E-FILTER-FIELDS (`filterFields()` of JobWidget, MountWidget and StreamWidget); the file count and G-E2E 20 are unchanged;
+  - `tst_e2e_filter` is in the `RB_TEST_RCLONE AND UNIX AND NOT APPLE` block with `Settings/rclone` = `/bin/false` (it never runs rclone); the filters only hide rows: Stop All, Clean and Delete act as before, and a filter that hides everything shows no extra label;
+  - T-MW-SNAPSHOT: the re-record is pre-approved only for exactly `+W|jobsFilter|QLineEdit|1|0|||-` and `+W|tasksFilter|QLineEdit|1|0|||-` (numstat `2 0`); the triage rows #16, #21 and #94 are updated at the P10 closure.
 - D16: the path field becomes editable with Go and adds the typed path as a root. Search is a filter field over the tasks list and the jobs list. The shortcut map is below.
 - D13: the TommyandTina idea (editable path, Internet Archive) is reimplemented generically. No code is taken.
 - Current code (anchors):
@@ -138,8 +145,8 @@ Plan revision: 1; revision 27 (agent-1:opus, before 10.1, on the code after P7�
     ```cpp
     bool filterMatches(const QString &filter, const QStringList &fields);  // split filter on whitespace; every token must occur (case-insensitive) in at least one field; empty filter → true
     ```
-    - Tasks: on `tasksFilter` textChanged and after every `listTasks()`, each `tasksListWidget` item is hidden unless `filterMatches(filter, {item->text(), item->toolTip()})`. Selection of hidden items is cleared.
-    - Jobs: on `jobsFilter` textChanged and after each job insertion or `sortJobs`, each job widget and its following HLine separator are hidden unless the filter matches `{widget info text, source, dest}`. Each job widget class gets `QStringList filterFields() const` returning its info, source and dest texts (JobWidget, MountWidget, StreamWidget).
+    - Tasks: on `tasksFilter` textChanged and after every `listTasks()`, each `tasksListWidget` item is hidden unless `filterMatches(filter, {item->text(), item->toolTip(), jo->source, jo->dest})` (revision 28). Selection of hidden items is cleared, there and by an `itemSelectionChanged` guard (revision 28).
+    - Jobs: on `jobsFilter` textChanged, right after each job insertion (`addTransfer`, `addNewMount`, `addStream`) and at the end of `sortJobs` (revision 28), each job widget and its following HLine separator are hidden unless the filter matches `{widget info text, source, dest}`. Each job widget class gets `QStringList filterFields() const` returning its info, source and dest texts (JobWidget, MountWidget, StreamWidget).
     - Ctrl+F focuses the filter of the current tab (Tasks or Jobs). That shortcut is assigned in 10.3, and this unit exposes the widgets. The job count label keeps counting all jobs.
   - Steps:
     1. S1 — `list_filter` plus tests.
@@ -154,6 +161,7 @@ Plan revision: 1; revision 27 (agent-1:opus, before 10.1, on the code after P7�
   - construct MainWindow (as T-MW-SNAPSHOT does) with a test tasks file containing 3 saved tasks with distinct descriptions (written by `ListOfJobOptions` into the test config dir before construction);
   - set `tasksFilter` to the second description;
   - exactly 1 visible item, with that description.
+  - Revision 28: T-E2E-FILTER-JOBS (two jobs through `addTransfer`; the filter hides the other job and its HLine; a third job added while the filter is set follows it; the tab text counts all jobs) and T-E2E-FILTER-FIELDS (`filterFields()` of the three job widgets), same file.
   - Gate G-U10.2e: `scripts/dev.sh e2e qt64 -- -R tst_e2e_filter` passes.
   - Totals after 10.2: G-UNIT 27, G-E2E 20.
 - **Done:** gates pass; snapshot change recorded; unit closed; completion commit; G-CI dispatched on it.
