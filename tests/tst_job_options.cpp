@@ -139,6 +139,43 @@ void compareBisync(const JobOptions &got, const JobOptions &want) {
   QCOMPARE(got.bisyncWorkdir, want.bisyncWorkdir);
 }
 
+// Two tasks with distinctive values in every version 9 field: every bisync
+// bool is non-default in one of them and every pair of them differs in one.
+// The fixture jobopts_v9.bin was recorded from these two tasks with the code
+// of classVersion 9 (13.1 S1): never change a value without recording it
+// again.
+JobOptions makeV9() {
+  JobOptions jo = makeV8();
+  jo.description = QStringLiteral("v9 distinctive bisync task");
+  jo.uniqueId = QUuid(QStringLiteral("{9a1b2c3d-4e5f-4a6b-8c7d-0e1f2a3b4c5d}"));
+  jo.operation = JobOptions::Bisync;
+  jo.sync = false;
+  jo.bisyncResync = true;
+  jo.bisyncConflictResolve = QStringLiteral("older");
+  jo.bisyncResilient = false;
+  jo.bisyncRecover = true;
+  jo.bisyncWorkdir = QStringLiteral("/v9/work dir");
+  return jo;
+}
+
+JobOptions makeV9Upload() {
+  JobOptions jo = makeV9();
+  jo.description = QStringLiteral("v9 distinctive upload task");
+  jo.uniqueId = QUuid(QStringLiteral("{9b2c3d4e-5f6a-4b7c-9d8e-1f2a3b4c5d6e}"));
+  jo.jobType = JobOptions::Upload;
+  jo.operation = JobOptions::Copy;
+  jo.source = QStringLiteral("/v9/upload src");
+  jo.dest = QStringLiteral("s3v9:bkt/up dir");
+  jo.remoteType = QStringLiteral("s3");
+  jo.remoteMode = QStringLiteral("main");
+  jo.bisyncResync = false;
+  jo.bisyncConflictResolve = QStringLiteral("larger");
+  jo.bisyncResilient = true;
+  jo.bisyncRecover = true;
+  jo.bisyncWorkdir = QStringLiteral("/v9/other wd");
+  return jo;
+}
+
 // A task with every field that getOptions() reads, as the Copy and Move rows
 // of T_JO_BISYNC_ARGS (and the Sync and Bisync rows, which add the sync flag)
 // set it.
@@ -291,6 +328,27 @@ private slots:
       // QSKIP with one argument is a C++20 extension for clang -Werror
       // (macOS, FreeBSD); this is what the macro expands to
       QTest::qSkip("jobopts_v8.bin recorded (RB_RECORD_JO_V8=1)", __FILE__,
+                   __LINE__);
+      return;
+    }
+
+    // The recorder of tests/fixtures/synthetic/jobopts_v9.bin, the same way:
+    // RB_RECORD_JO_V9=1, the code of classVersion 9, two tasks in file order.
+    if (qEnvironmentVariableIntValue("RB_RECORD_JO_V9") == 1) {
+      QCOMPARE(JobOptions::classVersion, qint32(9));
+      QFile::remove(tasksFile());
+      auto *a = new JobOptions(makeV9());
+      auto *b = new JobOptions(makeV9Upload());
+      ListOfJobOptions *list = ListOfJobOptions::getInstance();
+      QVERIFY(list->Persist(a));
+      QVERIFY(list->Persist(b));
+      QVERIFY(replaceFile(tasksFile(), rbFixture(QStringLiteral(
+                                           "synthetic/jobopts_v9.bin"))));
+      list->Forget(a);
+      list->Forget(b);
+      delete a;
+      delete b;
+      QTest::qSkip("jobopts_v9.bin recorded (RB_RECORD_JO_V9=1)", __FILE__,
                    __LINE__);
       return;
     }

@@ -12,7 +12,7 @@ Phase closure: P13 = final closure; review by agent-1:opus.
 Read STATE.md §0–1 first for scope, ownership, recovery, checks and commit rules. Open a unit before editing it. Checkpoint at recovery boundaries. Close with evidence. A delegated worker follows its assigned OPEN unit. Missing design decisions go to agent-1:opus. No network access (U6); the S3 test uses a local `rclone serve s3` on 127.0.0.1.
 
 ## Local design context
-Plan revision: 1.
+Plan revision: 1; revision 30 (agent-1:opus, before 13.1) replaces the points it names in 13.1.
 - D13: xrp001 contributes only the idea (`036882904` upload headers, `74fdeb738` S3 tags as an `X-Amz-Tagging` header). iamnhx contributes only the OpenBSD/NetBSD CI jobs from `a2e96c64a`. totza2010 contributes its teldrive icon.
 - R16 (local probe, rclone 1.75.2, 2026-10-21):
   - `rclone copy src s3t:bkt --header-upload "X-Amz-Tagging: proj=rb&env=test" --header-upload "Cache-Control: no-cache" --dump headers` against an anonymous local `rclone serve s3 <dir> --addr 127.0.0.1:0` (remote `type = s3, provider = Rclone, endpoint = <url>, force_path_style = true`) exits 0;
@@ -76,6 +76,17 @@ Plan revision: 1.
   - Expected: exit 0; `store/bkt/t 1.txt` exists; the process's debug output (stderr text; no `--use-json-log` in this direct run) contains a `PUT /bkt/t%201.txt` request whose dumped header block contains `X-Amz-Tagging: proj=rb&env=test`.
   - Gate G-U13.1e: `scripts/dev.sh e2e qt64 -- -R tst_e2e_s3_headers` passes.
 - **Done:** gates pass; unit closed; completion commit.
+- **Revision 30** (agent-1:opus after the P10 closure, from the 13.x prefetch wf_051cfea6-946 and its probe `scratchpad/probe13-s3hdr/`; superseded → now):
+  - anchors: the JobOptions stream operators are in `src/list_of_job_options.cpp`; TransferDialog has no OK button but "Save task" (ActionRole) and "Dry run" and "Run" (AcceptRole), and lambdas re-enable Save task on task-name and auto-name changes;
+  - "an inline red label disables OK" → invalid text disables Save task, Dry run and Run, connected after the existing lambdas so it has the last word; `done()` and `saveTaskToFile()` also refuse invalid text;
+  - "a collapsible Upload headers field" → a checkable arrow tool button (the `delete_progress_dialog` pattern) and a panel below the extra options in the "Extra options" tab; no new tab (indices 2–6 are hard-coded), no change to the locked dialog height; the tags field shows only for a remote of type `s3`; edit mode expands the panel when either field has text;
+  - the two fields are not remembered by "remember last options" and Restore defaults clears them; `getJobOptions` stores the headers only for an upload and the tags only for `s3`, and only the fields that apply are validated;
+  - parse rules: `parseUploadHeaders` returns `Name: value` (both trimmed; blank text is an empty list); `parseS3Tags` also returns nullopt for a duplicate key (S3 rejects it);
+  - `getOptions()` appends the header pairs at the very end, after the bisync flags, the user headers in text order and the X-Amz-Tagging pair last (the s3 backend keeps the last value), so every existing argv stays byte-identical;
+  - S1: `jobopts_v9.bin` holds two tasks, `makeV9()` (Download Bisync) and `makeV9Upload()` (Upload Copy to `s3`), recorded by the coordinator (sha256 f9ee49f9…, 1184 bytes); the `RB_RECORD_JO_V8` recorder stays next to the new `RB_RECORD_JO_V9` one;
+  - tests: tst_job_options has 8 functions (5 today plus T-JO-COMPAT-V9, T-JO-UPLOAD-HEADERS and NEW T-JO-HEADERS-DIALOG for the visibility, button and `done()` rules), not "6 = 4 + 2" (revision 20 added T-JO-DIALOG); T-JO-UPLOAD-HEADERS also checks that `PrepareTransferArgs` keeps the pairs and that a Bisync upload carries them; T-TAG-PARSE adds the duplicate-key row; suite totals 29 unit and 21 e2e;
+  - T-E2E-S3-TAGS reads the port from the serve log (`Starting s3 server on [http://127.0.0.1:<port>/]`), checks the headers inside the `PUT /bkt/t%201.txt` request block only (the parameters line and the HEAD response echo them), and adds a second upload with remoteType `drive` whose PUT has Cache-Control but no X-Amz-Tagging; `tst_e2e_s3_headers` is in the `UNIX AND NOT APPLE` e2e block;
+  - probe facts for the README (P13): `--header-upload` works for copy, move, sync and bisync; the s3 backend accepts only the keys it knows and logs `Don't know how to set key "<key>" on upload` for others while the file is still uploaded (exit 0); a line without `:` makes rclone exit 1.
 
 ### 13.2 BSD CI jobs, remote icons, macFUSE text
 - **Model:** agent-3:haiku

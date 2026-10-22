@@ -64,17 +64,17 @@ Recover an unresolved audit completion commit first, without finalizing the susp
 
 - Active scope: plan 001, all phases 0–14 (invocation `/plan-execute-verify-mid execute 001`, 2026-10-21; phase 14 added by revision 11). User, 2026-10-21: "finisci il piano in autonomia".
 - Scope result: RUNNING
-- Type: phase closure
-- ID / attempt: P10 / 1
-- Status: CLOSED (unit:P10:1)
-- Intent: close phase 10 (path field, filters, shortcuts): README "Navigation" and "Search" with their TOC lines, the Fork changes bullet, the stale FAQ entries `faq-ftp-mlsd` and `faq-sftp-outside-home`; CHANGELOG 2.1.0 (three NEW lines and the Ctrl+W FIXED line); triage #16 #148 #21 #94 #157; full phase gates and the P10 review; B-T6 from the review.
-- Assigned: agent-1:opus (coordinator, writer, state writer); `p10-docs-review` opus-5-5 reviewers `rclone-facts` and `ui-and-code`.
-- File / unit heading: phase_11.md "Phase gates and closure"
-- Current step: closed
-- Next action: G-CI on the P10 commit; revision 30 (phase_14.md anchors after P7–P10 from the 13.x prefetch, the 13.1 decisions); open 13.1.
-- Next eligible plan unit: 13.1 (phase_14.md).
-- Unit base: unit:10.3:1 (3596522) + unit:B-T6:1 (f02fc85); branch: `dev/001-modernization`.
-- Repo state: HEAD = unit:P10:1; untracked `.serena/` (unrelated).
+- Type: sub-phase
+- ID / attempt: 13.1 / 1
+- Status: OPEN
+- Intent: upload headers and S3 object tags (revision 30): `src/upload_headers.*`, JobOptions classVersion 10 with `uploadHeaders` and `s3Tags`, the TransferDialog panel and its validation, `jobopts_v9.bin` compatibility, and T-E2E-S3-TAGS against an anonymous local `rclone serve s3`.
+- Assigned: `pev-subphase-v2` workflow (sonnet-5-5 implementer, haiku-5-5 gate runner, opus-5-5 reviewers); agent-1:opus (coordinator, S1, final reviewer, state writer).
+- File / unit heading: phase_14.md "13.1 Upload headers and S3 tags"
+- Current step: S2 (S1 done by agent-1: `makeV9`, `makeV9Upload`, the `RB_RECORD_JO_V9` recorder and `jobopts_v9.bin` sha256 f9ee49f9e4103eb4f7270074437b09f8f71537857f575faca1cf886fc6f62dfe, 1184 bytes, recorded on the classVersion 9 code; `tst_job_options` 5 functions pass, `jobopts_v8.bin` unchanged)
+- Next action: run the workflow from the brief (`scratchpad/brief-13.1.md`); record G-CI (P10) at the 13.1 close.
+- Next eligible plan unit: 13.2 (phase_14.md), after unit:13.1:1 and revision 31 (the 13.2 decisions).
+- Unit base: unit:P10:1 (4f0764e) + revision 30; branch: `dev/001-modernization`; owned changes: `src/job_options.h/.cpp`, `src/list_of_job_options.cpp`, `src/transfer_dialog.h/.cpp/.ui`, NEW `src/upload_headers.h/.cpp`, `src/CMakeLists.txt`, `tests/tst_job_options.cpp`, NEW `tests/tst_upload_headers.cpp`, NEW `tests/tst_e2e_s3_headers.cpp`, `tests/CMakeLists.txt`, NEW `tests/fixtures/synthetic/jobopts_v9.bin` and its README section; STATE.md.
+- Repo state: HEAD = revision 30 + this opening (with S1) on unit:P10:1; untracked `.serena/` (unrelated).
 
 ## 2. Feature context and readiness
 
@@ -519,6 +519,7 @@ Cold-read note (1.4, agent-1:opus, 2026-10-21): every symbol 1.4 uses is defined
 | 27 | phase_11 (plan revision 1): fixed tabs 0–3 and remote tabs from 4, Ctrl+1–4; a MainWindow Ctrl+W; RemoteWidget actions in `Qt::WidgetWithChildrenShortcut`; uniqueness per scope; `normalizeEnteredPath(text, isLocal)`; no rule for the path field during a Drive mode switch, for typed roots on that switch, for the `QDir` root paths or for the focus after Go; G-CI only at phase closure | agent-1:opus read the code after P7–P9 before 10.1 (advisor-checked): the Scheduler tab is index 4, so remote tabs start at 5 and the tab shortcuts are Ctrl+1–5; every RemoteWidget already has `QShortcut(QKeySequence::Close)` (Ctrl+W) that only calls `removeTab` (the widget is never deleted, unlike the tab's ×), so the MainWindow Ctrl+W is dropped and 10.3 routes the shortcut through `tabCloseRequested`; with the dual pane skipped (revision 25) only one RemoteWidget is visible and Qt never matches a hidden widget's shortcut, while WidgetWithChildrenShortcut would stop F5/F2/Del after a click on the tab bar, so the actions keep `Qt::WindowShortcut` and are added to the RemoteWidget; uniqueness is checked over every scope active at once (Qt runs neither of two ambiguous shortcuts); `isLocal` is true only on Windows; the default root of a non-local remote has the `QDir` path `"."` and differs from `"/"`; the path field ignores selection writes while focused, is read-only during the Drive switch wait, Go moves focus to the tree, the Drive switch removes typed roots; the error-row oracle uses `Item::Special` and `"⚠ "`; MSVC `/W4 /WX` applies since B-T4, so G-CI runs after every 10.x commit; P10 gates also G-SERVERS, check-triage and the leftover check | agent-1:opus | phase_11.md "Revision 27" note and the updated 10.1–10.3 contracts and tests; §1 |Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 14.1 (new `actionCopyTaskCommand`, revision 15; R-SNAP of phase 14), 9.1 S2 (new `actionServes`); the 11.2 S2 re-record (`openDual` button) is dropped with phase 11 (revision 25). Each re-recording lists only the added lines here when it happens. 9.1 S2 (done): `+A|actionServes|Serves…|1|0|0|` only (`git diff --numstat` `1 0`), sha256 `fccc386d5b1fa157378e67e2d43a401d0f8f0de01b8eb750760213c5370f31ae`. 10.2 S2 (done, revision 28): `+W|jobsFilter|QLineEdit|1|0|||-` and `+W|tasksFilter|QLineEdit|1|0|||-` only (`2 0`), sha256 `23531335c972fe683b2342dfe2bbef5d0bbe77721f07b2f92d87d89d2fecb421`. 10.3 S2 (done, revision 29): the shortcut column of `A|actionDryRun|Dry Run|1|0|0|Ctrl+Shift+Return`, `A|actionEdit|Edit|1|0|0|Ctrl+E`, `A|actionRun|Run|1|0|0|Ctrl+Return` only (`3 3`), sha256 `29f9afef8d5d69d9249816d3c40749d1c9ce351fd89eba162f59090bb04c841f`.
 | 28 | phase_11 10.2 (plan revision 1): the Tasks filter matches `{text, toolTip}`; hidden items deselected only when the filter runs; the Jobs filter "after each job insertion or `sortJobs`"; only T-E2E-FILTER-TASKS | the 10.2 prefetch (sonnet-5-5, wf_66d6d182-544) decisions D1–D11, approved by agent-1:opus: no code sets a task tooltip, so the Tasks filter also matches the task's source and dest; an `itemSelectionChanged` guard deselects hidden tasks (select all reaches them, every task action reads `selectedItems()`); `applyJobsFilter()` after each `insertWidget` pair and at the end of `sortJobs` (early returns under `mDoNotSort`); T-E2E-FILTER-JOBS and T-E2E-FILTER-FIELDS added in `tst_e2e_filter.cpp`; the snapshot re-record pre-approved for exactly the two filter lines; triage #16/#21/#94 at the P10 closure | agent-1:opus (10.1 close) | phase_11.md "Revision 28" note and 10.2 contract; §11 test map row 10.2 |
 | 29 | phase_11 10.3 (plan revision 1 and revision 27): Alt+M on `mount`; the Close lambda uses the constructor's `parent`; Ctrl+1–5 plain `setCurrentIndex`; the snapshot re-record "under supervisor approval" | the 10.3 prefetch (sonnet-5-5, wf_d65be388-a01) decisions D1–D10, approved by agent-1:opus: `mount` is never connected (Alt+M on `actionNewMount`); the Close shortcut walks `parentWidget()` to the QTabWidget with null/-1 guards; tab keys skip hidden tabs; Ctrl+F also selects the text; unnamed window actions; no tooltip changes; T-MW-SNAPSHOT pre-approved for exactly the three shortcut columns of actionRun, actionEdit, actionDryRun (`3 3`); `tst_shortcuts` Linux-only with an `internetarchive` RemoteWidget; README "Keyboard shortcuts" only in 10.3 | agent-1:opus (10.2 close) | phase_11.md "Revision 29" note, shortcut map and 10.3 contract; §11 test map row 10.3 |
+| 30 | phase_14 13.1 (plan revision 1): "disables OK"; "collapsible" field placement open; tst_job_options "6 = 4 + 2"; the e2e port and oracle unspecified; tag and header parse details | the 13.1 prefetch (opus-5-5, wf_051cfea6-946) decisions D-COUNT, D-DLGTEST, D-PLACE (Extra options tab), D-REC, D-V9FIX, D-ARGPOS, D-TAGDUP, D-DUPTAGHDR, D-NORM, D-REMEMBER, D-STORE, D-E2EPATH, D-PORT, all as recommended, with the probe `scratchpad/probe13-s3hdr/out.txt` (rclone 1.75.2, isolated container) | agent-1:opus | phase_14.md "Revision 30" note; §11 test map row 13.1; brief `scratchpad/brief-13.1.md` |
 
 ## 9. Blockers
 
@@ -613,7 +614,7 @@ Cold-read note (1.4, agent-1:opus, 2026-10-21): every symbol 1.4 uses is defined
 | 12.1 | phase_13.md | P11, P-5 (B-P5) | SKIPPED | 1 | revision 25: dropped at the user's request |
 | 12.2 | phase_13.md | 12.1 | SKIPPED | 1 | revision 25: dropped at the user's request |
 | 12.3 | phase_13.md | 12.2 | SKIPPED | 1 | revision 25: dropped at the user's request |
-| 13.1 | phase_14.md | P10 (revision 25) | TODO | 1 | — |
+| 13.1 | phase_14.md | P10 (revision 25) | IN_PROGRESS | 1 | — |
 | 13.2 | phase_14.md | 13.1, P-1 (B-P1) | TODO | 1 | — |
 
 Units run in ID order. A prerequisite must be DONE; SKIPPED never satisfies it implicitly. A sub-phase whose prefetch is missing is BLOCKED, and the next eligible unit continues only if it does not depend on it (for example 0.4 may run while 0.3 waits for P-1; P0 cannot close until 0.3 is DONE).
@@ -683,7 +684,7 @@ Every ID below is a QtTest function (or a named check) defined in its owning uni
 | 12.1 | G-U12.1 | T-I18N-SELECT, T-I18N-RESOURCE (SKIPPED, revision 25) |
 | 12.2 | G-I18N (without the flag), G-E2E | T-MW-SNAPSHOT unchanged (SKIPPED, revision 25) |
 | 12.3 | G-U12.3, G-I18N | T-I18N-IT-STRINGS, T-I18N-IT-WINDOW (SKIPPED, revision 25) |
-| 13.1 | G-U13.1, G-U13.1e | T-HDR-PARSE, T-TAG-PARSE, T-TAG-HEADER, T-JO-COMPAT-V9, T-JO-UPLOAD-HEADERS; e2e T-E2E-S3-TAGS |
+| 13.1 | G-U13.1, G-U13.1e | T-HDR-PARSE, T-TAG-PARSE, T-TAG-HEADER, T-JO-COMPAT-V9, T-JO-UPLOAD-HEADERS, T-JO-HEADERS-DIALOG (revision 30); e2e T-E2E-S3-TAGS (with the drive negative run) |
 | 13.2 | G-U13.2, G-YAML | T-ICON-ALIAS, T-ICON-EXISTS |
 
 ### Documentation

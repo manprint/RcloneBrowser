@@ -62,3 +62,13 @@ classVersion 8 (QDataStream `Qt_5_2`), before Bisync added the version 9 fields 
 the current code and compares every field; the version 9 fields must keep their defaults. Never re-record it:
 the recorder (`RB_RECORD_JO_V8=1`) asserts classVersion 8 and so only runs on that code.
 sha256 `a9487951d2a8471b2f61ff346c25bc4b4cd9a136335771009dc4cb289dc47298`, 548 bytes.
+
+## jobopts_v9.bin
+
+A tasks file holding two JobOptions, written by `ListOfJobOptions::Persist` with the code of classVersion 9, before
+13.1 added the version 10 fields (upload headers and S3 tags, I-7). The tasks are `makeV9()` (a Download Bisync
+task) and `makeV9Upload()` (an Upload Copy task to a remote of type `s3`) in `tests/tst_job_options.cpp`, in that
+file order: distinctive values in every version 9 field, every bisync bool non-default in one of them. T-JO-COMPAT-V9
+loads it with the current code and compares every field; the version 10 fields must stay empty. Never re-record it:
+the recorder (`RB_RECORD_JO_V9=1`) asserts classVersion 9 and so only runs on that code.
+sha256 `f9ee49f9e4103eb4f7270074437b09f8f71537857f575faca1cf886fc6f62dfe`, 1184 bytes.
