@@ -65,7 +65,11 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${rclone-browser_BINARY_DIR}/build")
 add_library(rb_warnings INTERFACE)
 if(MSVC)
   # C4702 (unreachable code) fires in Qt headers during link-time code generation.
-  target_compile_options(rb_warnings INTERFACE /W4 /WX /wd4100 /wd4189 /wd4702)
+  # C4244 (narrowing, mostly qsizetype to int) and C4456/C4457/C4458 (a name
+  # hides a local, a parameter or a member) stay off, as -Wall -Wextra leave
+  # -Wconversion and -Wshadow off for GCC and Clang.
+  target_compile_options(rb_warnings INTERFACE /W4 /WX /wd4100 /wd4189 /wd4702
+                                               /wd4244 /wd4456 /wd4457 /wd4458)
 else()
   target_compile_options(rb_warnings INTERFACE -pedantic -Wall -Wextra -Werror)
 endif()

@@ -119,8 +119,7 @@ bool ListOfJobOptions::RestoreFromUserData(ListOfJobOptions &dataIn) {
     try {
       instream >> *jo;
       dataIn.tasks.append(jo);
-    } catch (SerializationException &ex) {
-      //      qDebug() << QString("failed to restore tasks: ") << ex.Message;
+    } catch (SerializationException &) {
       // avoid leaking the partially-read object that failed to deserialize
       delete jo;
       file->close();

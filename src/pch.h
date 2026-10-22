@@ -29,5 +29,5 @@
 #endif
 
 #ifdef _MSC_VER
-#pragma warning pop
+#pragma warning(pop)
 #endif
