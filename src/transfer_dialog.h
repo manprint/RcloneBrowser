@@ -44,11 +44,15 @@ private:
 
   bool mFirstRun = true;
 
+  // the height the dialog is locked to (the Bisync group adds to it)
+  int mLockedHeight = 0;
+
   JobOptions *mJobOptions;
   JobOptions *mJobOptionsRcloneCmd;
 
   void save_AutoName_AddToQueue();
-  bool saveTaskToFile();
+  bool saveTaskToFile(bool forRun = false);
+  bool checkBisyncPaths(bool forRun);
   void transferWriteSettings();
   void generateAutoTaskName();
 

@@ -3,6 +3,19 @@
 #include "list_of_job_options.h"
 #include "utils.h"
 
+namespace {
+
+// The values of --conflict-resolve, in the order of cbBisyncConflict. The
+// items of the combo box are display text (translatable), so what is stored
+// and passed to rclone comes from this list by index.
+const QStringList &bisyncConflicts() {
+  static const QStringList list = {"none",    "newer", "older", "larger",
+                                   "smaller", "path1", "path2"};
+  return list;
+}
+
+} // namespace
+
 TransferDialog::TransferDialog(bool isDownload, bool isDrop,
                                const QString &remote, const QDir &path,
                                bool isFolder, const QString &remoteType,
@@ -52,8 +65,28 @@ TransferDialog::TransferDialog(bool isDownload, bool isDrop,
   resize(0, 0);
   adjustSize();
 
-  setMaximumHeight(this->height());
-  setMinimumHeight(this->height());
+  mLockedHeight = this->height();
+  setMaximumHeight(mLockedHeight);
+  setMinimumHeight(mLockedHeight);
+
+  // the Bisync options show only in the Bisync mode and the locked height
+  // follows them
+  QObject::connect(ui.rbBisync, &QRadioButton::toggled, this, [=](bool on) {
+    const int before = ui.verticalLayout_4->totalSizeHint().height();
+    ui.groupBisync->setVisible(on);
+    // rclone bisync has no --delete-empty-src-dirs, ignores --update and
+    // --no-traverse, and --delete-excluded makes it delete destination files
+    // (JobOptions::getOptions leaves all four out for Bisync)
+    ui.deleteEmptySrcDirs->setEnabled(!on);
+    ui.checkDeleteExcluded->setEnabled(!on);
+    ui.checkSkipNewer->setEnabled(!on);
+    ui.noTraverse->setEnabled(!on);
+    ui.verticalLayout_4->invalidate();
+    mLockedHeight += ui.verticalLayout_4->totalSizeHint().height() - before;
+    setMinimumHeight(mLockedHeight);
+    setMaximumHeight(mLockedHeight);
+    resize(width(), mLockedHeight);
+  });
   QTimer::singleShot(0, this, SLOT(size()));
 
   setWindowTitle(isDownload ? "Rclone Browser - Download"
@@ -229,6 +262,11 @@ TransferDialog::TransferDialog(bool isDownload, bool isDrop,
       ui.buttonBox->button(QDialogButtonBox::RestoreDefaults),
       &QPushButton::clicked, this, [=]() {
         ui.rbCopy->setChecked(true);
+        ui.cbBisyncResync->setChecked(false);
+        ui.cbBisyncConflict->setCurrentIndex(0);
+        ui.cbBisyncResilient->setChecked(false);
+        ui.cbBisyncRecover->setChecked(false);
+        ui.leBisyncWorkdir->clear();
         ui.cbSyncDelete->setCurrentIndex(0);
         // set combobox tooltips
         ui.cbSyncDelete->setItemData(0, "--delete-during", Qt::ToolTipRole);
@@ -599,6 +637,25 @@ TransferDialog::TransferDialog(bool isDownload, bool isDrop,
     }
   }
 
+  // rclone bisync works on two directories: a single downloaded file cannot
+  // be a Bisync task (a saved Bisync task stays editable). With several rows
+  // selected the source is their parent folder and isFolder only describes the
+  // first row; a saved multi-item task is reopened with isMultiItem false but
+  // keeps its "+ item ... - *" filter.
+  const bool multiItem =
+      mIsMultiItem ||
+      (mIsEditMode && mJobOptions != nullptr &&
+       !mJobOptions->filtered.trimmed().isEmpty());
+  if (isDownload && !isFolder && !multiItem &&
+      !(mIsEditMode && mJobOptions->operation == JobOptions::Bisync)) {
+    ui.rbBisync->setEnabled(false);
+    ui.rbBisync->setToolTip(
+        "Bisync needs a folder: rclone bisync fails on a single file.");
+    if (ui.rbBisync->isChecked()) {
+      ui.rbCopy->setChecked(true);
+    }
+  }
+
   ui.buttonSourceFile->setVisible(!isDownload);
   ui.buttonSourceItems->setVisible(!isDownload);
   ui.buttonDefaultSource->setVisible(!isDownload);
@@ -817,6 +874,8 @@ QString TransferDialog::getMode() const {
     return "Move";
   } else if (ui.rbSync->isChecked()) {
     return "Sync";
+  } else if (ui.rbBisync->isChecked()) {
+    return "Bisync";
   }
 
   return QString();
@@ -870,7 +929,22 @@ JobOptions *TransferDialog::getJobOptions(JobOptions *taskOptions) {
     taskOptions->sync = false;
   } else if (ui.rbSync->isChecked()) {
     taskOptions->operation = JobOptions::Sync;
+  } else if (ui.rbBisync->isChecked()) {
+    taskOptions->operation = JobOptions::Bisync;
+    taskOptions->sync = false;
   }
+
+  // the bisync options belong to the Bisync mode only
+  const bool bisync = ui.rbBisync->isChecked();
+  taskOptions->bisyncResync = bisync && ui.cbBisyncResync->isChecked();
+  taskOptions->bisyncConflictResolve =
+      bisync ? bisyncConflicts().value(ui.cbBisyncConflict->currentIndex(),
+                                       QStringLiteral("none"))
+             : QStringLiteral("none");
+  taskOptions->bisyncResilient = bisync && ui.cbBisyncResilient->isChecked();
+  taskOptions->bisyncRecover = bisync && ui.cbBisyncRecover->isChecked();
+  taskOptions->bisyncWorkdir =
+      bisync ? ui.leBisyncWorkdir->text().trimmed() : QString();
 
   //  taskOptions->dryRun = mDryRun;
   taskOptions->dryRun = false;
@@ -971,9 +1045,20 @@ void TransferDialog::putJobOptions() {
   ui.rbCopy->setChecked(mJobOptions->operation == JobOptions::Copy);
   ui.rbMove->setChecked(mJobOptions->operation == JobOptions::Move);
   ui.rbSync->setChecked(mJobOptions->operation == JobOptions::Sync);
+  ui.rbBisync->setChecked(mJobOptions->operation == JobOptions::Bisync);
+
+  ui.cbBisyncResync->setChecked(mJobOptions->bisyncResync);
+  const int conflict =
+      bisyncConflicts().indexOf(mJobOptions->bisyncConflictResolve);
+  ui.cbBisyncConflict->setCurrentIndex(conflict < 0 ? 0 : conflict);
+  ui.cbBisyncResilient->setChecked(mJobOptions->bisyncResilient);
+  ui.cbBisyncRecover->setChecked(mJobOptions->bisyncRecover);
+  ui.leBisyncWorkdir->setText(mJobOptions->bisyncWorkdir);
 
   mDryRun = mJobOptions->dryRun;
-  ui.rbSync->setChecked(mJobOptions->sync);
+  if (mJobOptions->operation != JobOptions::Bisync) {
+    ui.rbSync->setChecked(mJobOptions->sync);
+  }
 
   ui.cbSyncDelete->setCurrentIndex((int)mJobOptions->syncTiming);
   // set combobox tooltips
@@ -1092,6 +1177,10 @@ void TransferDialog::done(int r) {
         return;
       }
     }
+    if (!checkBisyncPaths(true)) {
+      return;
+    }
+
     if (!mIsEditMode) {
       save_AutoName_AddToQueue();
     }
@@ -1100,7 +1189,7 @@ void TransferDialog::done(int r) {
         !ui.le_taskName->text().trimmed().isEmpty()) {
       // save before run
       generateAutoTaskName();
-      if (saveTaskToFile()) {
+      if (saveTaskToFile(true)) {
         mAddToQueue = ui.cb_taskAddToQueue->isChecked();
       } else {
         return;
@@ -1108,6 +1197,85 @@ void TransferDialog::done(int r) {
     }
   }
   QDialog::done(r);
+}
+
+/*
+ * rclone bisync fails on what the dialog would otherwise accept: a source that
+ * is a file, a local folder that does not exist yet, and a --workdir that is
+ * relative to whatever directory the app was started in (the listings must be
+ * found again by the next run, which may start elsewhere, e.g. the scheduler).
+ * forRun is true for Run and Dry run (the folder must exist) and false for
+ * the Save task button (a missing folder may stay missing). Returns false
+ * after telling the user (nothing is saved or started).
+ */
+bool TransferDialog::checkBisyncPaths(bool forRun) {
+  if (!ui.rbBisync->isChecked()) {
+    return true;
+  }
+
+  const QString workdir = ui.leBisyncWorkdir->text().trimmed();
+  if (!workdir.isEmpty() && QDir::isRelativePath(workdir)) {
+    QMessageBox::warning(this, "Warning",
+                         "The Bisync workdir must be an absolute folder, a "
+                         "relative one depends on where the app was started.");
+    ui.leBisyncWorkdir->setFocus(Qt::FocusReason::OtherFocusReason);
+    return false;
+  }
+
+  if (mIsDownload) {
+    // the local side is the destination, rclone needs it to exist
+    const QString dest = ui.textDest->text().trimmed();
+    if (!dest.isEmpty() && !QFileInfo(dest).isDir()) {
+      if (QFileInfo::exists(dest)) {
+        QMessageBox::warning(this, "Warning",
+                             "Bisync needs a destination folder, but this is "
+                             "a file.");
+        ui.textDest->setFocus(Qt::FocusReason::OtherFocusReason);
+        return false;
+      }
+      // running needs the folder; saving a task definition does not (the
+      // drive may be unplugged now and mounted when a scheduled run starts)
+      const QString text =
+          QString("The destination folder does not exist and rclone bisync "
+                  "fails without it. Create it?\n\n%1")
+              .arg(dest);
+      QMessageBox::StandardButton answer;
+      if (forRun) {
+        answer = QMessageBox::question(this, "Create folder", text,
+                                       QMessageBox::Yes | QMessageBox::No,
+                                       QMessageBox::Yes);
+      } else {
+        answer = QMessageBox::question(
+            this, "Create folder",
+            text + "\n\nNo saves the task without creating the folder.",
+            QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel,
+            QMessageBox::Yes);
+      }
+      if (answer == QMessageBox::Yes) {
+        if (!QDir().mkpath(dest)) {
+          QMessageBox::warning(this, "Warning",
+                               QString("Could not create %1").arg(dest));
+          ui.textDest->setFocus(Qt::FocusReason::OtherFocusReason);
+          return false;
+        }
+      } else if (forRun || answer != QMessageBox::No) {
+        ui.textDest->setFocus(Qt::FocusReason::OtherFocusReason);
+        return false;
+      }
+    }
+  } else {
+    // the local side is the source
+    const QString source = ui.textSource->text().trimmed();
+    if (!source.isEmpty() && QFileInfo(source).isFile()) {
+      QMessageBox::warning(this, "Warning",
+                           "Bisync needs a source folder, but this is a "
+                           "file.");
+      ui.textSource->setFocus(Qt::FocusReason::OtherFocusReason);
+      return false;
+    }
+  }
+
+  return true;
 }
 
 void TransferDialog::save_AutoName_AddToQueue(void) {
@@ -1127,7 +1295,7 @@ void TransferDialog::save_AutoName_AddToQueue(void) {
   }
 }
 
-bool TransferDialog::saveTaskToFile() {
+bool TransferDialog::saveTaskToFile(bool forRun) {
 
   // only generated if needed
   generateAutoTaskName();
@@ -1159,6 +1327,11 @@ bool TransferDialog::saveTaskToFile() {
     }
   }
 
+  // done() has already checked the paths of a run
+  if (!forRun && !checkBisyncPaths(false)) {
+    return false;
+  }
+
   if (!mIsEditMode) {
     save_AutoName_AddToQueue();
     transferWriteSettings();
@@ -1186,6 +1359,9 @@ void TransferDialog::transferWriteSettings() {
   settings->remove("le_defaultRcloneOptions");
   settings->remove("le_defaultTransferOptions");
   settings->remove("textFilter");
+  // a first run is never the default of the next task
+  settings->remove("cbBisyncResync");
+  settings->remove("leBisyncWorkdir");
   settings->remove("rcloneCmd");
   settings->endGroup();
 }

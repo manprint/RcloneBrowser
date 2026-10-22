@@ -18,9 +18,11 @@ JobOptions::JobOptions()
       isFolder(false), DriveSharedWithMe(false), mountReadOnly(false),
       mountCacheLevel(UnknownCacheLevel), mountAutoStart(false),
       mountWinDriveMode(false), noTraverse(false), createEmptySrcDirs(false),
-      deleteEmptySrcDirs(false) {}
+      deleteEmptySrcDirs(false), bisyncResync(false),
+      bisyncConflictResolve("none"), bisyncResilient(false),
+      bisyncRecover(false) {}
 
-const qint32 JobOptions::classVersion = 8;
+const qint32 JobOptions::classVersion = 9;
 
 JobOptions::~JobOptions() {}
 
@@ -42,6 +44,8 @@ QStringList JobOptions::getOptions() const {
     list << "move";
   } else if (operation == Sync) {
     list << "sync";
+  } else if (operation == Bisync) {
+    list << "bisync";
   }
 
   list << source;
@@ -63,7 +67,8 @@ QStringList JobOptions::getOptions() const {
     }
   }
 
-  if (sync) {
+  // bisync deletes on both sides itself and has no --delete-* flags
+  if (sync && operation != Bisync) {
     switch (syncTiming) {
     case During:
       list << "--delete-during";
@@ -80,7 +85,9 @@ QStringList JobOptions::getOptions() const {
     }
   }
 
-  if (skipNewer) {
+  // rclone bisync ignores --update and --no-traverse and logs a WARNING for
+  // each (cmd/bisync/compare.go notSupported), so a Bisync task leaves them out
+  if (skipNewer && operation != Bisync) {
     list << "--update";
   }
   if (skipExisting) {
@@ -115,7 +122,7 @@ QStringList JobOptions::getOptions() const {
     list << "--no-update-modtime";
   }
 
-  if (noTraverse) {
+  if (noTraverse && operation != Bisync) {
     list << "--no-traverse";
   }
 
@@ -123,7 +130,8 @@ QStringList JobOptions::getOptions() const {
     list << "--create-empty-src-dirs";
   }
 
-  if (deleteEmptySrcDirs) {
+  // rclone 1.75.2 bisync rejects it as an unknown flag (exit 2)
+  if (deleteEmptySrcDirs && operation != Bisync) {
     list << "--delete-empty-src-dirs";
   }
 
@@ -152,7 +160,11 @@ QStringList JobOptions::getOptions() const {
   list << "--retries" << retries;
   list << "--low-level-retries" << lowLevelRetries;
 
-  if (deleteExcluded) {
+  // bisync applies its deltas with a filter that keeps --delete-excluded, and
+  // that makes sync.Sync delete every destination file outside the delta queue
+  // (rclone 1.75.2 cmd/bisync/queue.go:254, fs/sync/sync.go:961), so a Bisync
+  // task never emits it
+  if (deleteExcluded && operation != Bisync) {
     list << "--delete-excluded";
   }
 
@@ -246,6 +258,24 @@ QStringList JobOptions::getOptions() const {
 
   if (dryRun) {
     list << "--dry-run";
+  }
+
+  if (operation == Bisync) {
+    if (bisyncResync) {
+      list << "--resync";
+    }
+    if (bisyncConflictResolve != "none" && !bisyncConflictResolve.isEmpty()) {
+      list << "--conflict-resolve" << bisyncConflictResolve;
+    }
+    if (bisyncResilient) {
+      list << "--resilient";
+    }
+    if (bisyncRecover) {
+      list << "--recover";
+    }
+    if (!bisyncWorkdir.isEmpty()) {
+      list << "--workdir" << bisyncWorkdir;
+    }
   }
 
   return list;

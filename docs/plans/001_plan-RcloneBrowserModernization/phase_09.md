@@ -87,6 +87,14 @@ Plan revision: 1.
   - T-E2E-BISYNC-UPDATE: create `p1/c.txt`, then run without resync. Finished, and `p2/c.txt` exists.
   - Gate G-U8.1e: `scripts/dev.sh e2e qt64 -- -R tst_e2e_bisync` passes with 3 functions.
 - **Done:** G-U8.1 and G-U8.1e pass; unit closed; completion commit.
+- **Revision 20** (agent-1:opus at the 8.1 closure, from the 8.1 reviews and probes against rclone 1.75.2; replaces the matching points above):
+  - A Bisync task never emits `--delete-empty-src-dirs` (bisync rejects it: `unknown flag`, exit 2), `--update` and `--no-traverse` (bisync ignores both with a WARNING, `cmd/bisync/compare.go` `notSupported`), or `--delete-excluded` (bisync's delta copy keeps the filter options, so `sync.Sync` deletes every Path2 file outside the delta queue: `cmd/bisync/queue.go`, `fs/sync/sync.go` `DstIncludeAll`; agent-1 probe in an isolated container on 2026-10-22: after a resync, a run with `--delete-excluded` left p2 with only the new file). The TransferDialog disables those four checkboxes while Bisync is checked. Every other flag of the Sync path was probed one at a time and accepted.
+  - `rbBisync` is disabled for a download of a single file (not a folder, not several items, not a saved Bisync task being edited). Before Run, Dry run or Save task the dialog refuses a relative `--workdir` (the listings must be found again by a run started from another directory, such as the scheduler), a file where bisync needs a folder, and offers to create a missing local destination folder (Run and Dry run: Yes or No; Save task: Yes, No to save without it, Cancel).
+  - The conflict value comes from a fixed list by the combo index (the item texts are translatable). `--resync` and the workdir are not remembered as the next task's defaults.
+  - `operator<<` and `operator>>` of JobOptions are declared in `job_options.h` (no longer `static`), so T-JO-NEWER calls them directly.
+  - `tests/tst_job_options.cpp` uses `QTEST_MAIN` and has 5 functions: T-JO-DIALOG (the dialog shows, restores and hides the Bisync options, keeps its locked height, disables the four flags, maps the conflict index, and gates the single-file download) is added. T-JO-ROUNDTRIP writes two records in which every pair of the three bisync bools differs, and pins the v9 tail bytes of both. T-JO-BISYNC-ARGS has 12 data rows, 5 of them the Copy/Move/Sync argv of the base code. G-U8.1 counts 5 functions.
+  - `tst_e2e_bisync` is in the plain `RB_TEST_RCLONE` block. T-E2E-BISYNC-UPDATE sets `deleteExcluded`, `skipNewer` and `noTraverse` and checks that none of their flags is in the argv and that p2 keeps `a.txt` and `b.txt`.
+  - P8 README obligation also covers: the four flags a Bisync task leaves out and why, Bisync works on folders, and the workdir must be absolute.
 
 ### 8.2 copyto and copyurl actions (#199)
 - **Model:** agent-2:sonnet

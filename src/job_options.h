@@ -1,4 +1,5 @@
 #pragma once
+#include <QDataStream>
 #include <QListWidget>
 #include <qexception.h>
 #include <quuid.h>
@@ -10,7 +11,17 @@ public:
 
   ~JobOptions();
 
-  enum Operation { UnknownOp, Copy, Move, Sync, Mount, Check, CryptCheck };
+  // Bisync is appended: the values are stored in tasks files.
+  enum Operation {
+    UnknownOp,
+    Copy,
+    Move,
+    Sync,
+    Mount,
+    Check,
+    CryptCheck,
+    Bisync
+  };
   enum JobType { UnknownJobType, Upload, Download };
 
   /*
@@ -81,6 +92,14 @@ public:
   QString filtered;
   bool deleteEmptySrcDirs;
 
+  // added for bisync tasks
+  bool bisyncResync;
+  QString bisyncConflictResolve; // none, newer, older, larger, smaller, path1,
+                                 // path2
+  bool bisyncResilient;
+  bool bisyncRecover;
+  QString bisyncWorkdir; // empty means rclone's default
+
   void setJobType(bool isDownload) {
     jobType = (isDownload) ? Download : Upload;
   }
@@ -104,6 +123,11 @@ public:
    */
   static const qint32 classVersion;
 };
+
+// The tasks file format (see classVersion). Both throw SerializationException
+// for a stream that does not hold a JobOptions of a known version.
+QDataStream &operator>>(QDataStream &dataStream, JobOptions &jo);
+QDataStream &operator<<(QDataStream &dataStream, JobOptions &jo);
 
 class JobOptionsListWidgetItem : public QListWidgetItem {
 public:

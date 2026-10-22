@@ -5,8 +5,6 @@
 #include <qstandardpaths.h>
 #include <utils.h>
 
-static QDataStream &operator>>(QDataStream &dataStream, JobOptions &jo);
-static QDataStream &operator<<(QDataStream &dataStream, JobOptions &jo);
 static QDataStream &operator>>(QDataStream &in, JobOptions::Operation &e);
 static QDataStream &operator>>(QDataStream &in, JobOptions::SyncTiming &e);
 static QDataStream &operator>>(QDataStream &in, JobOptions::CompareOption &e);
@@ -192,7 +190,9 @@ QDataStream &operator<<(QDataStream &stream, JobOptions &jo) {
          << jo.mountCacheLevel << jo.mountVolume << jo.mountAutoStart
          << jo.mountRcPort << jo.mountScript << jo.mountWinDriveMode
          << jo.included << jo.noTraverse << jo.createEmptySrcDirs << jo.filtered
-         << jo.deleteEmptySrcDirs;
+         << jo.deleteEmptySrcDirs << jo.bisyncResync
+         << jo.bisyncConflictResolve << jo.bisyncResilient << jo.bisyncRecover
+         << jo.bisyncWorkdir;
 
   return stream;
 }
@@ -255,6 +255,14 @@ QDataStream &operator>>(QDataStream &stream, JobOptions &jo) {
   if (actualVersion >= 8) {
     stream >> jo.filtered;
     stream >> jo.deleteEmptySrcDirs;
+  }
+
+  if (actualVersion >= 9) {
+    stream >> jo.bisyncResync;
+    stream >> jo.bisyncConflictResolve;
+    stream >> jo.bisyncResilient;
+    stream >> jo.bisyncRecover;
+    stream >> jo.bisyncWorkdir;
   }
 
   return stream;

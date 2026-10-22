@@ -2058,6 +2058,8 @@ void MainWindow::runItem(JobOptionsListWidgetItem *item,
       operation = "Move";
     if (int(jo->operation) == 3)
       operation = "Sync";
+    if (jo->operation == JobOptions::Bisync)
+      operation = "Bisync";
 
     if (dryrun) {
       info = QString("Dry run, task: \"%1\", %2 from %3")

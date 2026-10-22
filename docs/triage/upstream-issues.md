@@ -93,7 +93,7 @@ Count: 15
 | #195 | Check for updates | 2022-01-06 | in-plan 3.2 | 3.2 | deferred: background update checks exist (T_E2E_UPD_NEWER), switched in Preferences and run at most once a day; an on-demand menu entry is not offered |  |
 | #199 | Need Support Remote Upload For Url | 2022-02-07 | in-plan 8.2 | 8.2 | planned in 8.2 |  |
 | #233 | Generate error log in real time? | 2024-03-14 | in-plan 1.4 | 1.4 | fixed in 1.4 (T_JOB_RENDER_ERR, T_E2E_JOB_LOGFILE); errors and their file show in the job panel's Errors tooltip and the output goes to the --log-file; that the file is written while the job runs, and that it holds error lines, is code reading and not asserted by a test |  |
-| #243 | Support for bisync ? | 2025-03-05 | in-plan 8.1 | 8.1 | planned in 8.1 |  |
+| #243 | Support for bisync ? | 2025-03-05 | in-plan 8.1 | 8.1 | fixed in 8.1 (T_E2E_BISYNC_RESYNC, T_E2E_BISYNC_UPDATE, T_JO_BISYNC_ARGS) |  |
 
 ## Feature-deferred
 

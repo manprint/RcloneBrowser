@@ -53,3 +53,12 @@ are fixed and the config path is replaced by `/FIXTURE/c.conf`. Each file is rea
 | `wrong.txt` | wrong `RCLONE_CONFIG_PASS` | ERROR `Couldn't decrypt configuration, most likely wrong password.`, then CRITICAL `using RCLONE_CONFIG_PASS env password, unable to decrypt configuration` | WrongPassword |
 | `cmdfail.txt` | `RCLONE_PASSWORD_COMMAND` exits non-zero | ERROR `Using --password-command returned: exit status 1`, then CRITICAL `password command failed: exit status 1` | PasswordCommandFailed |
 | `other.txt` | not a password problem | text form of the recorded `../rclone-1.75/config_fail.jsonl` CRITICAL message (`didn't find section in config file`) | Other |
+
+## jobopts_v8.bin
+
+A tasks file (`tasks.bin`) holding one JobOptions, written by `ListOfJobOptions::Persist` with the code of
+classVersion 8 (QDataStream `Qt_5_2`), before Bisync added the version 9 fields (I-7). The task is `makeV8()` in
+`tests/tst_job_options.cpp`: a distinctive non-default value in every version 8 field. T-JO-COMPAT loads it with
+the current code and compares every field; the version 9 fields must keep their defaults. Never re-record it:
+the recorder (`RB_RECORD_JO_V8=1`) asserts classVersion 8 and so only runs on that code.
+sha256 `a9487951d2a8471b2f61ff346c25bc4b4cd9a136335771009dc4cb289dc47298`, 548 bytes.
