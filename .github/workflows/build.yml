@@ -295,12 +295,63 @@ jobs:
           name: freebsd
           path: build/build/*
 
+  # Steps follow README "OpenBSD"; never run before 13.2 (package names,
+  # prefixes and the action tag are unverified).
+  build_openbsd:
+    name: OpenBSD Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Development Tools, Build and Test Rclone Browser
+        uses: vmactions/openbsd-vm@v1
+        with:
+          mem: 4096
+          usesh: true
+          prepare: |
+            pkg_add cmake qt6
+          run: |
+            set -e
+            mkdir build
+            cd build
+            cmake -DCMAKE_PREFIX_PATH=/usr/local/lib/qt6/cmake -DRB_BUILD_TESTS=ON ..
+            make
+            cd ..
+            ctest --test-dir build -L unit --output-on-failure -C Release
+
+  # Steps follow README "NetBSD"; never run before 13.2 (package names,
+  # prefixes and the action tag are unverified).
+  build_netbsd:
+    name: NetBSD Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Development Tools, Build and Test Rclone Browser
+        uses: vmactions/netbsd-vm@v1
+        with:
+          mem: 4096
+          usesh: true
+          prepare: |
+            command -v pkgin >/dev/null 2>&1 || /usr/sbin/pkg_add -v pkgin
+            pkgin update
+            pkgin -y install cmake qt6-qtbase
+          run: |
+            set -e
+            mkdir build
+            cd build
+            cmake -DCMAKE_PREFIX_PATH=/usr/pkg/qt6 -DRB_BUILD_TESTS=ON ..
+            make
+            cd ..
+            ctest --test-dir build -L unit --output-on-failure -C Release
+
   create_release:
     name: Create GitHub Release
     # Only version tags publish a release. Branch pushes, pull requests and
     # manual runs keep their builds as artifacts of the workflow run.
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    # build_openbsd and build_netbsd are deliberately not listed: they must never block a release.
     needs: [build_windows, build_windows_arm64, build_linux, build_macos, build_freebsd]
     permissions:
       contents: write

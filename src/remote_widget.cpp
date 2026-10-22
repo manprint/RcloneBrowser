@@ -1750,7 +1750,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
     if (winKey.childGroups().contains("WinFsp", Qt::CaseInsensitive)) {
 #endif
 #if defined(Q_OS_MACOS)
-      // on macOS we check if FUSE for macOS is installed
+      // on macOS we check if macFUSE is installed
 
       const QFileInfo outputDir("/Library/Filesystems/macfuse.fs/");
 
@@ -1785,11 +1785,11 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
     } else {
 
       QMessageBox::information(
-          this, "FUSE for macOS warning",
+          this, "macFUSE warning",
           QString(
               R"(<p>To run "rclone mount" on macOS,<br />you will need to )"
               R"(download and install:<br /><br />)"
-              R"(<a href="https://osxfuse.github.io">FUSE for macOS</a></p>)"));
+              R"(<a href="https://macfuse.github.io">macFUSE</a></p>)"));
     }
 #endif
   });

@@ -43,6 +43,10 @@ rb_add_test(tst_serve_widget unit)
 rb_add_test(tst_path_entry unit)
 rb_add_test(tst_list_filter unit)
 rb_add_test(tst_upload_headers unit)
+# tst_remote_icons needs the remote icons, and Qt resources are compiled only
+# into the executables (D10): give this test its own copy of resources.qrc.
+qt6_add_resources(RB_ICONS_QRC_OUT ${CMAKE_SOURCE_DIR}/src/resources.qrc OPTIONS "-no-compress")
+rb_add_test(tst_remote_icons unit ${RB_ICONS_QRC_OUT})
 # The golden snapshot is Linux-specific (platform branches in MainWindow).
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   rb_add_test(tst_mainwindow_snapshot unit)

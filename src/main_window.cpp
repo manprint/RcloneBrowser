@@ -14,6 +14,7 @@
 #include "rc_client.h"
 #include "rclone_daemon.h"
 #include "rclone_version.h"
+#include "remote_icons.h"
 #include "remote_config_dialog.h"
 #include "remote_widget.h"
 #include "scheduler_widget.h"
@@ -2060,7 +2061,7 @@ void MainWindow::rcloneListRemotes() {
 
           for (const RemoteInfo &ri : *remotes) {
             QString name = ri.name;
-            QString type = ri.type;
+            const QString type = ri.type;
             QString tooltip = "type: " + type + "\n\nname: " + name;
             if (!ri.description.isEmpty()) {
               tooltip += "\n\ndescription: " + ri.description;
@@ -2169,8 +2170,9 @@ void MainWindow::rcloneListRemotes() {
               ui.remotes->setSpacing(10);
             }
 
-            QString path = ":media/images/remotes_icons/" +
-                           type.replace(' ', '_') + img_add + ".png";
+            const QString base = remoteIconBaseName(type);
+            QString path =
+                ":media/images/remotes_icons/" + base + img_add + ".png";
             QIcon icon(QFile(path).exists()
                            ? path
                            : ":media/images/remotes_icons/unknown" + img_add +

@@ -86,6 +86,7 @@ set(OTHER
   path_entry.h
   list_filter.h
   upload_headers.h
+  remote_icons.h
   rclone_process.h
   mount_launch.h
   job_options.h
@@ -145,6 +146,7 @@ set(SOURCE
   path_entry.cpp
   list_filter.cpp
   upload_headers.cpp
+  remote_icons.cpp
   url_upload_dialog.cpp
   serve_manager.cpp
   serve_widget.cpp
