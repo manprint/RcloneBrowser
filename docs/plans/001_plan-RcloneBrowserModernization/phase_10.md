@@ -8,7 +8,7 @@ Phase closure: P9; review by agent-1:opus.
 Read STATE.md §0–1 first for scope, ownership, recovery, checks and commit rules. Open a unit before editing it. Checkpoint at recovery boundaries. Close with evidence. A delegated worker follows its assigned OPEN unit. Missing design decisions go to agent-1:opus. No network access (U6); tests serve on 127.0.0.1 only.
 
 ## Local design context
-Plan revision: 1.
+Plan revision: 1; 9.1 amended by revision 23 (see "Revision 23" at the end of 9.1).
 - R15 (local probe, rclone 1.75.2 rcd, 2026-10-21):
   - `serve/types` gives `{types:[dlna, ftp, http, nfs, restic, s3, sftp, webdav]}`;
   - `serve/start {type, fs, addr, [user, pass, read_only]}` gives `{addr:"127.0.0.1:40855", id:"http-8ae93585"}`;
@@ -17,7 +17,14 @@ Plan revision: 1.
   - an unknown type gives HTTP 500 `could not find serve type="nosuch"`; unknown params give `unknown parameters: <key>`;
   - with `read_only:true`, a webdav PUT fails (404) and no file is created;
   - an http GET of `a%20b.txt` returns the content.
-- Lifetime decision (supervisor, revision 1): serves live inside the app's rcd, so they stop when the app quits (`core/quit`). They are not tasks, are not persisted and do not appear in the Jobs tab, so the jobs bookkeeping and sorting are untouched. They appear in a modeless "Serves" window opened from the main window's toolbar/menu. This is the documented behavior.
+- R15 additions (local probe, rclone 1.75.2 rcd in an isolated container, 2026-10-22, revision 23):
+  - restic rejects `read_only` (`unknown parameters: read_only`) and starts without it;
+  - nfs and dlna reject `user`/`pass` (`unknown parameters: pass, user`) and start with `read_only:true`;
+  - ftp with `addr 127.0.0.1:0` listens on 2121 but reports `127.0.0.1:0` (a second one fails `bind: address already in use`); an explicit port starts and is reported; ftp without user/pass starts;
+  - sftp without user and pass fails `… no authorization found, use --user/--pass or --authorized-keys or --no-auth or --auth-proxy`; it writes host keys under `$HOME/.cache/rclone/serve-sftp/`;
+  - s3 starts with user/pass and with `read_only`;
+  - `serve/list` echoes `params` including `user` and `pass` in clear text.
+- Lifetime decision (supervisor, revision 1): serves live inside the app's rcd, so they stop when the app quits (`core/quit`). They are not tasks, are not persisted and do not appear in the Jobs tab, so the jobs bookkeeping and sorting are untouched. They appear in a modeless "Serves" window opened from the main window's File menu (revision 23: no toolbar button). This is the documented behavior.
 - Serve credentials, when the user sets them, are protocol credentials for clients (not rc credentials). They are passed as rc params in the POST body, never in argv. I-5 is unaffected.
 - `global.daemon` (5.2) must be Running; otherwise the actions are disabled with the tooltip "Requires the rclone backend".
 - Current code (anchors): `remote_widget.ui` actions (`mount`, `stream`, …) and the tree context menu; `MainWindow` toolbar/menu actions (`actionStopAllTransfers` etc.).
@@ -79,14 +86,22 @@ signals:
   - T-SRV-LIST: the R15 list JSON gives 2 entries with id, addr, type and fs. An entry without id is skipped.
   - T-SRV-URL: the per-type URLs per the contract.
   - T-SRV-FLOW: with a fake, `start()` sends `serve/start` then `serve/list`, and emits `started` then `listChanged`. An HTTP 500 reply emits `error` with the body error.
-  - Gate G-U9.1: `scripts/dev.sh test qt64 -- -R tst_serve_manager` passes with 4 functions.
+  - T-SRV-RULES (revision 23): `serveTypeRules` per type as in the Revision 23 note.
+  - Gate G-U9.1: `scripts/dev.sh test qt64 -- -R tst_serve_manager` passes with 5 functions (revision 23).
 - **e2e tests:** `tests/tst_e2e_serve.cpp`. Real `RcloneDaemon`, conf `[loc] type = local`, tree `w/a b.txt` = `hi`.
   - T-E2E-SERVE-HTTP: start http on `loc:<tmp>/w`. Within 5 s, `started` gives an addr. A QNAM GET of `serveUrl(e) + "a%20b.txt"` returns `hi`. `stop(id)` gives `listChanged` with 0 entries, and a GET then fails (connection refused) within 5 s.
   - T-E2E-SERVE-RO: webdav with readOnly. A PUT of `new.txt` fails, and `<tmp>/w/new.txt` does not exist.
   - T-E2E-SERVE-BADTYPE: type `nosuch` gives `error` containing `could not find serve type`.
   - T-E2E-SERVE-QUIT: start http, then `daemon.stop()`. The addr refuses connections within 5 s.
-  - Gate G-U9.1e: `scripts/dev.sh e2e qt64 -- -R tst_e2e_serve` passes with 4 functions.
+  - T-E2E-SERVE-TYPES (revision 23): every type of the rules table, started with rule-conformant params, starts with a non-zero port, is listed and stops; an environment failure (dlna, nfs) is tolerated with the rclone text logged, a parameter error (`unknown parameters`, `no authorization found`) never.
+  - Gate G-U9.1e: `scripts/dev.sh e2e qt64 -- -R tst_e2e_serve` passes with 5 functions (revision 23).
 - **Done:** G-U9.1 and G-U9.1e pass; snapshot change approved and recorded; unit closed; completion commit.
+- **Revision 23** (agent-1:opus, from the 9.1 prefetch on the P8 tree and the R15 additions; replaces the matching points above; full brief `scratchpad/draft91.md` + `scratchpad/decisions91.md`):
+  - Contract additions in `serve_manager.h`: `parseServeTypes(reply)` (`types` strings, order kept); `ServeManager::types()` (last `typesChanged` payload); signal `listFailed(QString)` for `refresh()` failures only (shown inline in the window, never in a box); `refresh()` ignores a stale reply through a sequence counter; every callback is guarded with a `QPointer`; `serveUrl` uses the addr literally and gives the bare addr for an unknown type; `ServeEntry` never holds user or pass, and no params object or reply is logged (I-5).
+  - `ServeTypeRules serveTypeRules(const QString &type)` (pure, in `serve_manager.h`): {readOnlyAllowed, loginAllowed, loginRequired, needsPort, defaultAddr}. restic: readOnlyAllowed false; nfs, dlna, s3: loginAllowed false; sftp: loginRequired (user and pass); ftp: needsPort, defaultAddr `127.0.0.1:2121`; every other type: all allowed, `127.0.0.1:0`. ServeDialog applies the rules on type change (disables and clears what is not allowed, replaces an untouched default addr) and disables OK for an empty addr, a missing or 0 ftp port, or an sftp login without both fields. `serveStartParams` stays literal. The type combo lists every type `serve/types` returns (fallback list dlna, ftp, http, nfs, restic, s3, sftp, webdav).
+  - `actionServe` is disabled unless the daemon is Running (tooltip and status tip "Requires the rclone backend"), re-evaluated on selection and on `RcloneDaemon::stateChanged`; the Tools drop-down and the tree context menu show tooltips. MainWindow `actionServes` ("Serves…") is in the File menu before Preferences with a separator, always enabled; no toolbar button. ServeManager and ServesWindow are created lazily as children of MainWindow (the window is a `Qt::Window`, hidden on close); the RcCallFn is `daemonRcCall(QPointer<RcloneDaemon>(global.daemon), ctx)`.
+  - T-MW-SNAPSHOT re-record: exactly one added line, `A|actionServes|Serves…|1|0|0|`.
+  - Totals after 9.1: G-UNIT 24, G-E2E 18. The e2e file is in the `UNIX AND NOT APPLE` block, serves bind to 127.0.0.1 only, the QNAM uses no proxy, and the leftover-process check runs in `cleanupTestCase`.
 
 ## Phase gates and closure
 - Required gates: G-BUILD64, G-UNIT, G-E2E, G-SMOKE. G-BUILD610 if the image is present.

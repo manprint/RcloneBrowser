@@ -1,7 +1,7 @@
 # Rclone Browser modernization — Implementation state
 
 Read this file first in every session. Updated 2026-10-22 by agent-1:opus (execute session 1).
-Plan ID: 001_plan-RcloneBrowserModernization. Revision: 22. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
+Plan ID: 001_plan-RcloneBrowserModernization. Revision: 23. Repo root: /home/fabio/Scrivania/rclone-browser/RcloneBrowser.
 Plan baseline: `0a57f4f` (HEAD of `ci/macos-arm64-dmg`, which is master `1551dbd` plus the PR #1 commits). Pre-existing changes at planning time:
 - untracked `.serena/`, which is unrelated: never stage or modify it;
 - untracked `docs/plans/001_plan-RcloneBrowserModernization/`, this plan, authored by this planning session (provenance established).
@@ -64,17 +64,17 @@ Recover an unresolved audit completion commit first, without finalizing the susp
 
 - Active scope: plan 001, all phases 0–14 (invocation `/plan-execute-verify-mid execute 001`, 2026-10-21; phase 14 added by revision 11). User, 2026-10-21: "finisci il piano in autonomia".
 - Scope result: RUNNING
-- Type: phase closure
-- ID / attempt: P8 / 1
-- Status: CLOSED (unit:P8:1)
-- Intent: close phase 8 (Bisync, Copy to…, Upload from URL…): README FAQ, Fork changes and Known limitations; CHANGELOG `## [2.1.0] - unreleased`; the `leBisyncWorkdir` tooltip (revision 22); triage notes; full phase gates and the P8 review.
-- Assigned: agent-1:opus (coordinator, writer, final reviewer, state writer); `p8-docs-review` workflow wf_738c47b4-135 (2 opus-5-5 reviewers `rclone-facts` and `ui-and-code`).
-- File / unit heading: phase_09.md "Phase gates and closure"
-- Current step: done
-- Next action: G-CI on the P8 commit; revision 23 (phase_09 text for B-T3: six flags instead of four; phase_10 9.1 decisions from `scratchpad/decisions91.md` and the R15 probe additions); open 9.1 and run it through `pev-subphase-v2` with the brief from `scratchpad/draft91.md` + decisions.
-- Next eligible plan unit: 9.1 (phase_10.md).
-- Unit base: revision 22 on unit:8.2:1 (6b4c90d), then B-T2 (968a345) and B-T3 (d6ba55e); branch: `dev/001-modernization`; owned changes: `README.md`, `CHANGELOG.md`, `src/transfer_dialog.ui` (one tooltip), `docs/triage/upstream-issues.md` (#243, #199, #192 notes); STATE.md.
-- Repo state: HEAD = unit:P8:1; untracked `.serena/` (unrelated).
+- Type: sub-phase
+- ID / attempt: 9.1 / 1
+- Status: OPEN
+- Intent: Serve (#129): `ServeManager` over `serve/*` rc calls with `serveTypeRules`, ServeDialog, ServesWindow, RemoteWidget `actionServe`, MainWindow `actionServes`; unit and e2e tests; T-MW-SNAPSHOT re-record (one added line).
+- Assigned: agent-1:opus (coordinator, state writer, final reviewer); `pev-subphase-v2` workflow (sonnet-5-5 implementer, haiku-5-5 gate runner, opus-5-5 reviewers and verifiers).
+- File / unit heading: phase_10.md "9.1 ServeManager, dialogs, actions"
+- Current step: S1
+- Next action: run 9.1 through `pev-subphase-v2` with the brief `scratchpad/draft91.md` + `scratchpad/decisions91.md`; review; gates; close 9.1.
+- Next eligible plan unit: P9 (phase_10.md closure), after unit:9.1:1.
+- Unit base: revision 23 on unit:P8:1 (4e436b8); branch: `dev/001-modernization`; owned changes: NEW `src/serve_manager.h/.cpp`, `src/serve_widget.h/.cpp`, `tests/tst_serve_manager.cpp`, `tests/tst_e2e_serve.cpp`; `src/remote_widget.h/.cpp/.ui`, `src/main_window.h/.cpp/.ui`, `src/CMakeLists.txt`, `tests/CMakeLists.txt`, `tests/fixtures/synthetic/mainwindow_snapshot.txt` (approved re-record); STATE.md.
+- Repo state: HEAD = revision 23 + this opening on unit:P8:1; untracked `.serena/` (unrelated).
 
 ## 2. Feature context and readiness
 
@@ -342,7 +342,7 @@ Research checkpoint: N/A. Planning research is complete (R1–R16).
 | G-SMOKE (P8) | `scripts/dev.sh smoke qt64` | pass | `smoke: alive after 10s` | d6ba55e + P8 docs | 2026-10-22 |
 | G-SERVERS (P8) | `scripts/dev.sh servers qt64 -- -V`; then the `rb-srv-` container and network listings | pass | exit 0, `100% tests passed, 0 tests failed out of 1`; `Totals: 22 passed, 0 failed, 0 skipped`; no `rb-srv-` container or network left | d6ba55e + P8 docs | 2026-10-22 |
 | check-triage (P8) | `python3 -I scripts/check-triage.py docs/triage/upstream-issues.md docs/plans/001_plan-RcloneBrowserModernization/inputs/upstream-open-issues-bodies.json` | pass | exit 0, `issues=129` | d6ba55e + P8 docs | 2026-10-22 |
-| G-CI (P8) | `gh workflow run build.yml --ref dev/001-modernization` on the P8 commit | pending | dispatched with the P8 commit; recorded with revision 23 | unit:P8:1 | 2026-10-22 |
+| G-CI (P8) | `gh workflow run build.yml --ref dev/001-modernization` on the P8 commit | pending | dispatched with the P8 commit; recorded at the 9.1 closure | unit:P8:1 | 2026-10-22 |
 | G-CI (B-CI2) | `gh workflow run build.yml` on `dev` (61a4b90) and `release` (023198d); watcher | fail | runs 39681749700 and 39681753176: Linux, FreeBSD, macOS (arm64) success; Windows x64/ARM64 `tst_rclone_log` fails: `FAIL! : TestRcloneLog::T_LOG_GARBAGE()` Actual `"panic: … dereference"`, Expected `"…dereference\r"` (CRLF checkout) → B-CI3 | 61a4b90, 023198d | 2026-10-21 |
 | G-CI | `gh workflow run build.yml` on `dev` 93e043b (run 39683777687) and `release` e95c328 (run 39683781325); push of 93e043b to `master` (run 39685379597); tag push `v2.0.0-beta.1` on 13c63cc (run 39687268047) | pass | every run: Windows x64, Windows ARM64, Linux (AppImage, unit + e2e), macOS (Apple Silicon), FreeBSD `success`; `create_release` skipped on branches, `success` on the tag | 93e043b, e95c328, 13c63cc | 2026-10-22 |
 | G-CI CodeQL | `gh workflow run codeql.yml` on `master` 93e043b (39685390875), `release` e95c328 (39685397186) and 13c63cc (39685597419) | pass | `Analyze (cpp)` success in all three; `code-scanning/alerts?state=open` empty | 93e043b, 13c63cc | 2026-10-22 |
@@ -469,6 +469,7 @@ Cold-read note (1.4, agent-1:opus, 2026-10-21): every symbol 1.4 uses is defined
 | 20 | phase_09 8.1: Bisync gets "the same common flags as Sync" minus the sync timing; `rbBisync` enabled in both modes for any item; conflict value from the combo text; G-U8.1 with 4 functions; T-JO-ROUNDTRIP with one record | the 8.1 reviews and probes against rclone 1.75.2: bisync rejects `--delete-empty-src-dirs`, ignores `--update` and `--no-traverse`, and `--delete-excluded` makes it delete Path2 files outside the delta queue (agent-1 probe, isolated container, 2026-10-22); a Bisync task leaves the four out and the dialog disables them; Bisync is not offered for a single downloaded file; relative workdir refused, missing local folder offered for creation; conflict stored by index; `operator<<`/`>>` declared in the header; tst_job_options `QTEST_MAIN` with T-JO-DIALOG (5 functions); T-JO-ROUNDTRIP two records with pinned v9 tails; P8 README covers the left-out flags, folders only and the absolute workdir | agent-1:opus (8.1 closure) | phase_09.md 8.1 "Revision 20" note and the P8 README obligation; §11 test map row 8.1; jobopts_v9.bin (13.1 S1) records the layout T-JO-ROUNDTRIP pins |
 | 21 | phase_09 8.2: files without the dialog and the CMake lists; `dirWithSlash` undefined; `joinRclonePath` a new joiner; enabling without the Drive views; placement "tools frame if that is where…"; no rule for an invalid name with autoName unchecked or a directory-like Copy to destination | the 8.2 prefetch read on the 8.1 tree and rclone 1.75.2: `r:` stays `r:` (`r:/` is a filesystem root), `joinRclonePath` reuses `RemoteOps::joinPath`, both actions off in the Drive shared/trashed views, context menu + Tools drop-down and no toolbar button, OK needs a valid name when not auto, a `/` or `:` destination gets the file name, extra cases as rows, e2e UNIX-only with merged channels | agent-1:opus | phase_09.md 8.2 "Revision 21" note; brief `scratchpad/brief-8.2.md` |
 | 22 | phase_09 R14 "the README advises `--workdir` or shorter paths"; the `leBisyncWorkdir` tooltip "Use a short path if rclone reports a file name that is too long."; phase gates without G-SERVERS and the leftover checks; README obligation "the long-path `--workdir` note" | rclone 1.75.2 `bilib.BasePath` joins the workdir with canonical(Path1) + ".." + canonical(Path2) and adds only suffixes, so `--workdir` cannot shorten the listing and lock file names: the tooltip and the README say that only shorter folder paths help; P8 gates add G-SERVERS, the leftover checks and check-triage (STATE §3 asks for G-SERVERS at every P<N> from P6); the P8 file list and the CHANGELOG 2.1.0 section are fixed | agent-1:opus | phase_09.md R14 and "Revision 22" note; draft `scratchpad/draftP8.md` |
+| 23 | phase_09 8.1 "four" left-out Bisync flags; phase_10 9.1: R15 without the per-type limits, toolbar/menu placement, ServeDialog without type rules, refresh failures through `error`, G-U9.1 and G-U9.1e with 4 functions | B-T3 (d6ba55e): `--ignore-existing` and `--no-update-modtime` break bisync (exit 7), so six flags are left out. 9.1: probes of rclone 1.75.2 rcd (restic no `read_only`; nfs, dlna, s3 no login; sftp needs a login; ftp reports `:0` but listens on 2121; `serve/list` echoes the password) give a pure `serveTypeRules` applied by the dialog, `listFailed` for refresh failures, a `types()` cache, File menu placement, lazy window, T-SRV-RULES and T-E2E-SERVE-TYPES (G-U9.1 5, G-U9.1e 5; totals 24/18); snapshot adds only `A|actionServes|Serves…|1|0|0|` | agent-1:opus | phase_09.md "Revision 23" note; phase_10.md R15 additions and 9.1 "Revision 23" note; §11 test map row 9.1; brief `scratchpad/draft91.md` + `scratchpad/decisions91.md` |
 
 Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 14.1 (new `actionCopyTaskCommand`, revision 15; R-SNAP of phase 14), 9.1 S2 (new `actionServes`) and 11.2 S2 (new `openDual` button). Each re-recording lists only the added lines here when it happens.
 
@@ -547,7 +548,7 @@ Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 1
 | 14.5 | phase_15.md | 14.4 | DONE | 1 | G-U14.5 pass; unit:14.5:1 |
 | 8.1 | phase_09.md | P14 | DONE | 1 | G-U8.1, G-U8.1e pass; unit:8.1:1 |
 | 8.2 | phase_09.md | 8.1 | DONE | 1 | G-U8.2, G-U8.2e pass; unit:8.2:1 |
-| 9.1 | phase_10.md | P14 | TODO | 1 | — |
+| 9.1 | phase_10.md | P14 | IN_PROGRESS | 1 | — |
 | 10.1 | phase_11.md | P8, P9 | TODO | 1 | — |
 | 10.2 | phase_11.md | 10.1 | TODO | 1 | — |
 | 10.3 | phase_11.md | 10.2 | TODO | 1 | — |
@@ -574,7 +575,7 @@ Units run in ID order. A prerequisite must be DONE; SKIPPED never satisfies it i
 | 7 | phase_08.md | P7 | DONE | P7 review (§7); unit:P7:1 |
 | 14 | phase_15.md | P14 (runs after P7, before P8; v2.0.0 readiness) | DONE | P14 review (§7); unit:P14:1; tag `v2.0.0` published 2026-10-22 (REL-200) |
 | 8 | phase_09.md | P8 | DONE | P8 review (§7); unit:P8:1 |
-| 9 | phase_10.md | P9 | TODO | — |
+| 9 | phase_10.md | P9 | IN_PROGRESS | — |
 | 10 | phase_11.md | P10 | TODO | — |
 | 11 | phase_12.md | P11 | TODO | — |
 | 12 | phase_13.md | P12 | TODO | — |
@@ -617,7 +618,7 @@ Every ID below is a QtTest function (or a named check) defined in its owning uni
 | 14.5 | G-U14.5 | `scripts/check-triage.py` (`issues=129`) |
 | 8.1 | G-U8.1, G-U8.1e | T-JO-COMPAT, T-JO-ROUNDTRIP, T-JO-BISYNC-ARGS, T-JO-DIALOG (revision 20), T-JO-NEWER; e2e T-E2E-BISYNC-NEEDS-RESYNC, T-E2E-BISYNC-RESYNC, T-E2E-BISYNC-UPDATE |
 | 8.2 | G-U8.2, G-U8.2e | T-ACT-COPYTO, T-ACT-URL, T-ACT-COPYURL, T-ACT-JOIN; e2e T-E2E-COPYTO, T-E2E-COPYURL, T-E2E-COPYURL-NOCLOBBER |
-| 9.1 | G-U9.1, G-U9.1e | T-SRV-PARAMS, T-SRV-LIST, T-SRV-URL, T-SRV-FLOW; e2e T-E2E-SERVE-HTTP, T-E2E-SERVE-RO, T-E2E-SERVE-BADTYPE, T-E2E-SERVE-QUIT |
+| 9.1 | G-U9.1, G-U9.1e | T-SRV-PARAMS, T-SRV-LIST, T-SRV-URL, T-SRV-FLOW, T-SRV-RULES (revision 23); e2e T-E2E-SERVE-HTTP, T-E2E-SERVE-RO, T-E2E-SERVE-BADTYPE, T-E2E-SERVE-QUIT, T-E2E-SERVE-TYPES (revision 23) |
 | 10.1 | G-U10.1, G-U10.1e | T-PATH-NORMALIZE, T-PATH-PREFIX, T-PATH-ROOTLESS; e2e T-E2E-PATH-GO, T-E2E-PATH-DUP, T-E2E-PATH-MISSING |
 | 10.2 | G-U10.2, G-U10.2e | T-FILTER-MATCH; e2e T-E2E-FILTER-TASKS |
 | 10.3 | G-U10.3 | T-SC-REMOTE-CONTEXT, T-SC-UNIQUE, T-SC-MAINWINDOW |
