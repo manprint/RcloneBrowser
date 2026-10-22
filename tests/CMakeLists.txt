@@ -16,7 +16,7 @@ function(rb_add_test name label)
   target_include_directories(${name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support)
   add_test(NAME ${name} COMMAND ${name})
   set_tests_properties(${name} PROPERTIES LABELS ${label} TIMEOUT 300
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;RB_FIXTURES=${CMAKE_CURRENT_SOURCE_DIR}/fixtures;RB_TEST_RCLONE=${RB_TEST_RCLONE}")
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;RB_FIXTURES=${CMAKE_CURRENT_SOURCE_DIR}/fixtures;RB_TEST_RCLONE=${RB_TEST_RCLONE};RB_TEST_RCLONE_WEBUI=${RB_TEST_RCLONE_WEBUI}")
 endfunction()
 
 rb_add_test(tst_utils unit)
