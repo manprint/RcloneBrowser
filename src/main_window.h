@@ -67,6 +67,10 @@ private slots:
 
 private:
   void showUnsupportedRcloneDialog(const QString &problem);
+  // A non-blocking box (rcloneProblemBox, one at a time) that says why rclone
+  // cannot be used and offers Preferences, where the path can be changed
+  // (#145, #159, #209). Also logs "rclone problem: <text> <path>".
+  void showRclonePathProblem(const QString &text);
   void startUpdateChecks(const RcloneVersion &rcloneVersion);
 
   // stops the rc daemon and waits for it (4 s at most); no-op when not running
@@ -122,6 +126,7 @@ private:
   bool mSoundNotif;
 
   QLabel *mStatusMessage;
+  QPointer<QMessageBox> mRcloneProblemBox;
 
   IconCache mIcons;
 
@@ -154,7 +159,14 @@ private:
 
   bool canClose();
   void closeEvent(QCloseEvent *ev) override;
-  bool getConfigPassword(QProcess *p);
+  // What getConfigPassword() made of a failed rclone run that read the config
+  enum class ConfigPasswordResult {
+    Retry,             // a password was entered: run rclone again
+    Cancelled,         // the prompt was cancelled, or the problem was shown
+    NotPasswordProblem // rclone failed for another reason, nothing was shown
+  };
+  ConfigPasswordResult getConfigPassword(int exitCode,
+                                         const QByteArray &stderrBytes);
 
   // sort QListWidget view/selection
   QList<QListWidgetItem *> sortListWidget(const QList<QListWidgetItem *> &list,

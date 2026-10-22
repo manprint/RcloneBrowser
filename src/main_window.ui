@@ -1058,7 +1058,7 @@
     <string>Config</string>
    </property>
    <property name="toolTip">
-    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;rclone config&lt;/p&gt;&lt;p&gt;if you want to specify which terminal to use&lt;br/&gt;define $TERMINAL env variable e.g.:&lt;br/&gt;TERMINAL=/usr/local/bin/myterminal&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;rclone config&lt;/p&gt;&lt;p&gt;Terminal: set &amp;quot;Terminal command&amp;quot; in Preferences,&lt;br/&gt;or define the $TERMINAL env variable e.g.:&lt;br/&gt;TERMINAL=/usr/local/bin/myterminal&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </action>
   <action name="actionOpen">

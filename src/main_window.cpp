@@ -674,6 +674,10 @@ void MainWindow::setupActions() {
   // statusTips
   ui.actionRefresh->setStatusTip("Refresh remotes view");
   ui.actionConfig->setStatusTip("rclone config");
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
+  // Preferences has no "Terminal command" there: the tooltip of the .ui names it
+  ui.actionConfig->setToolTip(tr("rclone config"));
+#endif
   ui.actionOpen->setStatusTip("Open remote");
   ui.preferences->setStatusTip("Rclone Browser preferences (ALT-p)");
 
@@ -720,6 +724,8 @@ void MainWindow::setupPreferences() {
       settings->setValue("Settings/rclone", dialog.getRclone().trimmed());
       settings->setValue("Settings/rcloneConf",
                          dialog.getRcloneConf().trimmed());
+      settings->setValue("Settings/terminalCommand",
+                         dialog.getTerminalCommand().trimmed());
       settings->setValue("Settings/stream", dialog.getStream());
       settings->setValue("Settings/mount", dialog.getMount());
       settings->setValue("Settings/defaultDownloadDir",
@@ -1424,6 +1430,13 @@ void MainWindow::rcloneGetVersion() {
   bool firstTime = mFirstTime;
   mFirstTime = false;
 
+  // a path that cannot be started never gets as far as a process (#145, #159)
+  const QString pathProblem = rcloneExecutableProblem(GetRclone());
+  if (!pathProblem.isEmpty()) {
+    showRclonePathProblem(pathProblem);
+    return;
+  }
+
   QProcess *p = new QProcess();
 
   QObject::connect(
@@ -1450,6 +1463,9 @@ void MainWindow::rcloneGetVersion() {
           const QString versionProblem = rcloneVersionProblem(version);
           if (!versionProblem.isEmpty()) {
             p->deleteLater();
+            qWarning().noquote()
+                << "rclone problem:"
+                << QString(versionProblem).replace('\n', ' ') << GetRclone();
             showUnsupportedRcloneDialog(versionProblem);
             return;
           }
@@ -1542,10 +1558,26 @@ void MainWindow::rcloneGetVersion() {
           startUpdateChecks(rcloneVersion);
         } else {
           if (p->error() != QProcess::FailedToStart) {
-            if (getConfigPassword(p)) {
+            // stderr is read once: the password check and the message use it
+            const QByteArray err = p->readAllStandardError();
+            switch (getConfigPassword(code, err)) {
+            case ConfigPasswordResult::Retry:
               rcloneGetVersion();
-            } else {
+              break;
+            case ConfigPasswordResult::Cancelled:
+              // an explicit choice of the user (3.3): quit
               close();
+              break;
+            case ConfigPasswordResult::NotPasswordProblem: {
+              // not rclone, or an rclone that fails (#159): stay alive and
+              // let the user fix the path
+              const QString line = lastRcloneStderrMessage(err);
+              showRclonePathProblem(
+                  tr("rclone did not report its version (exit code %1).%2")
+                      .arg(code)
+                      .arg(line.isEmpty() ? QString() : "\n" + line));
+              break;
+            }
             }
             p->deleteLater();
             return;
@@ -1571,14 +1603,15 @@ void MainWindow::rcloneGetVersion() {
 
   QObject::connect(
       p, &QProcess::errorOccurred, this, [=](QProcess::ProcessError error) {
-        QString errorString =
-            QMetaEnum::fromType<QProcess::ProcessError>().valueToKey(error);
-
-        QMessageBox::information(
-            this, "Error",
-            "Cannot start rclone\n\n Error: " + errorString +
-                "\n\nPlease verify rclone excecutable location.");
-        emit ui.preferences->trigger();
+        // the reason of the system, e.g. "Exec format error"
+        showRclonePathProblem(
+            tr("Cannot start rclone: %1\nPlease verify the rclone "
+               "executable location.")
+                .arg(p->errorString()));
+        if (error == QProcess::FailedToStart) {
+          // no finished() follows a process that never started
+          p->deleteLater();
+        }
       });
 
   ApplyRcloneEnvironment(p);
@@ -1586,6 +1619,41 @@ void MainWindow::rcloneGetVersion() {
            QStringList() << "version"
                          << "--ask-password=false",
            QIODevice::ReadOnly);
+}
+
+void MainWindow::showRclonePathProblem(const QString &text) {
+  // one line in the log, also when no one is looking at the box
+  qWarning().noquote() << "rclone problem:" << QString(text).replace('\n', ' ')
+                       << GetRclone();
+
+  const QString full = text + "\n\n" + tr("rclone path: %1").arg(GetRclone());
+  if (mRcloneProblemBox) {
+    // never stack boxes: the open one shows the latest problem
+    mRcloneProblemBox->setText(full);
+    return;
+  }
+
+  QMessageBox *box = new QMessageBox(QMessageBox::Warning, tr("rclone problem"),
+                                     full, QMessageBox::NoButton, this);
+  box->setObjectName("rcloneProblemBox");
+  box->setAttribute(Qt::WA_DeleteOnClose);
+  QPushButton *preferences =
+      box->addButton(tr("Preferences..."), QMessageBox::AcceptRole);
+  QPushButton *closeButton = box->addButton(tr("Close"), QMessageBox::RejectRole);
+  box->setEscapeButton(closeButton);
+  // accepting Preferences runs rcloneGetVersion() again
+  QObject::connect(box, &QDialog::finished, this, [=]() {
+    // The closed box is deleted later, and not inside the nested loop of
+    // Preferences: forget it now, or a problem found when Preferences is
+    // accepted would only update this hidden box.
+    mRcloneProblemBox.clear();
+    if (box->clickedButton() == preferences) {
+      emit ui.preferences->trigger();
+    }
+  });
+  mRcloneProblemBox = box;
+  // open() returns at once: the constructor and the event loop never block
+  box->open();
 }
 
 void MainWindow::showUnsupportedRcloneDialog(const QString &problem) {
@@ -1690,6 +1758,11 @@ bool runRemoteConfigDialog(QWidget *parent, RemoteConfigDialog::Mode mode,
 } // namespace
 
 void MainWindow::openRemoteConfig() {
+  const QString pathProblem = rcloneExecutableProblem(GetRclone());
+  if (!pathProblem.isEmpty()) {
+    showRclonePathProblem(pathProblem);
+    return;
+  }
   if (!daemonRunning()) {
     // no private rcd: the terminal flow is the fallback
     rcloneConfig();
@@ -1733,6 +1806,13 @@ void MainWindow::showRemotesMenu(const QPoint &pos) {
 }
 
 void MainWindow::rcloneConfig() {
+  // before every platform branch: Windows, macOS (the .command file) and the
+  // Linux/BSD terminal all start this rclone (#145)
+  const QString pathProblem = rcloneExecutableProblem(GetRclone());
+  if (!pathProblem.isEmpty()) {
+    showRclonePathProblem(pathProblem);
+    return;
+  }
 
 #if defined(Q_OS_WIN32) && (QT_VERSION < QT_VERSION_CHECK(5, 7, 0))
   QProcess::startDetached(GetRclone(), QStringList()
@@ -1781,26 +1861,18 @@ void MainWindow::rcloneConfig() {
   p->setArguments(QStringList() << tmp.fileName());
 #else
   QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-  QString terminalPath;
-  for (const QString &name : terminalCandidates(env)) {
-    QFileInfo info(name);
-    if (info.isAbsolute()) {
-      // $TERMINAL may hold a full path: use it as is when it is executable
-      if (info.isFile() && info.isExecutable()) {
-        terminalPath = name;
-      }
-    } else {
-      terminalPath = QStandardPaths::findExecutable(name);
-    }
-    if (!terminalPath.isEmpty()) {
-      break;
-    }
+  // the Preferences value comes first, then $TERMINAL and the common terminals
+  const QString preferredTerminal =
+      GetSettings()->value("Settings/terminalCommand").toString().trimmed();
+  if (!preferredTerminal.isEmpty() &&
+      findTerminal(QStringList() << preferredTerminal).isEmpty()) {
+    qWarning().noquote() << "terminal command from Preferences not found:"
+                         << preferredTerminal;
   }
+  const QString terminalPath =
+      findTerminal(terminalCandidates(env, preferredTerminal));
   if (terminalPath.isEmpty()) {
-    QMessageBox::critical(this, "Error",
-                          "Not sure how to launch terminal!\n"
-                          "Please set path to terminal executable in "
-                          "$TERMINAL environment variable.",
+    QMessageBox::critical(this, "Error", terminalNotFoundMessage(),
                           QMessageBox::Ok);
     return;
   }
@@ -1976,7 +2048,8 @@ void MainWindow::rcloneListRemotes() {
           }
         } else {
           if (p->error() != QProcess::FailedToStart) {
-            if (getConfigPassword(p)) {
+            if (getConfigPassword(code, p->readAllStandardError()) ==
+                ConfigPasswordResult::Retry) {
               rcloneListRemotes();
             }
           }
@@ -2118,10 +2191,10 @@ void MainWindow::promptRcUnlock(bool wrongPassword) {
       30000);
 }
 
-bool MainWindow::getConfigPassword(QProcess *p) {
-  const QByteArray stderrBytes = p->readAllStandardError();
+MainWindow::ConfigPasswordResult
+MainWindow::getConfigPassword(int exitCode, const QByteArray &stderrBytes) {
   const ConfigLoadProblem problem =
-      classifyConfigLoadError(p->exitCode(), stderrBytes);
+      classifyConfigLoadError(exitCode, stderrBytes);
 
   switch (problem) {
   case ConfigLoadProblem::NeedsPassword:
@@ -2138,15 +2211,15 @@ bool MainWindow::getConfigPassword(QProcess *p) {
       SetRclonePassword(password);
       // a daemon that is already running has not seen this password yet
       unlockDaemonSilently();
-      return true;
+      return ConfigPasswordResult::Retry;
     }
-    return false;
+    return ConfigPasswordResult::Cancelled;
   }
   case ConfigLoadProblem::PasswordCommandFailed:
     QMessageBox::warning(this, qApp->applicationDisplayName(),
                          "RCLONE_PASSWORD_COMMAND failed:\n" +
                              lastRcloneStderrMessage(stderrBytes));
-    return false;
+    return ConfigPasswordResult::Cancelled;
   case ConfigLoadProblem::None:
   case ConfigLoadProblem::Other:
     break;
@@ -2157,9 +2230,9 @@ bool MainWindow::getConfigPassword(QProcess *p) {
     QMessageBox::critical(this, qApp->applicationDisplayName(),
                           "It seems rclone version you are using is too "
                           "old.\nPlease upgrade to the latest version");
-    return false;
+    return ConfigPasswordResult::Cancelled;
   }
-  return false;
+  return ConfigPasswordResult::NotPasswordProblem;
 }
 
 bool MainWindow::canClose() {

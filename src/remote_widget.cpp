@@ -16,11 +16,94 @@
 #include "rclone_process.h"
 #include "utils.h"
 
+namespace {
+
+// A frameless scroll area around the row of tool buttons. The row keeps its
+// natural width, but the window may be narrower than that: the rest of the row
+// is reached by scrolling. Without it the minimum width of the main window
+// follows the icon size of Preferences (1199 px at size 3, 1511 px at size 4,
+// #156, #228). The vertical size is the row's, plus the scroll bar only while
+// there is one.
+class ButtonRowScroll : public QScrollArea {
+public:
+  explicit ButtonRowScroll(QWidget *parent) : QScrollArea(parent) {
+    setFrameShape(QFrame::NoFrame);
+    setWidgetResizable(true);
+    setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    // a click on a tool button must not move the keyboard focus from the file
+    // tree to this area (QAbstractScrollArea is StrongFocus by default)
+    setFocusPolicy(Qt::NoFocus);
+    // the bar appears and goes away with the width of the row, not only with
+    // the width of this area: follow the range
+    connect(horizontalScrollBar(), &QScrollBar::rangeChanged, this,
+            [this](int, int max) {
+              const bool scrolls = max > 0;
+              if (scrolls != mScrolls) {
+                mScrolls = scrolls;
+                updateGeometry();
+              }
+            });
+  }
+
+  QSize sizeHint() const override {
+    QWidget *row = widget();
+    if (!row) {
+      return QScrollArea::sizeHint();
+    }
+    const QSize hint = row->sizeHint();
+    return QSize(hint.width() + 2 * frameWidth(),
+                 hint.height() + 2 * frameWidth() + scrollBarExtent());
+  }
+
+  QSize minimumSizeHint() const override {
+    return QSize(QScrollArea::minimumSizeHint().width(), sizeHint().height());
+  }
+
+protected:
+  // the row is hidden and shown by RemoteWidget::setButtonsHidden(): the area
+  // around it follows; when the row's own layout changes (buttons hidden or
+  // shown, another icon size or font) the area's height hint changes with it
+  bool eventFilter(QObject *object, QEvent *event) override {
+    if (object == widget()) {
+      if (event->type() == QEvent::HideToParent) {
+        hide();
+      } else if (event->type() == QEvent::ShowToParent) {
+        show();
+      } else if (event->type() == QEvent::LayoutRequest) {
+        updateGeometry();
+      }
+    }
+    return QScrollArea::eventFilter(object, event);
+  }
+
+private:
+  int scrollBarExtent() const {
+    return mScrolls ? horizontalScrollBar()->sizeHint().height() : 0;
+  }
+
+  bool mScrolls = false;
+};
+
+} // namespace
+
 RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
                            const QString &remoteType, QWidget *parent)
     : QWidget(parent) {
 
   ui.setupUi(this);
+
+  // the button row scrolls instead of widening the main window (#156, #228)
+  {
+    auto *scroll = new ButtonRowScroll(ui.layout);
+    delete ui.verticalLayout->replaceWidget(ui.buttons, scroll);
+    scroll->setWidget(ui.buttons);
+    // QScrollArea fills the background of its widget and viewport; the row
+    // stays transparent over the tab page like before
+    ui.buttons->setAutoFillBackground(false);
+    scroll->viewport()->setAutoFillBackground(false);
+  }
 
   ui.frameTools->hide();
   ui.elidedMeasure->hide();

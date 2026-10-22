@@ -31,6 +31,60 @@ static QString GetIniFilename() {
 #endif
 }
 
+QString rcloneExecutableProblem(const QString &path) {
+  // A free function has no tr(): R-I18N goes through translate() with the
+  // context of the window that shows the text. Every call is written out so
+  // that lupdate finds the source text.
+  const QString trimmed = path.trimmed();
+  if (trimmed.isEmpty()) {
+    return QCoreApplication::translate("MainWindow", "No rclone path is set.");
+  }
+  if (!trimmed.contains(QLatin1Char('/')) &&
+      !trimmed.contains(QLatin1Char('\\'))) {
+    // a bare command name: an existence check on it would look in the current
+    // directory, while QProcess searches PATH
+    if (QStandardPaths::findExecutable(trimmed).isEmpty()) {
+#ifdef Q_OS_WIN
+      // CreateProcess looks in the application directory and in the current
+      // directory before PATH
+      if (!QStandardPaths::findExecutable(
+               trimmed, QStringList() << QCoreApplication::applicationDirPath()
+                                      << QDir::currentPath())
+               .isEmpty()) {
+        return QString();
+      }
+#endif
+      return QCoreApplication::translate("MainWindow",
+                                         "rclone was not found in PATH: %1")
+          .arg(trimmed);
+    }
+    return QString();
+  }
+  const QFileInfo info(trimmed);
+  const QString shown = QDir::toNativeSeparators(trimmed);
+#ifdef Q_OS_WIN
+  // CreateProcess appends ".exe" to a name that has no extension
+  if (!info.exists() && info.suffix().isEmpty() &&
+      QFileInfo(trimmed + QStringLiteral(".exe")).isFile()) {
+    return QString();
+  }
+#endif
+  if (!info.exists()) {
+    return QCoreApplication::translate("MainWindow", "rclone not found: %1")
+        .arg(shown);
+  }
+  // a directory has the executable bit too
+  if (!info.isFile()) {
+    return QCoreApplication::translate("MainWindow", "%1 is not a file")
+        .arg(shown);
+  }
+  if (!info.isExecutable()) {
+    return QCoreApplication::translate("MainWindow", "%1 is not executable")
+        .arg(shown);
+  }
+  return QString();
+}
+
 bool IsPortableMode() {
   QString ini = GetIniFilename();
   QString xdg_config_home = qgetenv("XDG_CONFIG_HOME");

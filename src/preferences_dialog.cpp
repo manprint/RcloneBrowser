@@ -235,6 +235,13 @@ PreferencesDialog::PreferencesDialog(QWidget *parent) : QDialog(parent) {
   ui.rcloneConf->setText(QDir::toNativeSeparators(
       settings->value("Settings/rcloneConf").toString()));
   ui.stream->setText(settings->value("Settings/stream").toString());
+  ui.terminalCommand->setText(
+      settings->value("Settings/terminalCommand").toString());
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
+  // the Windows and macOS launchers use their own terminal: no such setting
+  ui.terminalCommandLabel->hide();
+  ui.terminalCommand->hide();
+#endif
 
 #if defined(Q_OS_OPENBSD) || defined(Q_OS_NETBSD)
   ui.mount->setText(
@@ -588,6 +595,10 @@ QString PreferencesDialog::getRclone() const {
 
 QString PreferencesDialog::getRcloneConf() const {
   return QDir::fromNativeSeparators(ui.rcloneConf->text());
+}
+
+QString PreferencesDialog::getTerminalCommand() const {
+  return ui.terminalCommand->text();
 }
 
 QString PreferencesDialog::getStream() const { return ui.stream->text(); }

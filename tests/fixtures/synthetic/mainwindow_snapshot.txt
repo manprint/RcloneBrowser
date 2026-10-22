@@ -21,7 +21,7 @@ W|buttonStopAllJobs|QToolButton|0|0|Stop All|<html><head/><body><p>Stop all runn
 W|buttonStopQueue|QToolButton|1|0|Stop|<html><head/><body><p>Stop the queue processing.</p><p>Active task will be cancelled.</p></body></html>|-
 W|buttonStopScheduler|QToolButton|0|0|Stop|Stop scheduler|-
 W|buttonUpQueue|QToolButton|0|0|Up|Move task up in the queue|-
-W|config|QToolButton|1|1|Config|<html><head/><body><p>rclone config</p><p>if you want to specify which terminal to use<br/>define $TERMINAL env variable e.g.:<br/>TERMINAL=/usr/local/bin/myterminal</p></body></html>|-
+W|config|QToolButton|1|1|Config|<html><head/><body><p>rclone config</p><p>Terminal: set &quot;Terminal command&quot; in Preferences,<br/>or define the $TERMINAL env variable e.g.:<br/>TERMINAL=/usr/local/bin/myterminal</p></body></html>|-
 W|jobsArea|QScrollArea|1|0|||-
 W|jobsArea_2|QScrollArea|1|0|||-
 W|labelQueueInfoStart|QLabel|1|0|||-

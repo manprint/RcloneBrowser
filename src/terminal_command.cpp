@@ -1,6 +1,8 @@
 #include "terminal_command.h"
 
+#include <QCoreApplication>
 #include <QFileInfo>
+#include <QStandardPaths>
 
 QString shellQuote(const QString &s) {
   QString out = s;
@@ -9,16 +11,49 @@ QString shellQuote(const QString &s) {
   return QStringLiteral("'") + out + QStringLiteral("'");
 }
 
-QStringList terminalCandidates(const QProcessEnvironment &env) {
+QStringList terminalCandidates(const QProcessEnvironment &env,
+                               const QString &preferred) {
   QStringList candidates;
-  const QString terminal = env.value(QStringLiteral("TERMINAL"));
-  if (!terminal.isEmpty()) {
-    candidates << terminal;
-  }
-  candidates << QStringLiteral("gnome-terminal") << QStringLiteral("konsole")
-             << QStringLiteral("xfce4-terminal") << QStringLiteral("xterm")
-             << QStringLiteral("x-terminal-emulator");
+  auto add = [&candidates](const QString &name) {
+    if (!name.isEmpty() && !candidates.contains(name)) {
+      candidates << name;
+    }
+  };
+  add(preferred.trimmed());
+  add(env.value(QStringLiteral("TERMINAL")).trimmed());
+  add(QStringLiteral("gnome-terminal"));
+  add(QStringLiteral("konsole"));
+  add(QStringLiteral("xfce4-terminal"));
+  add(QStringLiteral("xterm"));
+  add(QStringLiteral("x-terminal-emulator"));
   return candidates;
+}
+
+QString findTerminal(const QStringList &candidates) {
+  for (const QString &name : candidates) {
+    const QFileInfo info(name);
+    if (info.isAbsolute()) {
+      // a full path is used as is when it is an executable file
+      if (info.isFile() && info.isExecutable()) {
+        return name;
+      }
+    } else {
+      const QString found = QStandardPaths::findExecutable(name);
+      if (!found.isEmpty()) {
+        return found;
+      }
+    }
+  }
+  return QString();
+}
+
+QString terminalNotFoundMessage() {
+  return QCoreApplication::translate(
+      "MainWindow",
+      "Not sure how to launch terminal!\n"
+      "Set \"Terminal command\" in Preferences (a terminal emulator such as "
+      "xterm or konsole, or its full path; not a shell), or define the "
+      "$TERMINAL environment variable.");
 }
 
 TerminalLaunch buildTerminalLaunch(const QString &terminalPath,

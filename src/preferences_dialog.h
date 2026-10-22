@@ -12,6 +12,8 @@ public:
 
   QString getRclone() const;
   QString getRcloneConf() const;
+  // program name or full path of the terminal used by "Config" (Linux, BSD)
+  QString getTerminalCommand() const;
   QString getStream() const;
   QString getMount() const;
   QString getDefaultDownloadDir() const;

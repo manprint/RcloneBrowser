@@ -12,6 +12,12 @@ bool IsPortableMode();
 QString GetRclone();
 void SetRclone(const QString &rclone);
 
+// Empty when `path` can be started as rclone; else a message that says why and
+// names the path (#145, #159). A name without a directory separator is a
+// command that QProcess finds through PATH, so it is looked up there. Callers
+// pass GetRclone().
+QString rcloneExecutableProblem(const QString &path);
+
 QStringList GetRcloneConf();
 void SetRcloneConf(const QString &rcloneConf);
 
