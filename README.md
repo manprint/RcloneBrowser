@@ -296,7 +296,7 @@ Development (Docker)
 
 `scripts/dev.sh` builds, tests and smoke-runs the app inside a Docker container, so no Qt toolchain is needed on the host. The containers run with `--network none` (`servers` uses its own internal network, see below), as your uid:gid, with the repository mounted at `/src`. The host `$HOME` and your rclone configuration are never mounted: inside the container rclone only sees an empty temporary config.
 
-Every command except `image` and `server-images` needs a host `rclone` 1.75 or newer (taken from `PATH` or from `RB_RCLONE=/path/to/rclone`; on the host only `rclone version` runs). It is mounted read-only at `/opt/rclone/rclone` for the end-to-end tests and `fixtures`.
+Every command except `image` and `server-images` needs a host `rclone` 1.75 or newer (taken from `PATH` or from `RB_RCLONE=/path/to/rclone`; on the host only `rclone version` runs). It is mounted read-only at `/opt/rclone/rclone` for the end-to-end tests and `fixtures`. The optional `RB_RCLONE_WEBUI=/path/to/rclone` (an rclone built from the webui fork) is mounted read-only at `/opt/rclone/rclone-webui` and enables the webdav-webui end-to-end test (`tst_e2e_serve_webui`); without it that test is not registered and `dev.sh e2e` prints a notice, so set it for `build` and `e2e` alike.
 
 ```
 scripts/dev.sh build  [qt64|qt610]                 # configure and build into build-docker-<flavor>

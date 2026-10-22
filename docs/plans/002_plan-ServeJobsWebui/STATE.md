@@ -68,16 +68,16 @@ this file. Tests never read the host rclone config (temp config only). No push, 
 - Active scope: plan 002 (all phases) — `/plan-execute-verify execute 002` (user, 2026-10-23); full-autonomous:true, WIP on (§3)
 - Scope result: RUNNING
 - Type: sub-phase
-- ID / attempt: 0.2 / 1
-- Status: OPEN (closing: commit unit:0.2:1)
-- Intent: fork binary in the test harness (CMake cache var, test env, dev.sh RB_RCLONE_WEBUI)
-- Assigned: agent-2:sonnet (delegated worker); supervisor: agent-1:opus
-- File / unit heading: phase_01.md "0.2 Fork binary in the test harness"
+- ID / attempt: 0.3 / 1
+- Status: OPEN (closing: commit unit:0.3:1)
+- Intent: README developer section documents `RB_RCLONE_WEBUI`
+- Assigned: agent-3:haiku (delegated worker); supervisor: agent-1:opus
+- File / unit heading: phase_01.md "0.3 Update README.md (developer section)"
 - Current step: commit
-- Next action: commit 0.2 (+ plan folder), then open 0.3 (agent-3:haiku).
-- Next eligible plan unit: 0.3 / phase_01.md
-- Unit base: `19e93fa`; branch: `dev/002-serve-jobs-webui`; owned changes: `CMakeLists.txt`, `tests/CMakeLists.txt`, `scripts/dev.sh`, plan folder
-- Repo state: HEAD `19e93fa`; untracked `.serena/` (unrelated), plan folder (to commit with 0.2), ignored `build-docker-qt64/`, `build-rclone-webui/`
+- Next action: commit 0.3; then P0 (gates running in background).
+- Next eligible plan unit: P0 / phase_01.md
+- Unit base: `5d9cdba`; branch: `dev/002-serve-jobs-webui`; owned changes: `README.md` (dev.sh paragraph)
+- Repo state: HEAD `5d9cdba` (unit:0.2:1); untracked `.serena/` (unrelated)
 
 ## 2. Feature context and readiness
 
@@ -148,6 +148,7 @@ Required supervisor reviews cannot be silently replaced by weaker self-review.
 | Type | ID / attempt | Plan revision | Agent | Changes | Evidence/review | Commit |
 |------|--------------|---------------|-------|---------|-----------------|--------|
 | plan | 002 / 1 | 1 | agent-1:opus | plan folder created (overview, phase_01–04, STATE) | user answers U1–U4; probes R2–R4 | uncommitted (committed with 0.2) |
+| sub-phase | 0.3 / 1 | 1 | agent-3:haiku | README `Development (Docker)`: `RB_RCLONE_WEBUI` sentence | supervisor check vs `scripts/dev.sh` | unit:0.3:1 |
 | sub-phase | 0.2 / 1 | 1 | agent-2:sonnet | CMake cache `RB_TEST_RCLONE_WEBUI`, test env, dev.sh `RB_RCLONE_WEBUI` mount/def/notice; plan folder committed (provenance: planning session 2026-10-23) | G-U02 §7; review §7 | unit:0.2:1 |
 | sub-phase | 0.1 / 1 | 1 | agent-1:opus | branch `dev/002-serve-jobs-webui`; images; fork binary (ignored); no repo diff | G-BASE §7; fork HEAD a527815ae | uncommitted (no repo change; no empty commit) |
 
@@ -165,8 +166,8 @@ reconcile. A SHA recorded by a later update is optional.
 
 ## 6. In-flight checkpoint
 
-Unit 0.2: S1–S4 done by agent-2:sonnet; diff limited to `CMakeLists.txt`, `tests/CMakeLists.txt`, `scripts/dev.sh`. Review done. Pending: completion commit `unit:0.2:1`.
-Running resources: none. Build dir `build-docker-qt64` configured with `RB_TEST_RCLONE_WEBUI=/opt/rclone/rclone-webui`.
+Unit 0.3: S1–S2 done by agent-3:haiku (README L299 sentence; checked against dev.sh usage/mount/notice). Pending commit unit:0.3:1.
+Running resources: P0 gate run (G-BUILD64/G-UNIT/G-E2E, logs /tmp/rb-gates/p0-*.log).
 
 ## 7. Verification and reviews
 
@@ -204,7 +205,7 @@ none.
 |----|------------|------------|--------|---------|-------------------|
 | 0.1 | phase_01.md | none | DONE | 1 | branch, images, fork binary, G-BASE (unit 30, e2e 21) |
 | 0.2 | phase_01.md | 0.1 | DONE | 1 | G-U02 pass; review approved; unit:0.2:1 |
-| 0.3 | phase_01.md | 0.2 | TODO | 1 | — |
+| 0.3 | phase_01.md | 0.2 | DONE | 1 | README dev sentence; supervisor checked; unit:0.3:1 |
 | 1.1 | phase_02.md | P0 | TODO | 1 | — |
 | 1.2 | phase_02.md | P0 | TODO | 1 | — |
 | 1.3 | phase_02.md | 1.1, 1.2 | TODO | 1 | — |
@@ -263,7 +264,7 @@ Test IDs map to QtTest functions by replacing `-` with `_` (e.g. T-WEBUI-SEQ ⇒
 ### Documentation
 | Document/sections | Owning unit | Status | Evidence |
 |-------------------|-------------|--------|----------|
-| README dev section (`RB_RCLONE_WEBUI`) | 0.3 | TODO | — |
+| README dev section (`RB_RCLONE_WEBUI`) | 0.3 | DONE | README L299 |
 | README remote icon scale + Serve button | 1.3 | TODO | — |
 | README `#faq-serve` Jobs behaviour, no Serves window | 2.4 | TODO | — |
 | README `#faq-serve` webdav-webui + CHANGELOG | 3.4 | TODO | — |
