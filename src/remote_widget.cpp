@@ -1777,7 +1777,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
             QString(
                 R"(<p>To run "rclone mount" on Windows,<br />you will need to )"
                 R"(download and install:<br /><br />)"
-                R"(<a href="http://www.secfs.net/winfsp/">FUSE for Windows (WinFsp)</a><br /></p>)"));
+                R"(<a href="https://winfsp.dev/">FUSE for Windows (WinFsp)</a><br /></p>)"));
       }
 #endif
 

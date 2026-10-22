@@ -333,6 +333,11 @@ jobs:
           mem: 4096
           usesh: true
           prepare: |
+            # the VM image has no X11 sets, which the qt6-qtbase package
+            # links against (/usr/X11R7): add xbase and xcomp first
+            for set in xbase xcomp; do
+              ftp -o - "https://cdn.netbsd.org/pub/NetBSD/NetBSD-$(uname -r)/$(uname -m)/binary/sets/$set.tar.xz" | xz -dc | tar -xpf - -C /
+            done
             command -v pkgin >/dev/null 2>&1 || /usr/sbin/pkg_add -v pkgin
             pkgin update
             pkgin -y install cmake qt6-qtbase

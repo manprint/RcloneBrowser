@@ -868,9 +868,11 @@ void MainWindow::setupMenuActions() {
 
             R"(<p>Copyright &copy; 2019-2020 <a href="https://github.com/kapitainsky/RcloneBrowser/blob/master/LICENSE">kapitainsky</a></p>)"
 
-            R"(<p>Current development and maintenance<br /><a href="https://github.com/kapitainsky/RcloneBrowser">kapitainsky</a></p>)"
+            R"(<p>Current development and maintenance (fork)<br /><a href="https://github.com/manprint/RcloneBrowser">manprint/RcloneBrowser</a></p>)"
 
-            R"(<p>New features and fixes<br /><a href="https://github.com/kapitainsky/RcloneBrowser/graphs/contributors">contributors</a></p>)"
+            R"(<p>Upstream development and maintenance 2019-2020<br /><a href="https://github.com/kapitainsky/RcloneBrowser">kapitainsky</a></p>)"
+
+            R"(<p>Upstream features and fixes<br /><a href="https://github.com/kapitainsky/RcloneBrowser/graphs/contributors">contributors</a></p>)"
 
             R"(<p>Original version<br /><a href="https://mmozeiko.github.io/RcloneBrowser">Martins Mozeiko</a></p>)"));
   });

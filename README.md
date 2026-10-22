@@ -14,7 +14,7 @@ Requirements
 ------------
 **rclone 1.75.0 or newer.** At startup Rclone Browser runs `rclone version`; with an older rclone (or output it cannot recognize) it shows a dialog that leads to Preferences, the rclone downloads page or Quit, and does not continue. See [rclone version, updates and config password](#rclone-version-updates-and-config-password).
 
-Building from source needs Qt 6.4 or newer, CMake and a C++17 compiler. The Windows, Linux AppImage and macOS release binaries bundle Qt 6.10.3; the FreeBSD build uses the Qt 6 packages installed with `pkg`.
+Building from source needs Qt 6.4 or newer, CMake and a C++17 compiler. The Windows, Linux AppImage and macOS release binaries bundle Qt 6.10.3; the FreeBSD build uses the Qt 6 packages installed with `pkg`. OpenBSD and NetBSD are built from source (see [Compatibility](#compatibility)).
 
 <img src="https://github.com/kapitainsky/RcloneBrowser/wiki/images/readme/osLogos.png" width="50%" />
 
@@ -37,6 +37,7 @@ Table of contents
 *   [Development (Docker)](#development-docker)
 *   [Portable vs standard mode](#portable-vs-standard-mode)
 *   [Transfers and logging](#transfers-and-logging)
+*   [Uploads: headers and S3 tags](#uploads-headers-and-s3-tags)
 *   [Navigation](#navigation)
 *   [Search](#search)
 *   [Keyboard shortcuts](#keyboard-shortcuts)
@@ -59,13 +60,13 @@ Features
 *   Can process multiple upload or download jobs in background
 *   Drag & drop support for dragging files from local file explorer for uploading
 *   Streaming media files for playback in player like [vlc][6] or similar
-*   Mount and unmount folders on macOS, GNU/Linux and Windows (for Windows requires [winfsp](https://winfsp.dev/) and for mac [fuse for macOS](https://osxfuse.github.io/))
+*   Mount and unmount folders on macOS, GNU/Linux, FreeBSD and Windows (for Windows requires [winfsp](https://winfsp.dev/), for mac [macFUSE](https://macfuse.github.io/) and the rclone binary from rclone.org, see [How to get it](#how-to-get-it))
 *   Optionally minimizes to tray, with notifications when upload/download finishes
-*   Supports portable mode (create .ini file next to executable with same name), rclone and rclone.conf path now can be relative to executable
+*   Supports portable mode (an .ini file next to the executable on Windows or next to the app bundle on macOS, a `<AppImage name>.config` folder next to the Linux AppImage); rclone and rclone.conf paths can then be relative to the application (see [Portable vs standard mode](#portable-vs-standard-mode))
 *   Supports drive-shared-with-me (Google Drive specific)
 *   For remotes supporting public link sharing has an option (right-click menu) to fetch it
 *   Supports tasks. Created jobs can be saved and run or edited later.
-*   Configurable dark mode for all systems
+*   Dark mode on Windows, Linux and BSD, switchable in Preferences; on macOS the app follows the system appearance
 
 Fork changes
 ------------
@@ -75,7 +76,7 @@ Compared with upstream, this fork includes the following. The full list is in [C
 *   Folder listings, exports and the remote list use `rclone lsjson` and `rclone listremotes --json`; a failed listing shows rclone's error in a warning row
 *   Fixes for empty error and size fields, sizes of Google Docs and other unknown sizes, names with special characters or a trailing space, and cancelled jobs that kept running
 *   Remotes are created and edited in a native dialog (provider list, one question per page, browser sign-in for OAuth backends) through the private backend; "Advanced (terminal)…" keeps `rclone config` in a terminal, which on Linux now opens reliably (see [rclone version, updates and config password](#rclone-version-updates-and-config-password))
-*   The lock file is per user on Linux, and no password prompt is shown when `RCLONE_PASSWORD_COMMAND` is set
+*   The lock file is per user on Linux and BSD, and no password prompt is shown when `RCLONE_PASSWORD_COMMAND` is set
 *   A wrong config password asks again, and a failing `RCLONE_PASSWORD_COMMAND` shows rclone's error
 *   New build targets: macOS Apple Silicon DMG and Windows ARM64; Docker development environment (`scripts/dev.sh`) and unit and end-to-end tests run in CI
 *   New in Preferences: a "Test" button for the selected rclone, a configurable rclone releases repository for update checks, and asynchronous update checks against manprint/RcloneBrowser
@@ -84,6 +85,9 @@ Compared with upstream, this fork includes the following. The full list is in [C
 *   From the upstream issue sweep: copied rclone commands of tasks, jobs and mounts quoted for your shell, Duplicate task, an option to skip the question before Run, Restart for ended jobs, ordered include and exclude rules, a folder Move that merges into an existing folder and can remove the emptied source, a Create folder dialog with a working Cancel and a timeout, a "Terminal command" preference, a message with a Preferences button instead of a quit when rclone is missing or fails, and a remote button row that scrolls instead of widening the window (see [FAQ and known limitations](#faq-and-known-limitations))
 *   New in 2.1.0 (not released yet): a "Bisync" mode in the Transfer dialog (`rclone bisync`: two-way sync with First run / resync, conflict resolution, Resilient, Recover and a workdir), and "Copy to…" (`rclone copyto`), "Upload from URL…" (`rclone copyurl`) and "Serve…" (`rclone serve`: a folder over http, webdav, ftp, sftp, dlna, nfs, restic or s3) in a remote's right-click and Tools menus, with the running serves in a "Serves" window of the File menu (see [Bisync](#faq-bisync), [Copy to…](#faq-copy-to), [Upload from URL…](#faq-upload-from-url) and [Serve…](#faq-serve))
 *   Also new in 2.1.0 (not released yet): the path field of a remote tab is editable (type a path and press Enter or "Go"; this is also how you open an item of an Internet Archive remote), the Tasks and Jobs tabs have a "Filter" field, and the main actions have keyboard shortcuts (see [Navigation](#navigation), [Search](#search) and [Keyboard shortcuts](#keyboard-shortcuts))
+*   Also new in 2.1.0 (not released yet): uploads can send HTTP headers (rclone's `--header-upload`) and, to an S3 remote, up to 10 object tags, typed in the "Extra Options" tab of the Transfer dialog and saved in tasks (see [Uploads: headers and S3 tags](#uploads-headers-and-s3-tags)); teldrive remotes (from an rclone build with the teldrive backend) and the `gcs`, `googlecloudstorage`, `gphotos` and `googlephotos` type spellings get their icons
+*   Also fixed in 2.1.0 (not released yet): Delete, Copy and Move stay off for a multi-selection that includes a top-level row, a folder Move of a top-level folder (a bucket) of a Google Cloud Storage remote no longer removes the emptied bucket, and Ctrl+W closes a remote tab
+*   Changed for existing setups: logging and stats options typed into a transfer are ignored (see [Transfers and logging](#transfers-and-logging)); mount scripts get `RCLONE_RC_USER`, `RCLONE_RC_PASS` and `RB_RC_PORT` in their environment, and their arguments `$3` and `$4` (rc user and password) are deprecated (see [Backend](#backend)); 2.1.0 saves tasks.bin in a new format that 2.0.0 and older cannot read, so copy tasks.bin before you try 2.1.0 if you may go back (see [CHANGELOG](CHANGELOG.md))
 *   Changed: minimum rclone is 1.75.0; remotes are listed case-sensitively (uppercase first); Travis CI and AppVeyor are removed and GitHub Actions builds every platform
 
 Sample screenshots
@@ -125,21 +129,13 @@ Get binaries of this fork on the [manprint releases][3] page. Each release has:
 *   `rclone-browser-<version>-<commit>-macos-arm64.dmg` - macOS on Apple Silicon
 *   `freebsd.zip` - FreeBSD (Qt 6 is not bundled; install `qt6-base` and `qt6-multimedia` with `pkg`)
 
+The Windows zips do not include the Microsoft Visual C++ runtime: if `RcloneBrowser.exe` reports a missing `VCRUNTIME140.dll` or `MSVCP140.dll`, install the latest [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist) (x64 or ARM64).
+
 Tags with a suffix such as `v2.0.0-beta.1` are published as pre-releases.
 
-**macOS first launch:** the DMG build is ad-hoc signed and not notarized, so macOS Gatekeeper may refuse to open it. After copying *Rclone Browser.app* from the image to `/Applications`, run `xattr -dr com.apple.quarantine "/Applications/Rclone Browser.app"` once, or right-click the app and choose **Open**. Install rclone with Homebrew (`brew install rclone`); on first launch Rclone Browser finds it at `/opt/homebrew/bin/rclone`.
+**macOS first launch:** the DMG build is ad-hoc signed and not notarized, so macOS Gatekeeper may refuse to open it. After copying *Rclone Browser.app* from the image to `/Applications`, run `xattr -dr com.apple.quarantine "/Applications/Rclone Browser.app"` once. On macOS 14 and older you can instead right-click the app and choose **Open**; on macOS 15 and later, try to open it once, then click **Open Anyway** in System Settings > Privacy & Security. Install rclone with Homebrew (`brew install rclone`) or from [rclone.org](https://rclone.org/downloads/). Homebrew's rclone cannot mount (it stops with "rclone mount is not supported on MacOS when rclone is installed via Homebrew"): to use Mount, install the rclone.org binary and [macFUSE](https://macfuse.github.io/), and select that binary in Preferences, `rclone location`. While `rclone location` is empty, Rclone Browser looks for rclone in `PATH`, then in `/opt/homebrew/bin`, `/usr/local/bin` and `/opt/local/bin`.
 
-Distribution packages (ArchLinux AUR, Fedora, FreeBSD ports, the packages listed on repology and the docker image by [@romancin](https://github.com/romancin)) may still ship upstream 1.8 or older, so check the version before you use one. The releases above are the builds of this fork.
-
-More and more operating systems include Rclone Browser in their offical distribution channels. You can check availibility for example [here](https://repology.org/project/rclone-browser/packages) or directly in your distribution repository. If not there yet give a shout to your system maintainers.
-
-ArchLinux users can install latest release from AUR repository: [rclone-browser][7].
-
-Fedora package is now available from [Fedora packages](https://apps.fedoraproject.org/packages/rclone-browser) - simply run `sudo dnf install rclone-browser`
-
-FreeBSD has its version available from [freshports](https://www.freshports.org/net/rclone-browser) website.
-
-There is docker version provided by [@romancin](https://github.com/romancin) - https://github.com/romancin/rclonebrowser-docker - perfect solution if you would like to run it directly on your NAS (Synology, QNAP, etc.)
+Distribution packages of Rclone Browser are listed on [repology](https://repology.org/project/rclone-browser/packages): ArchLinux [AUR][7], Fedora (`sudo dnf install rclone-browser`), FreeBSD [freshports](https://www.freshports.org/net/rclone-browser), and a [docker image](https://github.com/romancin/rclonebrowser-docker) by [@romancin](https://github.com/romancin) for NAS devices (Synology, QNAP, etc.). They are not builds of this fork and may still ship upstream 1.8 or older, so check the version before you use one. The releases above are the builds of this fork.
 
 Compatibility
 --------------
@@ -149,6 +145,7 @@ Release binaries are built by GitHub Actions for these targets:
 *   **Linux x86_64**: an [AppImage](https://appimage.org/) built on Ubuntu 22.04 (glibc 2.35). Systems with an older glibc may not run it.
 *   **macOS**: Apple Silicon (arm64) only, built with Qt 6.10.3. The lowest macOS release it runs on is the one Qt 6.10.3 supports.
 *   **FreeBSD**: built on FreeBSD with the Qt 6 packages from `pkg`.
+*   **OpenBSD and NetBSD**: no release binaries. CI builds both from source with their Qt 6 packages (`pkg_add qt6`, `pkgin install qt6-qtbase`) and runs the unit tests; Mount is disabled on both (see [Build instructions](#build-instructions)).
 
 No 32-bit Windows or Linux binaries, Raspberry Pi builds or Intel Mac builds are published any more. On other systems build from source, see [Build instructions](#build-instructions); Qt 6 has no 32-bit Windows kits.
 
@@ -162,7 +159,7 @@ To make life easier when using AppImages on Linux, you can use [AppImageLauncher
 
 *   **AppImage desktop integration** - AppImageLauncher allows you to integrate AppImages you download into your application menu or launcher to make it easier for you to launch them. It also takes care of moving them into a central location, where you can find them later if you need access to them again.
 
-*   **Update management** - AppImageLauncher provides a simple to use update mechanism. After desktop integration, the context menu of the AppImage's entry in the application launcher will have an entry for updating that launches a little helper tool that uses AppImageUpdate internally. Just click the entry and have the tool search and apply updates.
+*   **Update management** - not available for this fork's AppImage: it carries no update information, so AppImageUpdate cannot update it. With update checks on in Preferences, Rclone Browser tells you when a new release is on the [releases page][3].
 
 *   **Easy removal of AppImages from system** - Removing integrated AppImages is pretty simple, too. Similar to updating AppImages, you will find an entry in the context menu in the application launcher that triggers a removal tool. You will be asked to confirm the removal. If you choose to do so, the desktop integration is undone, and the file is removed from your system.
 
@@ -192,14 +189,16 @@ He is talking about [Subsurface](https://subsurface-divelog.org). His small side
 
 And I totally agree with above. I want to provide binary which works across as many Linux distributions as possible and I dont have time to fight with all mess with different dependencies etc. There are other similar ditribution formats e.g. flatpak but I had to choose one and I decided that AppImage is my best choice. I am not saying that AppImage is the best one but it nicely fits my objectives. You can see comparison of different solutions [here](https://github.com/AppImage/AppImageKit/wiki/Similar-projects#comparison).
 
-If for whatever reason you are not happy or your system is not covered with provided binaries you can easily build Rclone Browser for yourself. Especially on Unix-like systems it is very easy. Please see below step by step instructions for major operating systems. I have tested all of them and you can have your own Linux distribution Rclone Browser running in no time  - it takes 8 min on Raspberry Pi 3B+, on modern desktop it can be less than a minute.
+If for whatever reason you are not happy or your system is not covered with provided binaries you can easily build Rclone Browser for yourself. Especially on Unix-like systems it is very easy. Please see below step by step instructions for major operating systems. CI builds on FreeBSD, OpenBSD and NetBSD with the packages named below (on NetBSD without `qt6-qtmultimedia`), and the Docker development images (see [Development (Docker)](#development-docker)) use the Debian/Ubuntu ones; the macOS and Windows releases are built with Qt from the Qt installer, and the package names for the other Linux distributions are not tested.
 
 Build instructions
 ------------------
 
+The `cmake ..` steps below build the app and its unit tests (`RB_BUILD_TESTS`, on by default), which need the Qt Test module. Add `-DRB_BUILD_TESTS=OFF` to build only the app, and with make add `-DCMAKE_BUILD_TYPE=Release` for an optimized build (CI and `scripts/dev.sh` build Release). Warnings are errors (`-Werror`, `/WX`), so a compiler or Qt newer than the CI's can stop the build on a new warning.
+
 ### Linux
 1.  Install dependencies for your particular distribution:
-    *   **Debian/Ubuntu and derivatives**: `sudo apt update && sudo apt -y install git g++ cmake make qt6-base-dev qt6-multimedia-dev libgl1-mesa-dev`
+    *   **Debian 12, Ubuntu 24.04 or newer, and derivatives** (Ubuntu 22.04 ships Qt 6.2, which is too old): `sudo apt update && sudo apt -y install git g++ cmake make qt6-base-dev qt6-multimedia-dev libgl1-mesa-dev`
     *   **Suse/OpenSuse**: `sudo zypper ref && sudo zypper --non-interactive install git cmake make gcc-c++ qt6-base-devel qt6-multimedia-devel`
     *   **RHEL/CentOS**: `sudo yum -y install git gcc-c++ cmake make qt6-qtbase-devel qt6-qtmultimedia-devel`
     *   **Fedora**: `sudo dnf -y install git g++ cmake make qt6-qtbase-devel qt6-qtmultimedia-devel`
@@ -242,24 +241,26 @@ Build instructions
 6.  Run `make` from build folder to create binary
 7.  Install `sudo make install`
 
+*Note: the `qt6-qtbase` package needs the X11 sets `xbase` and `xcomp`. On a system installed without them `pkgin` refuses it because `/usr/X11R7/lib/libxcb.so.2` is missing: add the sets with sysinst, or extract them from the NetBSD release as CI does.*
+
 *Note: rclone for NetBSD does not support `mount` hence this feature is disabled in Rclone Browser. cgofuse guys did not manage to implement it: [#18][billziss-gh_cgofuse_i18]*
 
 ### macOS
 1.  If you don't have [Homebrew](https://brew.sh/) yet install it `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
 2.  You might be asked to install xcode command line tools - do it. This is actuall macOS SDK, headers, and build tools. You don't need full xcode IDE.
-3.  Install dependencies `brew install git cmake rclone qt` (Homebrew's `qt` formula is Qt 6, and builds natively for Apple Silicon and Intel)
+3.  Install dependencies `brew install git cmake rclone qt` (Homebrew's `qt` formula is Qt 6, and builds natively for Apple Silicon and Intel; Homebrew's rclone cannot mount, see [How to get it](#how-to-get-it))
 4.  Clone source code from this repo `git clone https://github.com/manprint/RcloneBrowser.git`
 5.  Go to source folder `cd RcloneBrowser`
 6.  Create new build folder - `mkdir build && cd build`
 7.  Run `cmake .. -DCMAKE_PREFIX_PATH:PATH="$(brew --prefix qt)"` from build folder to create makefile (on Apple Silicon this is `/opt/homebrew/opt/qt`, on Intel `/usr/local/opt/qt`)
 8.  Run `make` from build folder to create binary
 9.  Go to yet another newly created build folder `cd build`. Your binary should be here
-10. Package your binary with Qt libraries to create self contained application `"$(brew --prefix qt)"/bin/macdeployqt rclone-browser.app -executable="rclone-browser.app/Contents/MacOS/rclone-browser"`. Without this step binary won't work without Qt installed
+10. Package your binary with Qt libraries to create self contained application `"$(brew --prefix qt)"/bin/macdeployqt rclone-browser.app -executable="rclone-browser.app/Contents/MacOS/rclone-browser"`, then re-sign the bundle ad-hoc as CI does: `codesign --force --deep --sign - rclone-browser.app`. Without the first step the app needs Qt installed; without the second, Apple Silicon may refuse to start it
 
 ### Windows
 1.  Install [Visual Studio 2022](https://learn.microsoft.com/en-us/visualstudio/releases/2022/release-notes) or Visual Studio 2026 - you only need the **Desktop development with C++** workload. For a native Windows on ARM build also add the **ARM64 build tools** component.
-2.  Install [CMake][9] 3.16 or newer (CMake 4.x is supported)
-3.  Install Qt 6.11.x from the [Qt website][10]. Select the **MSVC 2022 64-bit** prebuilt component (`msvc2022_64`), and optionally **Qt Multimedia** (only needed for the finished-transfer notification sound). For native Windows on ARM also install the **MSVC 2022 ARM64** kit (`msvc2022_arm64`). The steps below assume Qt is installed in `c:\Qt\6.11.1`
+2.  Install [CMake][9] 3.16 or newer (CMake 4.x is supported); the Visual Studio 2026 generator needs a CMake release that lists it in `cmake --help`
+3.  Install Qt 6.4 or newer (the releases use Qt 6.10.3) from the [Qt website][10]. Select the **MSVC 2022 64-bit** prebuilt component (`msvc2022_64`), and optionally **Qt Multimedia** (only needed for the finished-transfer notification sound). For native Windows on ARM also install the **MSVC 2022 ARM64** kit (`msvc2022_arm64`). The steps below assume Qt 6.11.1 installed in `c:\Qt\6.11.1`
 4.  Get Rclone Browser source code - clone this repo with git or download a zip from [releases][3]
 5.  Open a **Developer Command Prompt for VS** (or any shell where `cmake` and the MSVC compiler are on `PATH`), then go to the source folder: `cd RcloneBrowser`
 6.  Create a build folder: `mkdir build` and `cd build`
@@ -286,7 +287,7 @@ Build instructions
 
 10. Because `--no-compiler-runtime` is used, target machines also need the matching [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist) for the Visual Studio version you built with.
 
-*Optional:* `scripts\release_windows.cmd x64` (or `arm64`) automates a full release build (windeployqt, MSVC runtime DLLs, zip, and installer) when run from a configured release environment.
+*Optional:* from the `scripts` folder, `release_windows.cmd x64` (or `arm64`) builds a release folder, a zip and an Inno Setup installer in the repository's `release` folder (windeployqt, MSVC runtime and OpenSSL DLLs). It expects Visual Studio 2022 Community, Qt 6.11.1 in `C:\Qt\6.11.1`, OpenSSL 3, 7-Zip and Inno Setup 6 at the paths written in the script. The releases on GitHub are built by GitHub Actions, not by this script.
 
 > **Note:** Qt 6 no longer provides 32-bit Windows desktop kits, so 32-bit Windows builds are no longer supported.
 
@@ -295,7 +296,7 @@ Development (Docker)
 
 `scripts/dev.sh` builds, tests and smoke-runs the app inside a Docker container, so no Qt toolchain is needed on the host. The containers run with `--network none` (`servers` uses its own internal network, see below), as your uid:gid, with the repository mounted at `/src`. The host `$HOME` and your rclone configuration are never mounted: inside the container rclone only sees an empty temporary config.
 
-The host `rclone` (version 1.75 or newer, taken from `PATH` or from `RB_RCLONE=/path/to/rclone`) is mounted read-only at `/opt/rclone/rclone` for the end-to-end tests.
+Every command except `image` and `server-images` needs a host `rclone` 1.75 or newer (taken from `PATH` or from `RB_RCLONE=/path/to/rclone`; on the host only `rclone version` runs). It is mounted read-only at `/opt/rclone/rclone` for the end-to-end tests and `fixtures`.
 
 ```
 scripts/dev.sh build  [qt64|qt610]                 # configure and build into build-docker-<flavor>
@@ -311,7 +312,7 @@ scripts/dev.sh server-images                       # pull and build the server i
 
 Flavors: `qt64` (default) uses the image `rb-build:24.04` (Ubuntu 24.04, distro Qt 6.4); `qt610` uses `rb-build:qt610` (Ubuntu 22.04, Qt 6.10.3, as in CI). Example: `scripts/dev.sh test qt64 -- -R 'tst_rclone_(log|format)'`.
 
-Building the images is the only step that needs network access: run `scripts/dev.sh image qt64` or `scripts/dev.sh image qt610` once, and `scripts/dev.sh server-images` for the protocol tests. All other commands work offline and report a missing image with exit code 3.
+Building the images is the only step that needs network access: run `scripts/dev.sh image qt64` or `scripts/dev.sh image qt610` once, and `scripts/dev.sh server-images` for the protocol tests. All other commands work offline; they stop with exit code 2 when the host rclone is missing or older than 1.75, and with exit code 3 when the image is missing.
 
 `scripts/dev.sh servers` runs the protocol tests (`ctest -L servers`) against real sftp, FTP, WebDAV and S3 (MinIO) servers in local containers. Each run creates its own Docker network with `--internal`, starts the four servers and the test container on it, and removes all of them when the run ends, whatever the outcome. No port is published, so nothing is reachable from the host or the LAN, and the containers cannot reach any other host. The servers use fixed test credentials; your rclone configuration is never mounted. Outside this command the protocol tests skip themselves, and CI never runs them.
 
@@ -338,7 +339,7 @@ In standard operations mode all configurations files are stored in the following
     *   tasks file:  ~/.local/share/rclone-browser/rclone-browser/tasks.bin
     *   queue file:  ~/.local/share/rclone-browser/rclone-browser/queue.conf
     *   scheduler file:  ~/.local/share/rclone-browser/rclone-browser/scheduler.conf
-    *   lock file:  in $TMPDIR or /tmp if $TMPDIR is not defined; on Linux the name includes your user id, so several users of one machine can run Rclone Browser at the same time
+    *   lock file:  in $TMPDIR or /tmp if $TMPDIR is not defined; on Linux and BSD the name includes your user id, so several users of one machine can run Rclone Browser at the same time (in portable mode the lock file is in the portable `.config` folder)
 
 *   Windows:
     *   preferences: in registry Computer\HKEY_CURRENT_USER\Software\rclone-browser\rclone-browser
@@ -347,19 +348,33 @@ In standard operations mode all configurations files are stored in the following
     *   scheduler file:  %HOMEPATH%\AppData\Local\rclone-browser\rclone-browser\scheduler.conf
     *   lock file:   %HOMEPATH%\AppData\Local\Temp\    
 
-Starting with version 1.7.0 of Rclone Browser portable mode is supported on all operating systems. To enable it you have to create .ini file (for Windows and macOS) next to executable with same name - e.g. if application name is `RcloneBrowser.exe` or `RcloneBrowser.app` create `RcloneBrowser.ini`. For Linux create a directory (not a file) with the same name as the AppImage plus the ".config" extension in the same directory as the AppImage file - e.g. if application name is `rclone-browser.AppImage` create folder `rclone-browser.AppImage.config` next to it. This is solution supported by [AppImage specification](https://docs.appimage.org/user-guide/portable-mode.html).
+Portable mode is supported on Windows, on macOS and with the Linux AppImage. On Windows, create an .ini file with the executable's name next to it: for `RcloneBrowser.exe` create `RcloneBrowser.ini`. On macOS, create it next to the app bundle and name it after the bundle: for the release's `Rclone Browser.app` create `Rclone Browser.ini` in the same folder (for a self-built `rclone-browser.app`, `rclone-browser.ini`). For Linux create a directory (not a file) with the same name as the AppImage plus the ".config" extension in the same directory as the AppImage file - e.g. if application name is `rclone-browser.AppImage` create folder `rclone-browser.AppImage.config` next to it. This is solution supported by [AppImage specification](https://docs.appimage.org/user-guide/portable-mode.html).
 
-In portable mode all configuration files will be stored in the same folder as application (in .config folder on Linux) and rclone and rclone.conf path can be relative to executable - so if in preferences in `rclone location` you put `rclone.exe` browser with look for it in folder where application resides. It means that you can put all required stuff including rclone binary itself and its config on e.g. memory stick and everything will be stored there.
+In portable mode all configuration files will be stored in the same folder as application (in .config folder on Linux) and rclone and rclone.conf path can be relative to executable - so if you put `rclone.exe` in Preferences, `rclone location`, Rclone Browser looks for it in the folder where the application resides. It means that you can put all required stuff including rclone binary itself and its config on e.g. memory stick and everything will be stored there.
 
 Transfers and logging
 ---------------------
 
 Rclone Browser reads the progress of every transfer (stats, per-file progress and errors) from rclone's JSON log, so it works for any file name. To do that it manages rclone's logging options itself:
 
-*   Logging, stats and verbosity options typed into the extra options of a transfer (`-v`, `-vv`, `--verbose`, `-q`, `-P`/`--progress`, `--log-level`, `--log-format`, `--stats`, `--stats-one-line`, `--use-json-log`, `--color`, `--syslog`, ...) are removed. The job's output panel lists them as "ignored options". Transfers always run with `--use-json-log -v --stats 1s --stats-log-level NOTICE --stats-file-name-length 0 --color NEVER`; `-vv` or `--log-level DEBUG` in the extra options switches to debug output (`-vv`).
+*   Logging, stats and verbosity options typed into the extra options of a transfer or set in Preferences ("Default rclone options", "Default upload options", "Default download options") (`-v`, `-vv`, `--verbose`, `-q`, `-P`/`--progress`, `--log-level`, `--log-format`, `--stats`, `--stats-one-line`, `--use-json-log`, `--color`, `--syslog`, ...) are removed. The job's output panel lists them as "ignored options". Transfers always run with `--use-json-log -v --stats 1s --stats-log-level NOTICE --stats-file-name-length 0 --color NEVER`; `-vv` or `--log-level DEBUG` in the extra options switches to debug output (`-vv`).
 *   `--log-file <path>` is honored: the job appends a readable text log to that file (the same lines as the output panel, followed by the final stats).
 *   rclone's logging environment variables (`RCLONE_VERBOSE`, `RCLONE_LOG_LEVEL`, `RCLONE_LOG_FILE`, `RCLONE_STATS*`, `RCLONE_USE_JSON_LOG`, `RCLONE_PROGRESS`, `RCLONE_QUIET`, `RCLONE_COLOR`, ...) are not passed to the rclone processes whose output the app reads. `RCLONE_LOG_FILE` and `RCLONE_LOG_LEVEL` still count as `--log-file` and `--log-level` for transfers. All other `RCLONE_*` settings apply as usual; the `rclone config` terminal keeps the full environment.
 *   Combined short flags such as `-vP` are passed to rclone unchanged; write logging flags separately.
+
+Uploads: headers and S3 tags
+----------------------------
+
+The Transfer dialog of an upload can send HTTP headers with every file it uploads (rclone's `--header-upload`) and, to an S3 remote, object tags. Click the arrow button "Upload headers" below the extra options in the "Extra Options" tab to show the fields. A download has no such button.
+
+*   Headers: one per line, written `Name: value`, for example `Cache-Control: no-cache`. Each line is trimmed and blank lines are skipped. The line is split at the first `:`, so a value may contain `:` and may be empty. The name may use only ASCII letters, digits and the characters ``!#$%&'*+-.^_`|~`` (spaces around it are dropped, none inside). Each header reaches rclone as one `--header-upload "Name: value"`, in the order typed, after the extra options and the default options of Preferences, for Copy, Move, Sync and Bisync uploads.
+*   What a header does depends on the backend. The S3 backend of rclone 1.75.2 sets only the keys it knows: Cache-Control, Content-Disposition, Content-Encoding, Content-Language, Content-Type, If-Match, If-None-Match, X-Amz-Tagging and X-Amz-Meta-* (user metadata). For any other key rclone writes `Don't know how to set key "<key>" on upload` to the job's output as an error, still uploads the file and exits with 0, so read the output when a header seems to have no effect.
+*   S3 object tags: the "S3 object tags" field is shown only when the remote is of type `s3` (Amazon S3, MinIO, Wasabi, Ceph and the other providers of rclone's S3 backend); a crypt, alias or union remote on top of a bucket has its own type and gets no tags field. Write one tag per line as `key=value`. The line is split at the first `=`, so a value may contain `=` and may be empty; the key may not be empty. At most 10 tags are accepted and a key may appear once, as S3 requires. S3 also limits a key to 128 and a value to 256 characters and limits the characters it accepts; the dialog checks neither, so S3 may refuse the upload (`InvalidTag`).
+*   The tags are sent as one header, `X-Amz-Tagging: key1=value1&key2=value2`, with each key and value percent-encoded (a space becomes `%20`, `&` becomes `%26`, `=` becomes `%3D`). It comes after the typed headers, so the tags win over an `X-Amz-Tagging` line in the headers field. Storing tags needs the permission to tag objects (`s3:PutObjectTagging` on Amazon S3).
+*   Text that does not parse turns off Save task, Dry run and Run (also when they read "Save and Dry run" and "Save and Run"; a task being edited shows only Save task) until it is fixed: a red message under the fields says what is wrong (it stays visible when the panel is closed), the tab title becomes "Extra Options(!)" and the three buttons say why in their tooltip. Only the fields that apply are checked. The tab title shows "(x)" when the extra options, the headers or the tags are not empty.
+*   Both fields are saved in a task and shown again when it is edited (the panel opens by itself when either has text). They are not remembered by "Remember dialogs' last used options", and "Restore defaults" clears them. Rclone Browser 2.1.0 saves every task, with or without headers and tags, in a new tasks file format that 2.0.0 and older cannot read (see [CHANGELOG](CHANGELOG.md)).
+*   Only an upload started from the Transfer dialog, or a task saved from one, sends these headers and tags. A download, including a Download Bisync task (bisync also writes to the remote), "Copy to…", "Upload from URL…" and the Copy and Move actions of a remote tab do not send them.
+*   The tests check the request rclone sends to a local `rclone serve s3`; they do not check that a real S3 service stores the tags.
 
 Navigation
 ----------
@@ -368,7 +383,7 @@ The path field above the file list of a remote tab is editable. Type a path and 
 
 *   The typed path becomes a new top-level row of the tab, named after the path, which is selected and listed. A path that already has a typed row selects that row instead of adding a second one. The file list takes the focus and the field shows `remote:path` for the selected folder. If the listing fails (for example `directory not found`), rclone's error shows in a warning row under the new row, like for any other folder. On bucket-based remotes such as S3, a folder that does not exist inside an existing bucket opens as an empty row, with no warning.
 *   The `remote:` prefix of the tab's own remote is accepted and removed (`gd:Photos` and `Photos` open the same folder in a `gd` tab); any other prefix stays part of the path. Spaces before and after what you type, repeated `/` and a trailing `/` are dropped (a space right after `remote:` is kept), and an empty field does nothing. Otherwise the path goes to rclone as typed; on Windows a local path is also tidied (`\` becomes `/`, `.` and `..` are resolved). On Windows, where a local remote lists the drives, the field takes drive paths such as `C:\Users`, and a bare `C:` means the root of that drive.
-*   A path with and without a leading `/` can be two different places. The first row of a tab is shown as `/` but stands for `remote:`, the default folder of the remote (the field shows `remote:`). On an SFTP or FTP remote that is the home or login folder of the user, and typing `/` adds a second row, also shown as `/`, for the root of the server (the field shows `remote:/`) ([SFTP outside the home folder](#faq-sftp-outside-home), [FTP and MLSD](#faq-ftp-mlsd)). On remotes where `remote:` and `remote:/` are the same place, typing `/` adds a second row for the same folder.
+*   A path with and without a leading `/` can be two different places. The first row of a tab is shown as `/` but stands for `remote:`, the default folder of the remote (the field shows `remote:`). On an SFTP or FTP remote that is the home or login folder of the user, and typing `/` adds a second row, also shown as `/`, for the root of the server (the field shows `remote:/`) ([SFTP outside the home folder](#faq-sftp-outside-home), [FTP and MLSD](#faq-ftp-mlsd)). On remotes where `remote:` and `remote:/` are the same place, typing `/` adds a second row for the same folder. On a remote of type `local` (Linux, macOS and BSD) the first row is the root `/` itself: the field shows `remote:/`, and typing `/` selects that row instead of adding one.
 *   A typed row is a top-level row, like the first one: Rename, Copy, Move, Delete, Link and Copy to… are off for it, also in a selection of several rows, and work on the files and folders inside it. Mount works on it (Mount on a typed `/` row mounts `remote:/`). Typed rows exist only in their tab and are not saved. On a Google Drive tab, changing the mode (Main, Shared with me, Trash) removes them. While that change waits for running listings (and for the icons of files in typed rows), the field blinks "Please wait - finishing background jobs", is read-only, and Enter and "Go" do nothing.
 *   While the cursor stays in the field, what you typed is kept when the selection of the list changes by itself (for example when a listing ends). Clicking a row moves the cursor to the list, and the field then shows the path of that row. Esc puts back the path of the selection and moves the focus to the list. Ctrl+L ("Go to path") moves the cursor into the field and selects its text, from anywhere in the tab ([Keyboard shortcuts](#keyboard-shortcuts)).
 *   Internet Archive: a remote of that type is browsed by item identifier, so its tab does not list the first row when it opens. The cursor starts in the path field, with the hint "Enter an Internet Archive item identifier and press Go". Type the identifier of an item (the part right after `archive.org/details/`, up to the next `/`) and press "Go": its files are listed under a new row.
@@ -406,9 +421,9 @@ Keyboard shortcuts
 | Remote tab | Shift+F5 | Copy to… |
 | Remote tab | Alt+E | Serve… |
 | Remote tab | Ctrl+L | Go to path: focus the path field to type a path |
-| Remote tab | Esc | In the path field: put back the path of the selection |
+| Remote tab | Esc | In the path field: put back the path of the selection and move the focus to the list |
 | Remote tab | Ctrl+W | Close the remote tab (the platform's standard Close key) |
-| Main window | Ctrl+1 to Ctrl+5 | Show the Remotes, Jobs, Tasks, Queue or Scheduler tab |
+| Main window | Ctrl+1 to Ctrl+5 | Show the Remotes, Jobs, Tasks, Queue or Scheduler tab (nothing for a tab hidden in Preferences) |
 | Main window | Ctrl+F | Go to the filter of the Tasks or Jobs tab (nothing on the other tabs) |
 | Main window | Ctrl+R | Refresh the remote list |
 | Tasks tab | Ctrl+Return | Run the selected tasks |
@@ -421,7 +436,7 @@ Keyboard shortcuts
 *   The keys of a remote tab work only while that remote's tab is the current one, also when the row of buttons is hidden.
 *   A key does nothing while its action, or on the Tasks tab its button, is disabled: Edit needs exactly one selected task, Run and Dry Run need selected tasks that are not running, and Dry Run is off for a mount task.
 *   On macOS Ctrl is the Command key and Alt is the Option key; there are no menu mnemonics on macOS, and Del is Fn+Delete on a Mac keyboard. Because a remote tab's Alt keys are shortcuts, on macOS they take precedence over the Option+letter characters (accents, @, €) typed into the path field.
-*   On Linux, while the cursor is in the Tasks filter, Ctrl+E moves to the end of the text instead of editing the task; press Tab first.
+*   On Linux and BSD, while the cursor is in the Tasks filter, Ctrl+E moves to the end of the text instead of editing the task; press Tab first.
 
 rclone version, updates and config password
 -------------------------------------------
@@ -463,7 +478,7 @@ Issues: [#118](https://github.com/kapitainsky/RcloneBrowser/issues/118)
 
 Select one task in the Tasks tab, right-click and choose Duplicate. The copy gets a new id and the description `<description> (copy)`, is saved with the other tasks and is selected. A duplicated mount task does not start automatically at launch. Changing the remote of a task, a config file path per task and a text format for the tasks file (tasks.bin stays binary) are not implemented.
 
-Issues: [#139](https://github.com/kapitainsky/RcloneBrowser/issues/139)
+Issues: [#139](https://github.com/kapitainsky/RcloneBrowser/issues/139), [#143](https://github.com/kapitainsky/RcloneBrowser/issues/143)
 
 <a id="faq-run-tasks-one-by-one"></a>**How do I run several tasks one after the other?**
 
@@ -499,7 +514,7 @@ Issues: [#123](https://github.com/kapitainsky/RcloneBrowser/issues/123), [#176](
 
 <a id="faq-copy-action"></a>**Is there a Copy button for files and folders?**
 
-Yes. The remote tab has "Copy" in its toolbar and in the right-click menu; its tooltip says "Server side copy" and it runs `rclone copy`. It copies inside the same remote and is disabled for top-level items of a remote and in some Google Drive modes. To copy between two remotes, use Download and type the other remote's path (`remote:path`) in the destination field, or use Upload and type it in the source field. The Transfer dialog passes the local-side field to rclone as typed, while the other side always gets this remote's name. For one file, [Copy to…](#faq-copy-to) takes any destination directly.
+Yes. The remote tab has "Copy" in its toolbar and in the right-click menu; its tooltip says "Server side copy" and it runs `rclone copy`. It copies inside the same remote and is disabled for top-level items of a remote and, when one item is selected, in the Google Drive "Shared with me" and "Trash" views (with several items selected Copy, Move and Delete stay on there; do not use them in those views). To copy between two remotes, use Download and type the other remote's path (`remote:path`) in the destination field, or use Upload and type it in the source field. The Transfer dialog passes the local-side field to rclone as typed, while the other side always gets this remote's name. For one file, [Copy to…](#faq-copy-to) takes any destination directly.
 
 Issues: [#192](https://github.com/kapitainsky/RcloneBrowser/issues/192)
 
@@ -517,7 +532,7 @@ Issues: [#252](https://github.com/kapitainsky/RcloneBrowser/issues/252)
 
 <a id="faq-include-exclude-order"></a>**Why is a file I excluded still copied when I also use Include?**
 
-rclone applies every `--include` rule before every `--exclude` rule whatever their order on the command line, and the first matching rule decides. When both the Include and the Exclude tab hold a pattern, Rclone Browser therefore sends ordered `--filter` rules: the exclude patterns first, then the include patterns, then your Filter tab lines and a final `- **`. A `--exclude` typed into Extra options together with an Include pattern is not reordered and the include still wins: put that pattern in the Exclude tab instead, or leave Include empty and write all rules as `+` and `-` lines in the Filter tab, ending with your own `- **`.
+rclone applies every `--include` rule before every `--exclude` rule whatever their order on the command line, and the first matching rule decides. When both the Include and the Exclude tab hold a pattern, Rclone Browser therefore sends ordered `--filter` rules: the exclude patterns first, then the include patterns, then your Filter tab lines and a final `- **`. A `--exclude` typed into the Extra Options tab together with an Include pattern is not reordered and the include still wins: put that pattern in the Exclude tab instead, or leave Include empty and write all rules as `+` and `-` lines in the Filter tab, ending with your own `- **`.
 
 Issues: [#179](https://github.com/kapitainsky/RcloneBrowser/issues/179)
 
@@ -532,7 +547,7 @@ Choose "Bisync" in the Transfer dialog, next to Copy, Move and Sync (it is offer
 
 The first run for a pair of folders needs "First run / resync". Without it rclone has no record of the last state and stops with `cannot find prior Path1 or Path2 listings`, followed by `Bisync aborted. Must run --resync to recover.` (with "Resilient" ticked the second line says `Error is retryable without --resync due to --resilient mode`, but only a resync helps here); the job ends in Error (rclone's exit code 7). A resync only copies and never deletes: a file that exists on one side only is copied to the other, and a file that exists on both sides with different content is overwritten at the destination by the source (Path1) version, whatever its date; "Conflicts" does not apply and nothing is renamed. Use Dry run first and read its output (`Skipped copy as --dry-run is set` for each file it would copy); a Dry run keeps its listings apart (`.lst-dry` files in the Workdir, which a real run does not read), so the first real run still needs "First run / resync". After that run without "First run / resync" every time. A task saved with it ticked resyncs on every run, so a file you deleted on one side comes back from the other and a renamed file exists under both names: edit the task after its first run and untick it. Resync again after you change the Include, Exclude or Filter rules or "Create empty source directories": rclone's bisync documentation asks for a resync after changing bisync settings such as the filters, and rclone does not notice a change of these rules itself (it checks only a `--filters-file`). The dialog does not remember "First run / resync" or "Workdir" for the next task. A saved Bisync task can be run, dry-run, queued and scheduled like any other transfer task.
 
-A Bisync task leaves out six options, and the dialog disables their check boxes while Bisync is chosen: "Delete empty source directories" (`--delete-empty-src-dirs`, which bisync rejects with `unknown flag`), "Skip files that are newer on the destination" (`--update`) and "Don't traverse destination directory" (`--no-traverse`) (bisync ignores both and only prints a warning), "Delete excluded files from destination" (`--delete-excluded`), which with bisync deletes, on each side that receives a copy (the source included), every file that is not part of the run's changes (in a test it left that side with only the newly copied file and ended without an error), and "Skip all files that exist" (`--ignore-existing`) and "Don't update mod-time if files are identical" (`--no-update-modtime`), which leave a changed file behind, so bisync stops with `path1 and path2 are out of sync` and asks for a resync. Do not add them in Extra options either.
+A Bisync task leaves out six options, and the dialog disables their check boxes while Bisync is chosen: "Delete empty source directories" (`--delete-empty-src-dirs`, which bisync rejects with `unknown flag`), "Skip files that are newer on the destination" (`--update`) and "Don't traverse destination directory" (`--no-traverse`) (bisync ignores both and only prints a warning), "Delete excluded files from destination" (`--delete-excluded`), which with bisync deletes, on each side that receives a copy (the source included), every file that is not part of the run's changes (in a test it left that side with only the newly copied file and ended without an error), and "Skip all files that exist" (`--ignore-existing`) and "Don't update mod-time if files are identical" (`--no-update-modtime`), which leave a changed file behind, so bisync stops with `path1 and path2 are out of sync` and asks for a resync. Do not add them in Extra Options either.
 
 Issues: [#243](https://github.com/kapitainsky/RcloneBrowser/issues/243)
 
@@ -540,9 +555,9 @@ Issues: [#243](https://github.com/kapitainsky/RcloneBrowser/issues/243)
 
 After a critical error (for example a copy that failed) rclone no longer trusts what it knows about the two folders and sets its listings aside. With "Recover" ticked, the next run goes back to the backup listings of the last successful run (`Listings not found. Reverting to prior backup as --recover is set.`) and continues. Without "Recover", or before the first successful run after a resync, every later run stops with `cannot find prior Path1 or Path2 listings` and `Bisync aborted. Must run --resync to recover.` until a resync has been done: read the job's output for the cause, run again with "First run / resync" and Dry run, check what it would copy, then run it for real and untick "First run / resync" again ([how a resync works](#faq-bisync)). If the output also says `file name too long`, see [long folder paths](#faq-limit-bisync-path).
 
-Stop on a running job, Stop in the Jobs tab and quitting Rclone Browser while a Bisync job runs end rclone at once, and so does a crash. rclone then leaves its lock file in the Workdir, and the next runs of the same two folders stop with `prior lock file found`, whether or not "Recover" is ticked: the job's output shows the `rclone deletefile` command that removes the lock, and after that the next run continues without a resync. Adding `--max-lock` afterwards does not release that lock, because the run that created it wrote the expiry into it. To avoid this in future, put `--max-lock 2m` (rclone's minimum) into the task's Extra options before it runs and tick "Recover": a lock left by such a run expires after 2 minutes, rclone then sets the listings aside, and "Recover" continues from the backup listings (without "Recover" that run asks for a resync).
+Stop on a running job, Stop in the Jobs tab and quitting Rclone Browser while a Bisync job runs end rclone at once, and so does a crash. rclone then leaves its lock file in the Workdir, and the next runs of the same two folders stop with `prior lock file found`, whether or not "Recover" is ticked: the job's output shows the `rclone deletefile` command that removes the lock, and after that the next run continues without a resync. Adding `--max-lock` afterwards does not release that lock, because the run that created it wrote the expiry into it. To avoid this in future, put `--max-lock 2m` (rclone's minimum) into the task's Extra Options before it runs and tick "Recover": a lock left by such a run expires after 2 minutes, rclone then sets the listings aside, and "Recover" continues from the backup listings (without "Recover" that run asks for a resync).
 
-Bisync also stops without changing anything when more than half of the files of one side were deleted (`Safety abort: too many deletes`, for example after renaming a big folder) or when every file of one side changed (`Safety abort: all files were changed`, which happens easily in a folder with a single file). A Dry run stops at the same check, but its output lists the files bisync sees as deleted or changed (`File was deleted`, `File changed`); to see what it would then do on the other side, put `--force` into Extra options for a Dry run. Then add `--force` (or, for deletes, a higher `--max-delete`, for example `--max-delete 75`) to Extra options for that one real run.
+Bisync also stops without changing anything when more than half of the files of one side were deleted (`Safety abort: too many deletes`, for example after renaming a big folder) or when every file of one side changed (`Safety abort: all files were changed`, which happens easily in a folder with a single file). A Dry run stops at the same check, but its output lists the files bisync sees as deleted or changed (`File was deleted`, `File changed`); to see what it would then do on the other side, put `--force` into Extra Options for a Dry run. Then add `--force` (or, for deletes, a higher `--max-delete`, for example `--max-delete 75`) to Extra Options for that one real run.
 
 Issues: [#243](https://github.com/kapitainsky/RcloneBrowser/issues/243)
 
@@ -568,19 +583,19 @@ Issues: [#238](https://github.com/kapitainsky/RcloneBrowser/issues/238)
 
 <a id="faq-copy-to"></a>**How do I copy one file to another name, folder or remote?**
 
-Select one file in a remote tab and choose "Copy to…" in the right-click menu or in the Tools menu. The "Copy to" dialog asks for "Destination (remote:path or local path)" and starts with the file's own path. Type the full path of the new file, for example `other:backup/report-2026.pdf` or `/home/me/report.pdf`, and OK runs `rclone copyto` as a job. The last part is the name of the new file, so this is also how you copy and rename in one step. A name or path without `remote:` (for example `report-copy.pdf` or `old/report.pdf`) is taken relative to the file's folder, a destination that ends with `/` or `:` (a folder, or the top of a remote) gets the file's own name, and a destination that is the file itself does nothing. A different file already at the destination is overwritten, an identical one (same size and modification time or checksum) is left alone, and the original stays where it is. Copy to is off for folders and for several selected items (use Copy or Download), for the top row of the tree and in the Google Drive "Shared with me" and "Trash" views (use Download), and on a row that is still loading or shows a listing error ([Is there a Copy button?](#faq-copy-action)). Between two different remotes the data normally passes through this computer.
+Select one file in a remote tab and choose "Copy to…" in the right-click menu or in the Tools menu. The "Copy to" dialog asks for "Destination (remote:path or local path)" and starts with the file's own path. Type the full path of the new file, for example `other:backup/report-2026.pdf` or `/home/me/report.pdf`, and OK runs `rclone copyto` as a job. The last part is the name of the new file, so this is also how you copy and rename in one step. A name or path without `remote:` (for example `report-copy.pdf` or `old/report.pdf`) is taken relative to the file's folder, a destination that ends with `/` or `:` (a folder, or the top of a remote) gets the file's own name, and a destination that is the file itself does nothing. A different file already at the destination is overwritten, an identical one (same size and modification time or checksum) is left alone, and the original stays where it is. Copy to is off for folders and for several selected items (use Copy or Download), for every top-level row of the tree (the first row and each typed path) and in the Google Drive "Shared with me" and "Trash" views (use Download), and on a row that is still loading or shows a listing error ([Is there a Copy button?](#faq-copy-action)). Between two different remotes the data normally passes through this computer.
 
 Issues: [#192](https://github.com/kapitainsky/RcloneBrowser/issues/192)
 
 <a id="faq-upload-from-url"></a>**Can I upload a file straight from a URL to a remote?**
 
-Yes. Select a folder (or the top row, the root of the remote) in a remote tab and choose "Upload from URL…" in the right-click menu or in the Tools menu; it is off for files, for several selected items and in the Google Drive "Shared with me" and "Trash" views. Enter an http or https address with a host name: OK stays disabled until there is one, and while "Name the file from the URL" is unticked it also needs a "File name" without `/`. The job runs `rclone copyurl` and puts the file into the selected folder. The file is downloaded by this computer and uploaded to the remote; the remote does not fetch the address itself. With "Name the file from the URL" ticked, rclone names the file after the last part of the address' path, after any redirects and without the query string (`.../f%201.txt` becomes `f 1.txt`). An address whose path, after any redirects, is empty or only `/` (such as `https://example.com/`) fails with `file name wasn't found in url`, and one that ends with a folder (such as `https://example.com/downloads/`) gives a file named after that folder (`downloads`): in both cases untick the box and type the "File name". The `Content-Disposition` name that a server may send is not used. "Do not overwrite an existing file" adds `--no-clobber`: when the file exists the job ends with an error (`CopyURL failed: file already exist`) and leaves it as it is; without it an existing file of that name is replaced. The address is shown in the job panel (its title, its source field and the tooltip of its Output button), in the command that the job's copy button copies, in the notification when the job ends (if those notifications are on), at the top of the `--log-file` if you set one, and in rclone's error messages. It is also part of the rclone command line, which other users of the machine can see in the process list: do not use an address that carries a password or a secret token.
+Yes. Select a folder in a remote tab (a top-level row counts too: the first row, which is the remote's default folder, or a typed path such as `/`, see [Navigation](#navigation)) and choose "Upload from URL…" in the right-click menu or in the Tools menu; it is off for files, for several selected items and in the Google Drive "Shared with me" and "Trash" views. Enter an http or https address with a host name: OK stays disabled until there is one, and while "Name the file from the URL" is unticked it also needs a "File name" without `/`. The job runs `rclone copyurl` and puts the file into the selected folder. The file is downloaded by this computer and uploaded to the remote; the remote does not fetch the address itself. With "Name the file from the URL" ticked, rclone names the file after the last part of the address' path, after any redirects and without the query string (`.../f%201.txt` becomes `f 1.txt`). An address whose path, after any redirects, is empty or only `/` (such as `https://example.com/`) fails with `file name wasn't found in url`, and one that ends with a folder (such as `https://example.com/downloads/`) gives a file named after that folder (`downloads`): in both cases untick the box and type the "File name". The `Content-Disposition` name that a server may send is not used. "Do not overwrite an existing file" adds `--no-clobber`: when the file exists the job ends with an error (`CopyURL failed: file already exist`) and leaves it as it is; without it an existing file of that name is replaced. The address is shown in the job panel (its title, its source field and the tooltip of its Output button), in the command that the job's copy button copies, in the notification when the job ends (if those notifications are on), at the top of the `--log-file` if you set one, and in rclone's error messages. It is also part of the rclone command line, which other users of the machine can see in the process list: do not use an address that carries a password or a secret token.
 
 Issues: [#199](https://github.com/kapitainsky/RcloneBrowser/issues/199)
 
 <a id="faq-serve"></a>**How do I serve a folder over http, webdav, ftp, sftp, dlna, nfs, restic or s3 (Serve…)?**
 
-Select a folder (or the top row, the root of the remote) in a remote tab and choose "Serve…" in the right-click menu or in the Tools menu. It is off for files, for several selected items, in the Google Drive "Shared with me" and "Trash" views, on a row that is still loading or shows a listing error, and while the [private backend](#backend) is not running (its tooltip then says "Requires the rclone backend"): the serve runs inside that backend and works like `rclone serve` on the command line. The "Serve" dialog shows the folder and asks for the "Type", the "Address", an optional "User" and "Password", and "Read only". OK closes the dialog, starts the serve and opens the "Serves" window; when rclone refuses (a port already in use, a type your rclone does not have) its error text appears in a message box instead: choose "Serve…" again and change the setting. File > "Serves…" opens the window at any time. It lists the running serves with their Type, the Source folder and their URL; select one and use "Copy URL" to copy its URL, "Stop" to end it, or "Refresh" to load the list again. Closing the window does not stop any serve. When the backend is not running the window shows `rclone daemon is not running` instead of a list.
+Select a folder in a remote tab (a top-level row counts too: the first row, which is the remote's default folder, or a typed path such as `/`, see [Navigation](#navigation)) and choose "Serve…" in the right-click menu or in the Tools menu. It is off for files, for several selected items, in the Google Drive "Shared with me" and "Trash" views, on a row that is still loading or shows a listing error, and while the [private backend](#backend) is not running (its tooltip then says "Requires the rclone backend"): the serve runs inside that backend and works like `rclone serve` on the command line. The "Serve" dialog shows the folder and asks for the "Type", the "Address", an optional "User" and "Password", and "Read only". OK closes the dialog, starts the serve and opens the "Serves" window; when rclone refuses (a port already in use, a type your rclone does not have) its error text appears in a message box instead: choose "Serve…" again and change the setting. File > "Serves…" opens the window at any time. It lists the running serves with their Type, the Source folder and their URL; select one and use "Copy URL" to copy its URL, "Stop" to end it, or "Refresh" to load the list again. Closing the window does not stop any serve. When the backend is not running the window shows `rclone daemon is not running` instead of a list.
 
 The types are the ones the backend's rclone offers (`serve/types`: dlna, ftp, http, nfs, restic, s3, sftp and webdav for rclone 1.75.2; rclone builds nfs for Unix only, so Windows does not list it). Until the backend answers, or if it cannot, the dialog offers these eight types. The dialog adapts to the chosen type:
 
@@ -607,7 +622,7 @@ Issues: [#129](https://github.com/kapitainsky/RcloneBrowser/issues/129)
 
 <a id="faq-several-mounts"></a>**How do I mount several remotes, or one remote twice, with different options?**
 
-Each mount is its own rclone process, so any number can run at once; each needs its own mount point (a folder, or a drive letter on Windows). If you set a fixed RC port in the Mount dialog, each mount also needs its own port: the rclone error "Only one usage of each socket address" means the port is taken, and 0 picks a free one. The Mount dialog keeps one set of options for all remotes (see Known limitations), so save each mount with "Save task" and run it from the Tasks tab: every task keeps its own options.
+Each mount is its own rclone process, so any number can run at once; each needs its own mount point (a folder, or a drive letter on Windows). If you set a fixed RC port in the Mount dialog, each mount also needs its own port: the error "Only one usage of each socket address" (Windows) or "address already in use" (Linux, macOS) in the mount's output means the port is taken, and 0 picks a free one. The Mount dialog keeps one set of options for all remotes (see Known limitations), so save each mount with "Save task" and run it from the Tasks tab: every task keeps its own options.
 
 Issues: [#180](https://github.com/kapitainsky/RcloneBrowser/issues/180), [#185](https://github.com/kapitainsky/RcloneBrowser/issues/185)
 
@@ -639,7 +654,7 @@ Issues: [#133](https://github.com/kapitainsky/RcloneBrowser/issues/133)
 
 <a id="faq-bandwidth-limit"></a>**Is there a global bandwidth limit?**
 
-No. `--bwlimit` (the Bandwidth field of the Transfer dialog, or Default rclone options, or Extra options) is enforced inside one rclone process, and every job of Rclone Browser is its own rclone process. Three concurrent jobs limited to 8M each can use about 24M together. Divide the limit by the number of jobs you run at the same time, or run them one after the other through the [queue](#faq-run-tasks-one-by-one).
+No. `--bwlimit` (the Bandwidth field of the Transfer dialog, or Default rclone options, or Extra Options) is enforced inside one rclone process, and every job of Rclone Browser is its own rclone process. Three concurrent jobs limited to 8M each can use about 24M together. Divide the limit by the number of jobs you run at the same time, or run them one after the other through the [queue](#faq-run-tasks-one-by-one).
 
 Issues: [#116](https://github.com/kapitainsky/RcloneBrowser/issues/116)
 
@@ -651,7 +666,7 @@ Issues: [#235](https://github.com/kapitainsky/RcloneBrowser/issues/235)
 
 <a id="faq-remember-options"></a>**Can the dialogs remember my Extra options and mount point?**
 
-Yes: Preferences, "Remember dialogs' last used options" (on by default) makes the Transfer, Export and Mount dialogs open with the options you used last, including Extra options and the mount point text. The remembered set is one per dialog type, shared by all remotes, and the mount point's browse button does not start in it. Save a transfer or mount as a task to keep its own options. Options that every upload or download should get belong in Preferences, "Default upload options" and "Default download options".
+Yes: Preferences, "Remember dialogs' last used options" (on by default) makes the Transfer, Export and Mount dialogs and the remote tab's Move and Copy dialog open with the options you used last, including Extra options and the mount point text (not the upload headers and S3 object tags, see [Uploads: headers and S3 tags](#uploads-headers-and-s3-tags)). The remembered set is one per dialog type, shared by all remotes, and the mount point's browse button does not start in it. Save a transfer or mount as a task to keep its own options. Options that every upload or download should get belong in Preferences, "Default upload options" and "Default download options".
 
 Issues: [#136](https://github.com/kapitainsky/RcloneBrowser/issues/136), [#215](https://github.com/kapitainsky/RcloneBrowser/issues/215)
 
@@ -665,7 +680,7 @@ Issues: [#119](https://github.com/kapitainsky/RcloneBrowser/issues/119), [#128](
 
 <a id="faq-sftp-outside-home"></a>**How do I get outside my home folder on an SFTP remote?**
 
-With rclone's SFTP backend a path that does not start with `/` is relative to the user's home folder, and `remote:/` is the root of the server (the machine's `/`, or the top of the account's folder when the server confines the user to it). Type `/`, or an absolute path such as `/home/samba/x`, into the path field of the remote's tab and press Enter or "Go": it opens as a new top-level row below the first one; both are shown as `/`, and the path field shows `nas:` for the home folder and `nas:/` for the root ([Navigation](#navigation)). An alias remote whose `remote` is `nas:/` gives the root as a remote of its own. In the Transfer dialog, the field next to the `nas:` label (the source of a download, the destination of an upload) also takes an absolute path such as `/home/samba/x`, typed without the `nas:` prefix.
+With rclone's SFTP backend a path that does not start with `/` is relative to the user's home folder, and `remote:/` is the root of the server (the machine's `/`, or the top of the account's folder when the server confines the user to it). Type `/`, or an absolute path such as `/home/samba/x`, into the path field of the remote's tab and press Enter or "Go": it opens as a new top-level row below the first one, named after the path (for `/` both rows are shown as `/`), and the path field shows `nas:` for the home folder and `nas:/` for the root ([Navigation](#navigation)). An alias remote whose `remote` is `nas:/` gives the root as a remote of its own. In the Transfer dialog, the field next to the `nas:` label (the source of a download, the destination of an upload) also takes an absolute path such as `/home/samba/x`, typed without the `nas:` prefix.
 
 Issues: [#153](https://github.com/kapitainsky/RcloneBrowser/issues/153)
 
@@ -715,13 +730,13 @@ Issues: [#203](https://github.com/kapitainsky/RcloneBrowser/issues/203)
 
 <a id="faq-portable-mode"></a>**Is there a portable version?**
 
-Yes, every platform supports it. Create the `.ini` file or `.config` folder next to the program as described in [Portable vs standard mode](#portable-vs-standard-mode), and settings, tasks and the rclone and rclone.conf locations stay with the program, so Rclone Browser, rclone and a config fit on a memory stick.
+Yes, on Windows, on macOS and with the Linux AppImage. Create the `.ini` file or `.config` folder next to the program as described in [Portable vs standard mode](#portable-vs-standard-mode), and settings, tasks and the rclone and rclone.conf locations stay with the program, so Rclone Browser, rclone and a config fit on a memory stick.
 
 Issues: [#222](https://github.com/kapitainsky/RcloneBrowser/issues/222)
 
 <a id="faq-release-assets"></a>**Is there a build for Apple Silicon, Windows ARM64 or a NAS?**
 
-The releases have a macOS Apple Silicon DMG and a Windows ARM64 zip, and rclone installs with Homebrew (`brew install rclone`); a third-party docker image for NAS systems is linked from [How to get it](#how-to-get-it) (it may ship an older version). There is no Linux ARM build: on those systems build from source.
+The releases have a macOS Apple Silicon DMG and a Windows ARM64 zip, and rclone installs with Homebrew (`brew install rclone`; for Mount use the rclone.org binary, see [How to get it](#how-to-get-it)); a third-party docker image for NAS systems is linked from [How to get it](#how-to-get-it) (it may ship an older version). There is no Linux ARM build: on those systems build from source.
 
 Issues: [#161](https://github.com/kapitainsky/RcloneBrowser/issues/161), [#240](https://github.com/kapitainsky/RcloneBrowser/issues/240), [#164](https://github.com/kapitainsky/RcloneBrowser/issues/164)
 
@@ -739,6 +754,8 @@ Issues: [#161](https://github.com/kapitainsky/RcloneBrowser/issues/161), [#240](
 
 History
 --------
+*The story of the project up to 2020, in the words of kapitainsky, the upstream maintainer. What this fork changed is in [Fork changes](#fork-changes).*
+
 I have been using rclone-browser for long time and being annoyed by small not working bits and pieces I decided for DYI approach and this is how this repo was created. Original mmozeiko’s [repository](https://github.com/mmozeiko/RcloneBrowser) was abandoned and in the meantime rclone changed few things breaking rclone-browser functionality.
 
 I looked around but could not find anything fully working. Some github users made progress in fixing and adding stuff so I built upon it.
@@ -752,8 +769,7 @@ I fixed whatever I found not working and added various tweaks enhancing function
 [5]: https://github.com/manprint/RcloneBrowser/blob/master/LICENSE
 [6]: https://www.videolan.org
 [7]: https://aur.archlinux.org/packages/rclone-browser
-[8]: https://docs.microsoft.com/en-us/visualstudio/releases/2019/release-notes
-[9]: http://www.cmake.org/
+[9]: https://cmake.org/
 [10]: https://www.qt.io/download-open-source/
 [img3]: https://img.shields.io/github/downloads/manprint/RcloneBrowser/total.svg?maxAge=3600
 [img4]: https://img.shields.io/github/release/manprint/RcloneBrowser.svg?maxAge=3600
