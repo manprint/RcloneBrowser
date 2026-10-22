@@ -1,5 +1,17 @@
 # Change Log
 
+## [2.0.0] - unreleased
+Changes since 2.0.0-beta.1. The older `[2.0.0] - 2020-03-` section further down is upstream's development history, not this release.
+
+-   NEW: a private `rclone rcd` backend lists folders; it listens on `127.0.0.1` with a random port and gets random credentials through its environment. `rclone lsjson` remains the fallback when the backend is unavailable or "Default rclone options" is set
+-   NEW: remotes are created and edited in a native dialog: provider list with a filter, one question per page with rclone's help text, browser sign-in for OAuth backends. Cancel while creating removes the half-created remote
+-   NEW: "Edit remote…" and "Advanced (terminal)…" in a remote's context menu; "Advanced (terminal)…" opens `rclone config` in a terminal
+-   NEW: mounts started with a remote control port show a "Refresh cache" button (rclone's `vfs/refresh`)
+-   NEW: protocol tests against isolated sftp, FTP, WebDAV and S3 (MinIO) servers in local containers (`scripts/dev.sh servers`)
+-   CHANGED: mount rc credentials reach rclone through the environment, never the command line; `--rc-user` and `--rc-pass` typed into the mount options are removed
+-   CHANGED: mount scripts get `RCLONE_RC_USER`, `RCLONE_RC_PASS` and `RB_RC_PORT` in their environment; the positional arguments `$3` (rc user) and `$4` (rc password) still work but are deprecated
+-   CHANGED: the main window code is split into `main_window.cpp` and `main_window_tasks.cpp`, guarded by a snapshot test of the window's widgets and actions
+
 ## [2.0.0-beta.1] - 2026-10-22
 Rclone Browser 2.x by the manprint fork. The [2.0.0] section below is upstream's unreleased development history that this fork builds on.
 

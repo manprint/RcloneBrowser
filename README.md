@@ -308,6 +308,12 @@ Building the images is the only step that needs network access: run `scripts/dev
 
 `scripts/dev.sh servers` runs the protocol tests (`ctest -L servers`) against real sftp, FTP, WebDAV and S3 (MinIO) servers in local containers. Each run creates its own Docker network with `--internal`, starts the four servers and the test container on it, and removes all of them when the run ends, whatever the outcome. No port is published, so nothing is reachable from the host or the LAN, and the containers cannot reach any other host. The servers use fixed test credentials; your rclone configuration is never mounted. Outside this command the protocol tests skip themselves, and CI never runs them.
 
+Source layout:
+
+*   `src/`: the application. Everything except `main.cpp` and the resources is built as the static library `rclone-browser-core`, which the app and the tests link. The main window is split into `main_window.cpp` (construction, actions, remotes, jobs, tray) and `main_window_tasks.cpp` (tasks, queue and scheduler).
+*   `tests/`: Qt Test programs. `tst_*.cpp` are unit tests (`ctest -L unit`); `tst_e2e_*.cpp` are end-to-end tests (`ctest -L e2e`), most of which run the real rclone against temporary local folders. `tests/servers/` holds the protocol tests (`ctest -L servers`) and the WebDAV server's Dockerfile, and `tests/support/` the shared test helpers.
+*   `tests/fixtures/`: `rclone-1.75/` holds outputs recorded from rclone 1.75 (`scripts/dev.sh fixtures`); `synthetic/` holds hand-written inputs and the golden main window snapshot.
+
 Portable vs standard mode
 -----------------------
 
