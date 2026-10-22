@@ -37,6 +37,8 @@ Table of contents
 *   [Development (Docker)](#development-docker)
 *   [Portable vs standard mode](#portable-vs-standard-mode)
 *   [Transfers and logging](#transfers-and-logging)
+*   [Navigation](#navigation)
+*   [Search](#search)
 *   [Keyboard shortcuts](#keyboard-shortcuts)
 *   [rclone version, updates and config password](#rclone-version-updates-and-config-password)
 *   [Backend](#backend)
@@ -81,6 +83,7 @@ Compared with upstream, this fork includes the following. The full list is in [C
 *   Folder listings go through a private `rclone rcd` backend (with `rclone lsjson` as the fallback), and mounts get their remote-control credentials through the environment instead of the command line, with a new "Refresh cache" button (see [Backend](#backend))
 *   From the upstream issue sweep: copied rclone commands of tasks, jobs and mounts quoted for your shell, Duplicate task, an option to skip the question before Run, Restart for ended jobs, ordered include and exclude rules, a folder Move that merges into an existing folder and can remove the emptied source, a Create folder dialog with a working Cancel and a timeout, a "Terminal command" preference, a message with a Preferences button instead of a quit when rclone is missing or fails, and a remote button row that scrolls instead of widening the window (see [FAQ and known limitations](#faq-and-known-limitations))
 *   New in 2.1.0 (not released yet): a "Bisync" mode in the Transfer dialog (`rclone bisync`: two-way sync with First run / resync, conflict resolution, Resilient, Recover and a workdir), and "Copy to…" (`rclone copyto`), "Upload from URL…" (`rclone copyurl`) and "Serve…" (`rclone serve`: a folder over http, webdav, ftp, sftp, dlna, nfs, restic or s3) in a remote's right-click and Tools menus, with the running serves in a "Serves" window of the File menu (see [Bisync](#faq-bisync), [Copy to…](#faq-copy-to), [Upload from URL…](#faq-upload-from-url) and [Serve…](#faq-serve))
+*   Also new in 2.1.0 (not released yet): the path field of a remote tab is editable (type a path and press Enter or "Go"; this is also how you open an item of an Internet Archive remote), the Tasks and Jobs tabs have a "Filter" field, and the main actions have keyboard shortcuts (see [Navigation](#navigation), [Search](#search) and [Keyboard shortcuts](#keyboard-shortcuts))
 *   Changed: minimum rclone is 1.75.0; remotes are listed case-sensitively (uppercase first); Travis CI and AppVeyor are removed and GitHub Actions builds every platform
 
 Sample screenshots
@@ -358,6 +361,30 @@ Rclone Browser reads the progress of every transfer (stats, per-file progress an
 *   rclone's logging environment variables (`RCLONE_VERBOSE`, `RCLONE_LOG_LEVEL`, `RCLONE_LOG_FILE`, `RCLONE_STATS*`, `RCLONE_USE_JSON_LOG`, `RCLONE_PROGRESS`, `RCLONE_QUIET`, `RCLONE_COLOR`, ...) are not passed to the rclone processes whose output the app reads. `RCLONE_LOG_FILE` and `RCLONE_LOG_LEVEL` still count as `--log-file` and `--log-level` for transfers. All other `RCLONE_*` settings apply as usual; the `rclone config` terminal keeps the full environment.
 *   Combined short flags such as `-vP` are passed to rclone unchanged; write logging flags separately.
 
+Navigation
+----------
+
+The path field above the file list of a remote tab is editable. Type a path and press Enter, or press "Go" next to the field, to open it:
+
+*   The typed path becomes a new top-level row of the tab, named after the path, which is selected and listed. A path that already has a typed row selects that row instead of adding a second one. The file list takes the focus and the field shows `remote:path` for the selected folder. If the listing fails (for example `directory not found`), rclone's error shows in a warning row under the new row, like for any other folder. On bucket-based remotes such as S3, a folder that does not exist inside an existing bucket opens as an empty row, with no warning.
+*   The `remote:` prefix of the tab's own remote is accepted and removed (`gd:Photos` and `Photos` open the same folder in a `gd` tab); any other prefix stays part of the path. Spaces before and after what you type, repeated `/` and a trailing `/` are dropped (a space right after `remote:` is kept), and an empty field does nothing. Otherwise the path goes to rclone as typed; on Windows a local path is also tidied (`\` becomes `/`, `.` and `..` are resolved). On Windows, where a local remote lists the drives, the field takes drive paths such as `C:\Users`, and a bare `C:` means the root of that drive.
+*   A path with and without a leading `/` can be two different places. The first row of a tab is shown as `/` but stands for `remote:`, the default folder of the remote (the field shows `remote:`). On an SFTP or FTP remote that is the home or login folder of the user, and typing `/` adds a second row, also shown as `/`, for the root of the server (the field shows `remote:/`) ([SFTP outside the home folder](#faq-sftp-outside-home), [FTP and MLSD](#faq-ftp-mlsd)). On remotes where `remote:` and `remote:/` are the same place, typing `/` adds a second row for the same folder.
+*   A typed row is a top-level row, like the first one: Rename, Copy, Move, Delete, Link and Copy to… are off for it, also in a selection of several rows, and work on the files and folders inside it. Mount works on it (Mount on a typed `/` row mounts `remote:/`). Typed rows exist only in their tab and are not saved. On a Google Drive tab, changing the mode (Main, Shared with me, Trash) removes them. While that change waits for running listings (and for the icons of files in typed rows), the field blinks "Please wait - finishing background jobs", is read-only, and Enter and "Go" do nothing.
+*   While the cursor stays in the field, what you typed is kept when the selection of the list changes by itself (for example when a listing ends). Clicking a row moves the cursor to the list, and the field then shows the path of that row. Esc puts back the path of the selection and moves the focus to the list. Ctrl+L ("Go to path") moves the cursor into the field and selects its text, from anywhere in the tab ([Keyboard shortcuts](#keyboard-shortcuts)).
+*   Internet Archive: a remote of that type is browsed by item identifier, so its tab does not list the first row when it opens. The cursor starts in the path field, with the hint "Enter an Internet Archive item identifier and press Go". Type the identifier of an item (the part right after `archive.org/details/`, up to the next `/`) and press "Go": its files are listed under a new row.
+
+Search
+------
+
+The Tasks tab and the Jobs tab each have a "Filter" field above their list; its clear button empties it. Type to hide the rows that do not match, clear the field to show them all. Ctrl+F, on the Tasks or Jobs tab, moves the cursor into its field and selects its text; on the other tabs it does nothing ([Keyboard shortcuts](#keyboard-shortcuts)).
+
+*   The text is split at spaces. A row is shown only when every word occurs in it, in any letter case and also inside a longer word (`pho` finds `Photos`). Different words may match different texts of the row. There are no quotes, wildcards or exclusions.
+*   Tasks: the filter looks at the task's name as the list shows it (a scheduled task ends with ` (*Sch)`, a mount task started with the program with ` (*auto)`), its source and its destination. Saved, edited and deleted tasks keep following the filter.
+*   Jobs: the filter looks at the job's title line, its source and its destination (a mount: title line, remote and folder; a stream: title line, remote and player command). A title line longer than 140 characters is shown shortened in the middle, and only the shortened text is searched; source and destination are searched in full. A job that starts while the filter is set follows it.
+*   The filter only hides rows: the count in the title of the Jobs tab still counts every running job, Stop All still stops every running transfer, and Clean still removes every inactive job, hidden ones included (its question counts them all). In the Tasks tab every action works on the selected tasks, and a hidden task is never selected: select all takes only the rows you see. A filter that hides everything shows an empty list.
+*   Clicking the tray message about an ended transfer ("Rclone Browser - transfer finished", "... error" or "... stopped", shown when "Notify about finished transfers" is on in Preferences) clears the Jobs filter when the filter hides that job (not for macOS notifications, which cannot be clicked in this way).
+*   The filter texts are not saved. The Remotes, Queue and Scheduler tabs and the file list of a remote tab have no filter. Sorting of the Tasks and Jobs lists is unchanged.
+
 Keyboard shortcuts
 ------------------
 
@@ -632,13 +659,13 @@ Issues: [#136](https://github.com/kapitainsky/RcloneBrowser/issues/136), [#215](
 
 <a id="faq-ftp-mlsd"></a>**What can I do about "500 MLSD command not understood" on FTP?**
 
-Both reporters found that rclone listed their server when the path started with `/` (`remote:/`) and failed with this error without it (`remote:`), so the server may accept MLSD for `/` only. Rclone Browser opens a remote at its default folder and cannot be pointed at `/` yet, so create an alias remote whose `remote` is `ftpname:/` (for example `[tnas-root]`, `type = alias`, `remote = tnas-ftp:/`) and browse or mount that, as for [SFTP](#faq-sftp-outside-home). If a server really lacks MLSD, rclone's FTP backend has the option `disable_mlsd` ("Disable using MLSD even if server advertises support") that may help: set `disable_mlsd = true` in the remote's section of rclone.conf, for example through "Advanced (terminal)…", or start Rclone Browser with `RCLONE_FTP_DISABLE_MLSD=true`, which applies to every FTP remote.
+Both reporters found that rclone listed their server when the path started with `/` (`remote:/`) and failed with this error without it (`remote:`), so the server may reject an `MLSD` without a folder argument, which is what rclone sends for `remote:`; for `remote:/` it sends `MLSD /`. Rclone Browser opens a remote at its default folder, but you can type `/` into the path field of the remote's tab and press Enter or "Go": that lists `remote:/` as a new top-level row ([Navigation](#navigation)), and Mount on that row mounts `remote:/`. To have the root in the remote list, so you do not type it again in every tab, create an alias remote whose `remote` is `ftpname:/` (for example `[tnas-root]`, `type = alias`, `remote = tnas-ftp:/`) and browse or mount that, as for [SFTP](#faq-sftp-outside-home). If a server really lacks MLSD, rclone's FTP backend has the option `disable_mlsd` ("Disable using MLSD even if server advertises support") that may help: set `disable_mlsd = true` in the remote's section of rclone.conf, for example through "Advanced (terminal)…", or start Rclone Browser with `RCLONE_FTP_DISABLE_MLSD=true`, which applies to every FTP remote.
 
 Issues: [#119](https://github.com/kapitainsky/RcloneBrowser/issues/119), [#128](https://github.com/kapitainsky/RcloneBrowser/issues/128)
 
 <a id="faq-sftp-outside-home"></a>**How do I get outside my home folder on an SFTP remote?**
 
-With rclone's SFTP backend a path that does not start with `/` is relative to the user's home folder, and `remote:/` is the root of the machine. Rclone Browser cannot be pointed at `/` yet (a path field is planned), so either create an alias remote whose `remote` is `nas:/` and browse that, or type an absolute path such as `/home/samba/x` into the source or destination field of the Transfer dialog.
+With rclone's SFTP backend a path that does not start with `/` is relative to the user's home folder, and `remote:/` is the root of the server (the machine's `/`, or the top of the account's folder when the server confines the user to it). Type `/`, or an absolute path such as `/home/samba/x`, into the path field of the remote's tab and press Enter or "Go": it opens as a new top-level row below the first one; both are shown as `/`, and the path field shows `nas:` for the home folder and `nas:/` for the root ([Navigation](#navigation)). An alias remote whose `remote` is `nas:/` gives the root as a remote of its own. In the Transfer dialog, the field next to the `nas:` label (the source of a download, the destination of an upload) also takes an absolute path such as `/home/samba/x`, typed without the `nas:` prefix.
 
 Issues: [#153](https://github.com/kapitainsky/RcloneBrowser/issues/153)
 

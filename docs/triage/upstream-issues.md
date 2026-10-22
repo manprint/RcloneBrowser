@@ -79,17 +79,17 @@ Count: 15
 
 | # | Title | Created | Disposition | Plan unit | Fork status | User OK |
 |---|---|---|---|---|---|---|
-| #16 | Manually enter path to browse | 2019-10-01 | in-plan 10.1 | 10.1 | planned in 10.1 |  |
-| #21 | Requests: Sorting Task list and Search box | 2019-10-20 | in-plan 10.2 | 10.2 | planned in 10.2; the search filter is planned there, sorting stays as it is |  |
+| #16 | Manually enter path to browse | 2019-10-01 | in-plan 10.1 | 10.1 | fixed in 10.1 (T_PATH_NORMALIZE, T_PATH_PREFIX, T_PATH_ROOTLESS, T_E2E_PATH_GO, T_E2E_PATH_DUP, T_E2E_PATH_MISSING, T_E2E_PATH_MULTI); the path field of a remote tab is editable, Enter or Go opens the typed path as a top-level row, see README#navigation; the e2e tests run on Linux only, the Windows drive paths are covered by the unit test and code reading only, and no real Internet Archive remote is used |  |
+| #21 | Requests: Sorting Task list and Search box | 2019-10-20 | in-plan 10.2 | 10.2 | fixed in 10.2 (T_FILTER_MATCH, T_E2E_FILTER_TASKS, T_E2E_FILTER_JOBS, T_E2E_FILTER_FIELDS); a Filter field above the Tasks list and the Jobs list, see README#search; sorting stays as it is (the Tasks tab keeps its existing sort button); the tray-message click that clears the Jobs filter and the filter branches of mount and stream jobs are code reading only, no test; the e2e tests run on Linux only |  |
 | #28 | Move files and folders on remotes using drag and drop | 2019-10-27 | deferred | — | deferred: not in plan 001: phase 11 (drag between remote views) was dropped by revision 25 at the user's request; moving uses the existing Move action of the remote tab |  |
 | #47 | Suggestion: Multilanguage | 2019-12-01 | deferred | — | deferred: not in plan 001: phase 12 (i18n) was dropped by revision 25, the user keeps the English interface |  |
 | #71 | dual pane interface | 2020-01-31 | deferred | — | deferred: not in plan 001: phase 11 (dual pane) was dropped by revision 25, the user keeps the current single-view interface |  |
-| #94 | Keyboard shortcuts | 2020-03-18 | in-plan 10.3 | 10.3 | planned in 10.3 |  |
+| #94 | Keyboard shortcuts | 2020-03-18 | in-plan 10.3 | 10.3 | fixed in 10.3 (T_SC_REMOTE_CONTEXT, T_SC_UNIQUE, T_SC_MAINWINDOW); keys for the main actions of a remote tab, the Tasks tab and the main window, see README#keyboard-shortcuts; the tests check the actions, their key sequences and that no two share one, on Linux only (tst_shortcuts builds the main window like T-MW-SNAPSHOT); a pressed key is not simulated (key events offscreen are no reliable oracle) |  |
 | #112 | ETA field in transfers | 2020-04-28 | in-plan 1.4 | 1.4 | deferred: 1.4 shows the remaining duration and the Started and Finished times, not the clock time of the expected finish (README#faq-limit-eta) |  |
 | #129 | [Feature request] GUI context menu options for rclone "crypt"/"check"/"serve"? | 2020-07-31 | in-plan 9.1 | 9.1 | fixed in 9.1 (T_SRV_PARAMS, T_SRV_LIST, T_SRV_URL, T_SRV_FLOW, T_SRV_RULES, T_SRV_DIALOG, T_SRV_WINDOW, T_E2E_SERVE_HTTP, T_E2E_SERVE_RO, T_E2E_SERVE_BADTYPE, T_E2E_SERVE_QUIT, T_E2E_SERVE_TYPES); the serve part of the request: "Serve…" in a remote's menus and a "Serves" window, see README#faq-serve and README#faq-limit-serve; check and cryptcheck are the existing Check action of the remote tab and a crypt remote is created in the Config dialog like any provider, both by code reading only, no test |  |
 | #134 | Option to log errors to file | 2020-09-07 | in-plan 1.4 | 1.4 | fixed in 1.4 (T_E2E_JOB_LOGFILE); the output goes to the --log-file; that the file is written while the job runs, and that it holds error lines, is code reading and not asserted by a test |  |
 | #138 | Really wish RcloneBrowser could support multi language, I can help translate. | 2020-09-21 | deferred | — | deferred: not in plan 001: phase 12 (i18n) was dropped by revision 25, the user keeps the English interface |  |
-| #148 | Tap to edit path | 2020-11-20 | in-plan 10.1 | 10.1 | planned in 10.1 |  |
+| #148 | Tap to edit path | 2020-11-20 | in-plan 10.1 | 10.1 | fixed in 10.1 (T_E2E_PATH_GO, T_E2E_PATH_DUP, T_E2E_PATH_MISSING); the path field is editable, see README#navigation |  |
 | #195 | Check for updates | 2022-01-06 | in-plan 3.2 | 3.2 | deferred: background update checks exist (T_E2E_UPD_NEWER), switched in Preferences and run at most once a day; an on-demand menu entry is not offered |  |
 | #199 | Need Support Remote Upload For Url | 2022-02-07 | in-plan 8.2 | 8.2 | fixed in 8.2 (T_ACT_URL, T_ACT_COPYURL, T_E2E_COPYURL); the action runs rclone copyurl, named from the address path (after redirects) or by the name typed, see README#faq-upload-from-url and README#faq-limit-url-name |  |
 | #233 | Generate error log in real time? | 2024-03-14 | in-plan 1.4 | 1.4 | fixed in 1.4 (T_JOB_RENDER_ERR, T_E2E_JOB_LOGFILE); errors and their file show in the job panel's Errors tooltip and the output goes to the --log-file; that the file is written while the job runs, and that it holds error lines, is code reading and not asserted by a test |  |
@@ -168,7 +168,7 @@ Count: 15
 | #133 | --fast-list | 2020-08-27 | needs-user | — | answered (README#faq-fast-list) |  |
 | #153 | How to get outside $HOME using SFTP remote | 2020-12-18 | needs-user | — | answered (README#faq-sftp-outside-home) |  |
 | #154 | What is the difference between Dry Run and Run? | 2020-12-22 | deferred | — | answered (README#faq-dry-run) |  |
-| #157 | Previous issues | 2021-01-06 | needs-user | — | deferred: a list of suggestions with no reproducer; the path bar idea is planned in 10.1 (#16) |  |
+| #157 | Previous issues | 2021-01-06 | needs-user | — | deferred: a list of suggestions with no reproducer; the path bar idea is done in 10.1 (#16, see README#navigation) |  |
 | #180 | Mount multiple remotes | 2021-10-18 | needs-user | — | answered (README#faq-several-mounts) |  |
 | #185 | setting up configs on one of two mounts of same remote | 2021-11-11 | needs-user | — | answered (README#faq-several-mounts) |  |
 | #203 | Has this been abandoned? Any good forks? | 2022-03-20 | deferred | — | answered (README#faq-maintained) |  |
