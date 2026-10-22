@@ -123,6 +123,15 @@ Plan revision: 11.
 - **Unit tests:** `tests/tst_startup.cpp`: T-START-RCLONEPATH (`rcloneExecutableProblem` for an executable, a missing file, a directory and a non-executable file), T-START-TERMINAL (the candidate order for a set Preferences value, a set `$TERMINAL`, neither), T-START-MINWIDTH (#156), T-START-TABS (#201). Gate G-U14.4: `scripts/dev.sh test qt64 -- -R 'tst_startup|tst_mainwindow_snapshot'` passes with 4 functions (+1 snapshot).
 - **e2e tests:** `tests/tst_e2e_startup.cpp`: T-E2E-START-BADRCLONE: the app binary, offscreen, with a temp `XDG_CONFIG_HOME` whose settings point rclone to the `fclone` script, and then to a missing file, is alive after 8 s in both cases (#159). Gate G-U14.4e.
 - **Done:** gates pass; R-REPRO outcomes recorded; reviews; unit closed; completion commit.
+- **Revision 18** (agent-1:opus, from the 14.4 prefetch read on the 14.3 tree; replaces the matching points above):
+  - #159: the `fclone` and missing-file rows already survive on the base; the quit comes from an executable that exits non-zero without output. T-E2E-START-BADRCLONE gets the rows `control`, `fclone`, `missing`, `exit1` and `/bin/false`; the fix logs `rclone problem: <text> <path>` and the test asserts it for every non-control row.
+  - The problem message is a non-blocking box (`open()`, objectName `rcloneProblemBox`, one at a time) with a button that opens Preferences; the version-policy case keeps its blocking dialog; a cancelled config-password prompt still quits.
+  - `rcloneExecutableProblem` resolves a bare command name through PATH (`QStandardPaths::findExecutable`).
+  - #175: `Settings/terminalCommand` is a program name or absolute path without arguments; a value that is not found falls through (with a warning); the Preferences row is hidden on Windows and macOS; `terminalCandidates(…, preferred)` plus a testable `findTerminal`.
+  - #156/#228: T-START-MINWIDTH also measures the status label with the version text and one remote tab in each button style; a failing case is fixed by layout policy in `src/remote_widget.cpp/.ui` (added to the files).
+  - #208: the feature exists (`Settings/startMinimisedToTray`): no code change, answered in 14.5. #209 is covered by T-START-RCLONEPATH (the Preferences button and an editable path field).
+  - Snapshot: the Config tooltip names the Preferences field (one changed line, plus any line of a #156 layout fix).
+  - Files: `src/terminal_command.h/.cpp`, `tests/CMakeLists.txt`. G-U14.4 runs `-R 'tst_startup|tst_mainwindow_snapshot|tst_copy_sites|tst_task_actions|tst_platform_helpers|tst_settings_defaults'`, G-U14.4e `-R 'tst_e2e_startup|tst_e2e_daemon|tst_e2e_terminal'`. Expected totals: G-UNIT 21, G-E2E 15.
 
 ### 14.5 README answers and triage (all remaining issues)
 - **Model:** agent-2:sonnet
