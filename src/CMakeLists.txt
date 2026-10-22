@@ -78,6 +78,7 @@ set(OTHER
   instance_lock.h
   terminal_command.h
   command_line.h
+  remote_ops.h
   rclone_process.h
   mount_launch.h
   job_options.h
@@ -118,6 +119,7 @@ set(SOURCE
   instance_lock.cpp
   terminal_command.cpp
   command_line.cpp
+  remote_ops.cpp
   rclone_process.cpp
   mount_launch.cpp
   transfer_monitor.cpp

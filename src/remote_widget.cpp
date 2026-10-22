@@ -11,6 +11,7 @@
 #include "mount_dialog.h"
 #include "progress_dialog.h"
 #include "remote_folder_dialog.h"
+#include "remote_ops.h"
 #include "transfer_dialog.h"
 #include "rclone_process.h"
 #include "utils.h"
@@ -602,33 +603,85 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
       pathMsg = metrix.elidedText(remote, Qt::ElideMiddle, 500) + ":";
     }
 
-    QString name = QInputDialog::getText(
-        this, "New Folder",
-        QString("Create folder in %1")
-                .arg("\"" + metrix.elidedText(pathMsg, Qt::ElideMiddle, 500)) +
-            "\"");
-    if (!name.isEmpty()) {
-      QString folder = path.filePath(name);
+    // the dialog asks for the name of the new folder; the parent is only in
+    // the title, and OK stays disabled for a name rclone cannot create
+    QDialog nameDialog(this);
+    nameDialog.setWindowTitle(
+        tr("Create folder in '%1'")
+            .arg(metrix.elidedText(pathMsg, Qt::ElideMiddle, 500)));
+    nameDialog.setMinimumWidth(400);
+    QVBoxLayout *nameLayout = new QVBoxLayout(&nameDialog);
+    QLineEdit *nameEdit = new QLineEdit(&nameDialog);
+    QLabel *nameLabel = new QLabel(tr("Folder name:"), &nameDialog);
+    nameLabel->setBuddy(nameEdit);
+    QDialogButtonBox *nameButtons = new QDialogButtonBox(
+        QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &nameDialog);
+    nameLayout->addWidget(nameLabel);
+    nameLayout->addWidget(nameEdit);
+    nameLayout->addWidget(nameButtons);
+    QPushButton *okButton = nameButtons->button(QDialogButtonBox::Ok);
+    okButton->setEnabled(false);
+    QObject::connect(nameEdit, &QLineEdit::textChanged, &nameDialog,
+                     [=](const QString &text) {
+                       okButton->setEnabled(
+                           RemoteOps::isValidFolderName(text));
+                     });
+    QObject::connect(nameButtons, &QDialogButtonBox::accepted, &nameDialog,
+                     &QDialog::accept);
+    QObject::connect(nameButtons, &QDialogButtonBox::rejected, &nameDialog,
+                     &QDialog::reject);
 
-      QString folderMsg = metrix.elidedText(
-          (isLocal ? QDir::toNativeSeparators(folder) : folder),
-          Qt::ElideMiddle, 500);
+    if (nameDialog.exec() != QDialog::Accepted) {
+      return;
+    }
+    const QString name = nameEdit->text();
+    if (!RemoteOps::isValidFolderName(name)) {
+      return;
+    }
 
-      QProcess process;
-      ApplyRcloneEnvironment(&process);
-      process.setProgram(GetRclone());
-      process.setArguments(QStringList()
-                           << "mkdir" << GetRcloneConf()
-                           << GetRemoteModeRcloneOptions()
-                           << GetDefaultOptionsList("defaultRcloneOptions")
-                           << remote + ":" + folder);
-      process.setProcessChannelMode(QProcess::MergedChannels);
+    QString folder = RemoteOps::joinPath(path.path(), name);
 
-      ProgressDialog progress("New Folder", "Creating...",
-                              "\"" + folderMsg + "\"", &process, this);
-      if (progress.exec() == QDialog::Accepted) {
-        model->refresh(index);
+    QString folderMsg = metrix.elidedText(
+        (isLocal ? QDir::toNativeSeparators(folder) : folder),
+        Qt::ElideMiddle, 500);
+
+    const QStringList common =
+        GetRcloneConf() + GetRemoteModeRcloneOptions() +
+        GetDefaultOptionsList("defaultRcloneOptions");
+
+    QProcess process;
+    ApplyRcloneEnvironment(&process);
+    process.setProgram(GetRclone());
+    process.setArguments(
+        RemoteOps::mkdirArgs(remote, path.path(), name, common));
+    process.setProcessChannelMode(QProcess::MergedChannels);
+
+    ProgressDialog progress("New Folder", "Creating...",
+                            "\"" + folderMsg + "\"", &process, this);
+    // without this the dialog's Cancel button stays disabled while a
+    // hanging mkdir runs
+    progress.allowToClose();
+
+    // a mkdir that does not answer is killed after the timeout (the timer
+    // goes away with the process, which outlives it)
+    bool timedOut = false;
+    QTimer::singleShot(RemoteOps::kMkdirTimeoutMs, &process, [&]() {
+      if (process.state() != QProcess::NotRunning) {
+        timedOut = true;
+        process.kill();
+        progress.reject();
       }
+    });
+
+    const bool created = progress.exec() == QDialog::Accepted;
+    if (timedOut) {
+      process.waitForFinished(3000);
+      QMessageBox::critical(
+          this, tr("Create folder"),
+          tr("The operation timed out after %1 seconds and was cancelled.")
+              .arg(RemoteOps::kMkdirTimeoutMs / 1000));
+    } else if (created) {
+      model->refresh(index);
     }
   });
 
@@ -946,15 +999,30 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
       return;
     }
 
+    const QStringList common =
+        GetRcloneConf() + GetRemoteModeRcloneOptions() +
+        GetDefaultOptionsList("defaultRcloneOptions");
+    // a single folder moves as a whole into the chosen location (L/F); a
+    // file, or the selection of several items, keeps its destination
+    const bool isFolderMove = !isMultiSelect && model->isFolder(index);
+    // the folder is already in the chosen location: rclone would do nothing
+    // (and the cleanup below must not remove it), so there is nothing to run
+    if (isFolderMove &&
+        RemoteOps::isSameLocation(
+            path, RemoteOps::folderMoveDest(
+                      path, model->path(destIndex).path()))) {
+      return;
+    }
+
     QProcess process;
     ApplyRcloneEnvironment(&process);
     process.setProgram(GetRclone());
-    process.setArguments(QStringList()
-                         << "move" << GetRcloneConf()
-                         << GetRemoteModeRcloneOptions()
-                         << GetDefaultOptionsList("defaultRcloneOptions")
-                         << remote + ":" + path << remote + ":" + destFolder
-                         << args);
+    process.setArguments(
+        isFolderMove ? RemoteOps::folderMoveArgs(
+                           remote, path, model->path(destIndex).path(), common,
+                           args)
+                     : RemoteOps::moveArgs(remote, path, destFolder, common,
+                                           args));
 
     process.setProcessChannelMode(QProcess::MergedChannels);
 
@@ -969,6 +1037,33 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
     progress.allowToClose();
 
     if (progress.exec() == QDialog::Accepted) {
+    }
+
+    // When the destination folder exists, or the backend cannot move a
+    // directory server side, rclone moves the files one by one and leaves the
+    // emptied source folder behind (upstream #171): remove it. rmdir fails
+    // harmlessly on a folder that is gone or not empty; the exit code of the
+    // move, not the dialog result, tells whether it succeeded.
+    if (isFolderMove) {
+      process.waitForFinished(3000);
+    }
+    if (RemoteOps::shouldCleanSource(
+            isFolderMove, mRemoteType, path,
+            RemoteOps::folderMoveDest(path, model->path(destIndex).path()),
+            process.state(), process.error(), process.exitStatus(),
+            process.exitCode(), args)) {
+      QApplication::setOverrideCursor(Qt::WaitCursor);
+      QProcess cleanup;
+      ApplyRcloneEnvironment(&cleanup);
+      cleanup.setProgram(GetRclone());
+      cleanup.setArguments(RemoteOps::sourceCleanupArgs(remote, path, common));
+      cleanup.setProcessChannelMode(QProcess::MergedChannels);
+      cleanup.start(QIODevice::ReadOnly);
+      if (!cleanup.waitForFinished(20000)) {
+        cleanup.kill();
+        cleanup.waitForFinished(2000);
+      }
+      QApplication::restoreOverrideCursor();
     }
 
     // Refresh

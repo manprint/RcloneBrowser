@@ -14,6 +14,7 @@
 #include "rc_client.h"
 #include "rclone_daemon.h"
 #include "rclone_process.h"
+#include "remote_ops.h"
 #include "transfer_monitor.h"
 #include "utils.h"
 
@@ -398,6 +399,86 @@ class TestSrvProtocols : public QObject {
            writeFile(d.filePath("sub/c.txt"), "cc");
   }
 
+  // The folder move of the remote browser (#171) on `base`: folder p/F goes
+  // into L, as L/F with the whole tree, and p/F is gone, while its parent p
+  // stays (p/keep.txt). With `merge`, L/F exists before with old.txt, which
+  // rclone cannot move as a directory. With `filtered`, a filter keeps
+  // p/F/stay.txt in the source, so p/F must survive the cleanup (rmdir
+  // refuses a folder that is not empty) and stay.txt must not reach L/F.
+  void moveFolderScenario(const QString &row, const QString &base, bool s3,
+                          bool merge, bool filtered) {
+    const QString remote = "rb-" + row;
+    const QString fs = remote + ":" + base;
+    purge(fs);
+
+    QTemporaryDir src, old;
+    QVERIFY(src.isValid() && old.isValid());
+    QVERIFY(seed(QDir(src.path())));
+    const QString oldFile = QDir(old.path()).filePath("old.txt");
+    QVERIFY(writeFile(oldFile, "old"));
+    const QString keepFile = QDir(old.path()).filePath("keep.txt");
+    QVERIFY(writeFile(keepFile, "keep"));
+    const QString stayFile = QDir(old.path()).filePath("stay.txt");
+    QVERIFY(writeFile(stayFile, "stay"));
+    QStringList expected = {"a b.txt", "[x] (y).txt", nameUmlaut(), "sub/",
+                            "sub/c.txt"};
+    QCOMPARE(runRclone({"copy", src.path(), fs + "/p/F"}), 0);
+    QCOMPARE(runRclone({"copyto", keepFile, fs + "/p/keep.txt"}), 0);
+    if (!s3) {
+      // S3 has no empty directories
+      QCOMPARE(runRclone({"mkdir", fs + "/p/F/empty"}), 0);
+      expected << "empty/";
+    }
+    if (merge) {
+      QCOMPARE(runRclone({"copyto", oldFile, fs + "/L/F/old.txt"}), 0);
+      expected << "old.txt";
+    }
+    if (filtered) {
+      QCOMPARE(runRclone({"copyto", stayFile, fs + "/p/F/stay.txt"}), 0);
+    }
+    expected.sort();
+
+    // the argv of the move action: the default options of the move dialog
+    QStringList extra = {"--create-empty-src-dirs", "--delete-empty-src-dirs",
+                         "--verbose"};
+    if (filtered) {
+      extra << "--filter" << "- stay.txt";
+    }
+    // runRclone puts --config first, so `common` is empty here
+    const QString srcPath = base + "/p/F";
+    const QString destParent = base + "/L";
+    const int rc = runRclone(
+        RemoteOps::folderMoveArgs(remote, srcPath, destParent, {}, extra));
+    QCOMPARE(rc, 0);
+    // the decision of the move action; the exit code of rmdir is not part of
+    // the oracle: it fails harmlessly when the folder is gone or not empty
+    if (RemoteOps::shouldCleanSource(
+            true, row, srcPath, RemoteOps::folderMoveDest(srcPath, destParent),
+            QProcess::NotRunning, QProcess::UnknownError,
+            QProcess::NormalExit, rc, extra)) {
+      runRclone(RemoteOps::sourceCleanupArgs(remote, srcPath, {}));
+    } else {
+      QFAIL("the cleanup was not requested");
+    }
+
+    QStringList names;
+    QVERIFY(listNames(fs + "/L/F", true, names));
+    QCOMPARE(names, expected);
+    // the parent of the moved folder is still there, with its own file
+    QVERIFY(listNames(fs + "/p", false, names));
+    QVERIFY2(names.contains("keep.txt"), qPrintable(names.join(',')));
+    if (filtered) {
+      // not empty, so rmdir left it alone
+      QVERIFY2(names.contains("F/") || names.contains("F"),
+               qPrintable(names.join(',')));
+      QVERIFY(listNames(fs + "/p/F", true, names));
+      QVERIFY2(names.contains("stay.txt"), qPrintable(names.join(',')));
+    } else {
+      QVERIFY2(!names.contains("F/") && !names.contains("F"),
+               qPrintable(names.join(',')));
+    }
+  }
+
   static QStringList seededRecords() {
     QStringList expected = {"a b.txt|0|6", "[x] (y).txt|0|2",
                             nameUmlaut() + "|0|3", "sub|1|-"};
@@ -656,6 +737,33 @@ private slots:
       QVERIFY(listNames("rb-s3:", false, names));
       QVERIFY2(names.contains("rbt/"), qPrintable(names.join(',')));
     }
+  }
+
+  // T-PROTO-MOVEFOLDER (#171): moving folder F of p into L gives L/F with the
+  // whole tree, fresh and into an existing L/F, and p/F is gone while p stays;
+  // with a filter, the cleanup leaves the p/F that still holds a file.
+  void T_PROTO_MOVEFOLDER_data() { addRows(); }
+  void T_PROTO_MOVEFOLDER() {
+    if (!inHarness()) {
+      QSKIP("run through scripts/dev.sh servers");
+    }
+    QFETCH(QString, row);
+    QFETCH(QString, prefix);
+
+    const bool s3 = row == "s3";
+    const QString base = prefix + "rb-mv";
+    const QString fs = "rb-" + row + ":" + base;
+    const auto cleanup = qScopeGuard([&]() { purge(fs); });
+
+    moveFolderScenario(row, base, s3, false, false);
+    if (QTest::currentTestFailed()) {
+      return;
+    }
+    moveFolderScenario(row, base, s3, true, false);
+    if (QTest::currentTestFailed()) {
+      return;
+    }
+    moveFolderScenario(row, base, s3, false, true);
   }
 };
 
