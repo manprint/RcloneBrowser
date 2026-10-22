@@ -9,6 +9,7 @@
 #include "item_model.h"
 #include "list_of_job_options.h"
 #include "mount_dialog.h"
+#include "path_entry.h"
 #include "progress_dialog.h"
 #include "rclone_daemon.h"
 #include "remote_folder_dialog.h"
@@ -125,6 +126,8 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
 #ifndef Q_OS_WIN
   isLocal = false;
 #endif
+  mRemote = remote;
+  mIsLocal = isLocal;
 
 #ifdef Q_OS_WIN
   // as with Fusion style in Windows QTreeView font size does not scale
@@ -534,7 +537,9 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
           ui.getInfo->setDisabled(false);
           ui.cleanup->setDisabled(false);
           updateServeAction();
-          ui.path->clear();
+          // Ctrl+L must work without a selection
+          ui.actionGoToPath->setDisabled(false);
+          setPathText(QString());
           return;
         }
 
@@ -564,7 +569,8 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
           }
 
           updateServeAction();
-          ui.path->clear();
+          ui.actionGoToPath->setDisabled(false);
+          setPathText(QString());
           return;
         }
 
@@ -661,8 +667,9 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
         }
 
         updateServeAction();
+        ui.actionGoToPath->setDisabled(false);
 
-        ui.path->setText(
+        setPathText(
             remote + ":" +
             (isLocal ? QDir::toNativeSeparators(path.path()) : path.path()));
       });
@@ -1939,7 +1946,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
         QTimer::singleShot(0, ui.tree, SLOT(setFocus()));
 
         ui.path->setAlignment(Qt::AlignLeft);
-        ui.path->clear();
+        setPathText(QString());
 
         mPreemptiveLoadingListDone.append(mRootIndex);
         QTimer::singleShot(200, Qt::CoarseTimer, this,
@@ -2009,6 +2016,9 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
                      menu.exec(ui.tree->viewport()->mapToGlobal(pos));
                    });
 
+  // the generic hint; a rootless remote below replaces it
+  ui.path->setPlaceholderText(tr("Type a path and press Enter"));
+
   if (isLocal) {
     QHash<QString, QPersistentModelIndex> drives;
 
@@ -2058,14 +2068,43 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
 
     mPreemptiveLoadingListDone.append(index);
 
-    ui.tree->expand(index);
-    QTimer::singleShot(200, Qt::CoarseTimer, this, SLOT(initialModelLoading()));
+    if (remoteTypeNeedsPathEntry(remoteType)) {
+      // the top level cannot be listed: no expand and no preloading, the user
+      // types where to go
+      ui.path->setPlaceholderText(
+          tr("Enter an Internet Archive item identifier and press Go"));
+      mPathText.clear();
+      ui.path->clear();
+      QTimer::singleShot(0, ui.path, [=]() { ui.path->setFocus(); });
+    } else {
+      ui.tree->expand(index);
+      QTimer::singleShot(200, Qt::CoarseTimer, this,
+                         SLOT(initialModelLoading()));
+    }
   }
 
   QShortcut *close = new QShortcut(QKeySequence::Close, this);
   QObject::connect(close, &QShortcut::activated, this, [=]() {
     auto tabs = qobject_cast<QTabWidget *>(parent);
     tabs->removeTab(tabs->indexOf(this));
+  });
+
+  // the path field: type a path and press Enter or Go (Ctrl+L focuses it)
+  QObject::connect(ui.path, &QLineEdit::returnPressed, this,
+                   &RemoteWidget::goToEnteredPath);
+  QObject::connect(ui.goPath, &QToolButton::clicked, this,
+                   &RemoteWidget::goToEnteredPath);
+  // Esc in the field gives back the path of the selection
+  QShortcut *escape = new QShortcut(QKeySequence(Qt::Key_Escape), ui.path);
+  escape->setContext(Qt::WidgetShortcut);
+  QObject::connect(escape, &QShortcut::activated, this, [=]() {
+    ui.path->setText(mPathText);
+    ui.tree->setFocus();
+  });
+  addAction(ui.actionGoToPath);
+  QObject::connect(ui.actionGoToPath, &QAction::triggered, this, [=]() {
+    ui.path->setFocus();
+    ui.path->selectAll();
   });
 
   QObject::connect(ui.shared, &QAction::triggered, [=]() {
@@ -2080,6 +2119,77 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
 }
 
 RemoteWidget::~RemoteWidget() {}
+
+// The selection writes the path of the selected folder here. While the user
+// types in the field it keeps their text; Esc and Go bring mPathText back.
+void RemoteWidget::setPathText(const QString &text) {
+  mPathText = text;
+  if (!ui.path->hasFocus()) {
+    ui.path->setText(text);
+  }
+}
+
+// True while a file of a typed root still waits for its icon: IconCache holds
+// the Item pointers, and removing the root now would free them under it
+// (Item::~Item defers only the children that are still being listed). The whole
+// subtree is checked, a typed root can have expanded folders.
+static bool subtreeWaitsForIcons(const Item *item) {
+  for (const Item *child : item->childs) {
+    if (child->state == Item::LoadingIcon || subtreeWaitsForIcons(child)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool RemoteWidget::typedRootsWaitForIcons() const {
+  for (int r = 0; r < model->rowCount(QModelIndex()); ++r) {
+    const QModelIndex top = model->index(r, 0, QModelIndex());
+    if (top == QModelIndex(mRootIndex)) {
+      continue;
+    }
+    if (subtreeWaitsForIcons(static_cast<const Item *>(top.internalPointer()))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Enter in the path field or Go: the typed path becomes the selected root
+// (the one that already has that path, or a new one), listed on expand.
+void RemoteWidget::goToEnteredPath() {
+  // while a Drive mode switch waits the field shows its own text
+  if (ui.path->isReadOnly()) {
+    return;
+  }
+  const QString p = normalizeEnteredPath(ui.path->text(), mRemote, mIsLocal);
+  if (p.isEmpty()) {
+    return;
+  }
+
+  QModelIndex idx;
+  const QString wanted = QDir(p).path();
+  for (int r = 0; r < model->rowCount(QModelIndex()); ++r) {
+    const QModelIndex top = model->index(r, 0, QModelIndex());
+    if (model->path(top).path().compare(
+            wanted, mIsLocal ? Qt::CaseInsensitive : Qt::CaseSensitive) == 0) {
+      idx = top;
+      break;
+    }
+  }
+  if (!idx.isValid()) {
+    idx = model->addRoot(mIsLocal ? QDir::toNativeSeparators(p) : p, p);
+  }
+
+  // the focus moves first: the selection handler writes "remote:path" into
+  // the field only while the field does not have the focus
+  ui.tree->setFocus();
+  ui.tree->selectionModel()->setCurrentIndex(
+      idx, QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+  ui.tree->expand(idx);
+  // the selection may not have changed (the same path again): show it anyway
+  ui.path->setText(mPathText);
+}
 
 // Hides or shows the row of icons above the files list of this remote tab.
 // Buttons that were already hidden for other reasons stay hidden. For Google
@@ -2310,12 +2420,27 @@ void RemoteWidget::switchRemoteType() {
   // we can only switch when pending preemptive loading jobs are finished and
   // root is not reloading
   if (global.rcloneLsProcessCount == 0 &&
-      !model->isLoading(model->index(0, 0, mRootIndex))) {
+      !model->isLoading(model->index(0, 0, mRootIndex)) &&
+      !typedRootsWaitForIcons()) {
 
     mCount = 0;
 
+    // the blinking text must not stay in a field that has the focus
+    if (ui.path->hasFocus()) {
+      ui.tree->setFocus();
+    }
+
     ui.cb_GoogleDriveMode->setDisabled(false);
     setRemoteMode(ui.cb_GoogleDriveMode->currentIndex(), mRemoteType);
+
+    // the typed roots keep the content of the old view: remove them, from the
+    // last row down (the rows of the other roots do not move)
+    for (int r = model->rowCount(QModelIndex()) - 1; r >= 0; --r) {
+      if (model->index(r, 0, QModelIndex()).internalPointer() !=
+          mRootIndex.internalPointer()) {
+        model->removeRow(r, QModelIndex());
+      }
+    }
 
     //!!!!!!!!! ???
     // clear top folder's rows
@@ -2332,13 +2457,16 @@ void RemoteWidget::switchRemoteType() {
     ui.tree->showColumn(1);
     ui.tree->showColumn(2);
     ui.path->setAlignment(Qt::AlignLeft);
-    ui.path->clear();
+    setPathText(QString());
     mPreemptiveLoadingListDone.append(mRootIndex);
     QTimer::singleShot(200, Qt::CoarseTimer, this, SLOT(initialModelLoading()));
+    ui.path->setReadOnly(false);
 
   } else {
 
-    // there are still rclone ls jobs running - we wait
+    // there are still rclone ls jobs running - we wait; the field shows the
+    // blinking text, so it cannot be typed into until the switch ends
+    ui.path->setReadOnly(true);
     mCount++;
     ui.path->setAlignment(Qt::AlignHCenter);
 

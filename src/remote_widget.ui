@@ -415,23 +415,52 @@
         </widget>
        </item>
        <item>
-        <widget class="QLineEdit" name="path">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
+        <layout class="QHBoxLayout" name="pathLayout">
+         <property name="leftMargin">
+          <number>0</number>
          </property>
-         <property name="minimumSize">
-          <size>
-           <width>0</width>
-           <height>24</height>
-          </size>
+         <property name="topMargin">
+          <number>0</number>
          </property>
-         <property name="readOnly">
-          <bool>true</bool>
+         <property name="rightMargin">
+          <number>0</number>
          </property>
-        </widget>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QLineEdit" name="path">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="readOnly">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QToolButton" name="goPath">
+           <property name="toolTip">
+            <string>Open the typed path</string>
+           </property>
+           <property name="text">
+            <string>Go</string>
+           </property>
+           <property name="autoRaise">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
        <item>
         <widget class="QTreeView" name="tree">
@@ -703,6 +732,17 @@ rclone about</string>
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Serve this folder over http, webdav, ftp, sftp, dlna, nfs, restic or s3&lt;/p&gt;&lt;p&gt;rclone serve&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </action>
+  <action name="actionGoToPath">
+   <property name="text">
+    <string>Go to path</string>
+   </property>
+   <property name="toolTip">
+    <string>Type a path (Ctrl+L)</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+L</string>
+   </property>
+  </action>
  </widget>
  <tabstops>
   <tabstop>buttonRefresh</tabstop>
@@ -714,6 +754,7 @@ rclone about</string>
   <tabstop>buttonUpload</tabstop>
   <tabstop>buttonDownload</tabstop>
   <tabstop>path</tabstop>
+  <tabstop>goPath</tabstop>
   <tabstop>tree</tabstop>
  </tabstops>
  <resources/>

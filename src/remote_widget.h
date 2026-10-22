@@ -48,14 +48,28 @@ private slots:
 
   void refreshAfterMove();
 
+  // Enter in the path field or Go: open the typed path as a root
+  void goToEnteredPath();
+
 private:
   Ui::RemoteWidget ui;
   bool mButtonToolsState = false;
 
   QString mRemoteType;
+  // the remote name and whether its roots are drives (Windows local remote)
+  QString mRemote;
+  bool mIsLocal = false;
 
   ItemModel *model;
-  QModelIndex mRootIndex;
+  // persistent: a header sort moves the roots, the default one is not row 0 then
+  QPersistentModelIndex mRootIndex;
+
+  // the last text the selection wrote into the path field; Esc restores it
+  QString mPathText;
+  // shows `text` in the path field unless the user is typing there
+  void setPathText(const QString &text);
+  // a typed root has files that still wait for their icon
+  bool typedRootsWaitForIcons() const;
 
   // get include patterns from selection
   QStringList

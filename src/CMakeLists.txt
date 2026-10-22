@@ -83,6 +83,7 @@ set(OTHER
   command_line.h
   remote_ops.h
   remote_actions.h
+  path_entry.h
   rclone_process.h
   mount_launch.h
   job_options.h
@@ -139,6 +140,7 @@ set(SOURCE
   file_dialog.cpp
   remote_folder_dialog.cpp
   remote_actions.cpp
+  path_entry.cpp
   url_upload_dialog.cpp
   serve_manager.cpp
   serve_widget.cpp
