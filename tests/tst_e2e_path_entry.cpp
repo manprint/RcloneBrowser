@@ -150,6 +150,9 @@ private slots:
     QVERIFY(file.open(QIODevice::WriteOnly));
     file.write("hi");
     file.close();
+    QFile second(QDir(sub()).filePath("second.txt"));
+    QVERIFY(second.open(QIODevice::WriteOnly));
+    second.close();
   }
 
   void cleanupTestCase() {
@@ -235,6 +238,62 @@ private slots:
     QCOMPARE(g.model->rowCount(QModelIndex()), 2);
     QCOMPARE(g.tree->currentIndex(), rootsOf(g.model, sub()).value(0));
     QCOMPARE(g.path->text(), "loc:" + sub());
+
+    QVERIFY(g.settle());
+  }
+
+  // T-E2E-PATH-MULTI (B-T6): Delete, Copy and Move never act on a
+  // top-level row (Delete would purge the whole root). processSelection keeps
+  // a multi-selection to the siblings of the current row; with no current row
+  // it can hold several top-level rows, and then the actions are off.
+  void T_E2E_PATH_MULTI() {
+    IconCache icons;
+    WidgetGuard g(&icons);
+    QVERIFY(g.ok());
+    auto *purge = g.w->findChild<QAction *>("purge");
+    auto *copy = g.w->findChild<QAction *>("copy");
+    auto *move = g.w->findChild<QAction *>("move");
+    QVERIFY(purge && copy && move);
+
+    g.goTo(sub());
+    QTRY_VERIFY_WITH_TIMEOUT(
+        hasChildNamed(g.model, rootsOf(g.model, sub()).value(0), "second.txt"),
+        20000);
+    const QModelIndex def = g.model->index(0, 0, QModelIndex());
+    const QModelIndex root = rootsOf(g.model, sub()).value(0);
+    QVERIFY(def != root);
+    QCOMPARE(g.model->rowCount(root), 2);
+    const QModelIndex a = g.model->index(0, 0, root);
+    const QModelIndex b = g.model->index(1, 0, root);
+    QVERIFY(!g.model->isSpecial(a) && !g.model->isSpecial(b));
+
+    QItemSelectionModel *sel = g.tree->selectionModel();
+    const auto rows = QItemSelectionModel::Rows;
+
+    // two files inside the typed root, as a click and a Ctrl+click give
+    // them: the positive control
+    sel->setCurrentIndex(a, QItemSelectionModel::ClearAndSelect | rows);
+    sel->setCurrentIndex(b, QItemSelectionModel::Select | rows);
+    QCOMPARE(sel->selectedRows().size(), 2);
+    QVERIFY(purge->isEnabled());
+    QVERIFY(copy->isEnabled());
+    QVERIFY(move->isEnabled());
+
+    // Ctrl+click on the root: the files are not its siblings and leave the
+    // selection, the root alone has the actions off
+    sel->setCurrentIndex(root, QItemSelectionModel::Select | rows);
+    QCOMPARE(sel->selectedRows(), QModelIndexList{root});
+    QVERIFY(!purge->isEnabled());
+
+    // no current row: both roots stay selected, the actions are off
+    sel->clearSelection();
+    sel->clearCurrentIndex();
+    sel->select(def, QItemSelectionModel::Select | rows);
+    sel->select(root, QItemSelectionModel::Select | rows);
+    QCOMPARE(sel->selectedRows().size(), 2);
+    QVERIFY(!purge->isEnabled());
+    QVERIFY(!copy->isEnabled());
+    QVERIFY(!move->isEnabled());
 
     QVERIFY(g.settle());
   }

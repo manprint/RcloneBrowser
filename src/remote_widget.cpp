@@ -568,6 +568,18 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
             }
           }
 
+          // a top-level row is the root of the tab (the remote's default
+          // folder, a typed path or a drive): Delete would purge all of it.
+          // The same rule as for one selected row.
+          for (const QModelIndex &selected : selection) {
+            if (model->isTopLevel(selected)) {
+              ui.purge->setDisabled(true);
+              ui.copy->setDisabled(true);
+              ui.move->setDisabled(true);
+              break;
+            }
+          }
+
           updateServeAction();
           ui.actionGoToPath->setDisabled(false);
           setPathText(QString());
