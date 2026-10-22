@@ -214,5 +214,5 @@ private slots:
   }
 };
 
-QTEST_APPLESS_MAIN(TestCommandLine)
+QTEST_GUILESS_MAIN(TestCommandLine)
 #include "tst_command_line.moc"
