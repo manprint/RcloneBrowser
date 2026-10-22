@@ -8,9 +8,24 @@ Changes since 2.0.0-beta.1. The older `[2.0.0] - 2020-03-` section further down 
 -   NEW: "Edit remote…" and "Advanced (terminal)…" in a remote's context menu; "Advanced (terminal)…" opens `rclone config` in a terminal
 -   NEW: mounts started with a remote control port show a "Refresh cache" button (rclone's `vfs/refresh`)
 -   NEW: protocol tests against isolated sftp, FTP, WebDAV and S3 (MinIO) servers in local containers (`scripts/dev.sh servers`)
+-   NEW: "Copy command" in the Tasks context menu copies the command Run would start, one line per selected task; mount tasks carry no remote control credentials - #123, #176
+-   NEW: "Duplicate" in the Tasks context menu copies the selected task as "<description> (copy)" - #139
+-   NEW: a "Restart" button on a finished, failed or stopped transfer job starts the same transfer again as a new job - #118
+-   NEW: "Ask before running a task" in Preferences (on by default) turns off the question before Run, Dry run and Restart - #144
+-   NEW: "Terminal command" in Preferences (Linux and BSD) chooses the terminal for "Config" and "Advanced (terminal)…", before `$TERMINAL` and the built-in list - #175
+-   NEW: README "FAQ and known limitations"; `docs/triage/upstream-issues.md` gives the fork's status for every open upstream issue, checked by `scripts/check-triage.py`
+-   FIXED: copied commands of jobs, mounts and streams did not run when pasted into a shell; arguments are now quoted for the platform's shell - #226, #194
+-   FIXED: the job panel changed height whenever a file started or finished - #169
+-   FIXED: with both Include and Exclude patterns, excluded files were still copied because rclone applies every include rule first; the transfer now sends ordered `--filter` rules - #179
+-   FIXED: moving a folder into a location that already has a folder of that name left the emptied source folder behind - #171
+-   FIXED: "Create folder" asks for the name, keeps OK disabled for names rclone cannot create, can be cancelled and stops a hanging mkdir after 60 s - #220
+-   FIXED: a missing or failing rclone quit the application at startup; a message with a Preferences button now says what is wrong - #159, #145, #209
+-   FIXED: the main window could not be narrower than the button row of a remote tab (up to 1500 px with large buttons); the row now scrolls - #156, #228
+-   FIXED: the Cancel button of the rename progress dialog stayed disabled while a rename hung
 -   CHANGED: mount rc credentials reach rclone through the environment, never the command line; `--rc-user` and `--rc-pass` typed into the mount options are removed
 -   CHANGED: mount scripts get `RCLONE_RC_USER`, `RCLONE_RC_PASS` and `RB_RC_PORT` in their environment; the positional arguments `$3` (rc user) and `$4` (rc password) still work but are deprecated
 -   CHANGED: the main window code is split into `main_window.cpp` and `main_window_tasks.cpp`, guarded by a snapshot test of the window's widgets and actions
+-   CHANGED: when both Include and Exclude are set, they reach rclone as ordered `--filter` rules (exclude, include, your Filter lines, `- **`); an `--exclude` typed into the extra options still follows rclone's include-first rule
 
 ## [2.0.0-beta.1] - 2026-10-22
 Rclone Browser 2.x by the manprint fork. The [2.0.0] section below is upstream's unreleased development history that this fork builds on.
