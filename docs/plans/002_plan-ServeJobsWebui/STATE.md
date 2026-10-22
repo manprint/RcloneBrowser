@@ -69,15 +69,15 @@ this file. Tests never read the host rclone config (temp config only). No push, 
 - Scope result: RUNNING
 - Type: sub-phase
 - ID / attempt: 2.1 / 1
-- Status: OPEN
+- Status: OPEN (closing: commit unit:2.1:1)
 - Intent: ServeManager start tokens, FIFO, startFailed, browser URL helpers (D5, D9)
 - Assigned: agent-2:sonnet (delegated worker); supervisor: agent-1:opus
 - File / unit heading: phase_03.md "2.1 ServeManager tokens, FIFO and browser URL helpers"
-- Current step: S1
-- Next action: worker S1–S3; supervisor reviews diff (signal order, FIFO, I-2); G-U21, G-U21e; commit.
+- Current step: commit
+- Next action: commit 2.1; open 2.2 (agent-2:sonnet).
 - Next eligible plan unit: 2.2 / phase_03.md
-- Unit base: `(HEAD after unit:P1:1)`; branch: `dev/002-serve-jobs-webui`; owned changes: `src/serve_manager.{h,cpp}`, `tests/tst_serve_manager.cpp`, `src/main_window.cpp` (started connection), `tests/tst_e2e_serve.cpp` (only if it spies `started`)
-- Repo state: HEAD `(HEAD after unit:P1:1)`; untracked `.serena/` (unrelated)
+- Unit base: ``aba452f``; branch: `dev/002-serve-jobs-webui`; owned changes: `src/serve_manager.{h,cpp}`, `tests/tst_serve_manager.cpp`, `src/main_window.cpp` (started connection), `tests/tst_e2e_serve.cpp` (only if it spies `started`)
+- Repo state: HEAD ``aba452f``; untracked `.serena/` (unrelated)
 
 ## 2. Feature context and readiness
 
@@ -148,6 +148,7 @@ Required supervisor reviews cannot be silently replaced by weaker self-review.
 | Type | ID / attempt | Plan revision | Agent | Changes | Evidence/review | Commit |
 |------|--------------|---------------|-------|---------|-----------------|--------|
 | plan | 002 / 1 | 1 | agent-1:opus | plan folder created (overview, phase_01–04, STATE) | user answers U1–U4; probes R2–R4 | uncommitted (committed with 0.2) |
+| sub-phase | 2.1 / 1 | 2 | agent-2:sonnet | ServeManager tokens/FIFO/startFailed, `kWebuiFlavor`, `serveBrowserUrl`, `serveOpensInBrowser`; main_window lambda; tst_e2e_serve entryOf index | G-U21/G-U21e §7; review §7 | unit:2.1:1 |
 | phase-close | P1 / 1 | 2 | agent-1:opus | phase 1 closure | P1 gates §7; review §7 | unit:P1:1 |
 | sub-phase | 1.3 / 1 | 2 | agent-3:haiku | README `#faq-serve`: Serve button; S2 no icon-size text to update (recorded) | supervisor check | unit:1.3:1 |
 | sub-phase | 1.2 / 1 | 2 | agent-3:haiku | `buttonServe` in `remote_widget.ui`/`.cpp`; `T_SC_SERVE_BUTTON` | G-U12 §7; review §7 | unit:1.2:1 |
@@ -171,12 +172,14 @@ reconcile. A SHA recorded by a later update is optional.
 
 ## 6. In-flight checkpoint
 
-Unit 2.1 claimed — dispatched to agent-2:sonnet. Running resources: none.
+Unit 2.1: S1–S3 done. Pending commit unit:2.1:1. Running resources: none.
 
 ## 7. Verification and reviews
 
 | Gate/test | Command | Result | Test count/named evidence | Tested revision/diff | When |
 |-----------|---------|--------|--------------------------|---------------------|------|
+| G-U21 | §3 | pass | build 0 warnings; tst_serve_manager 9 passed 0 failed (PASS T_SRV_TOKENS, T_SRV_BROWSER_URL, T_SRV_FLOW); full unit 31/31 | 2.1 working diff on `aba452f` (worker run) | 2026-10-23 |
+| G-U21e | §3 | pass | tst_e2e_serve 7 passed 0 failed; full e2e 21/21 | same | 2026-10-23 |
 | G-BUILD64 (P1) | §3 | pass | exit 0, 0 warnings | `05ec215` | 2026-10-23 |
 | G-UNIT (P1) | §3 | pass | 31/31 (G-BASE 30 + tst_remote_list_layout) | `05ec215` | 2026-10-23 |
 | G-E2E (P1) | §3 | pass | 21/21 | `05ec215` | 2026-10-23 |
@@ -190,6 +193,7 @@ Unit 2.1 claimed — dispatched to agent-2:sonnet. Running resources: none.
 
 | Review | Reviewer | Plan revision / reviewed change | Invariants/assertions checked | Verdict |
 |--------|----------|---------------------------------|------------------------------|---------|
+| 2.1 | agent-1:opus | rev 2 / 2.1 working diff on `aba452f` | D5 (token, FIFO one in flight, refresh after each reply, startFailed before error incl. invalid reply), D9 (browser URL host rewrite, opensInBrowser set), I-2 (queue keeps params in memory only, nothing logged), `self` guards after emits; T_SRV_TOKENS assertions | approved |
 | P1 | agent-1:opus | rev 2 / `05ec215` | D1 as implemented (formula match), I-1 evidence (legacy repro tiles 7 / longlist 13; 18 rows 0 violations), D2 parity (all 3 styles), README 1.3, gates | approved |
 | 1.2 | agent-1:opus | rev 2 / 1.2 working diff on `ce5068f` | D2 parity (default action, 6 styling statements mirrored, tabstop), test asserts all 3 styles | approved |
 | 1.1 | agent-1:opus | rev 2 / 1.1 working diff on `a809b8b` | D1 formula line-by-line (kPad 6, label bounds, tiles/list/longlist sizes, grid, spacing, elide, wordWrap false, uniform sizes, per-item SizeHint); rcloneListRemotes keeps order/icons/tooltips/`_inv`/macOS 1.5×; hoisted size block; oracle C1–C4 per revision 2 with `.ui` properties; S1 legacy evidence | approved (note: `kPad` is a header-level constexpr, no clash in src/) |
@@ -226,7 +230,7 @@ none.
 | 1.1 | phase_02.md | P0 | DONE | 1 | G-U11 pass; review approved; unit:1.1:1 |
 | 1.2 | phase_02.md | P0 | DONE | 1 | G-U12 pass; unit:1.2:1 |
 | 1.3 | phase_02.md | 1.1, 1.2 | DONE | 1 | README L598; no icon-size section exists; unit:1.3:1 |
-| 2.1 | phase_03.md | P1 | IN_PROGRESS | 1 | dispatched agent-2:sonnet |
+| 2.1 | phase_03.md | P1 | DONE | 1 | G-U21/G-U21e pass; unit:2.1:1 |
 | 2.2 | phase_03.md | 2.1 | TODO | 1 | — |
 | 2.3 | phase_03.md | 2.1, 2.2 | TODO | 1 | — |
 | 2.4 | phase_03.md | 2.3 | TODO | 1 | — |
@@ -253,9 +257,9 @@ SKIPPED retains a reason and does not automatically satisfy dependent units.
 | T-ICON-GRID (I-1) | 1.1 | G-U11 | pass | G-U11 §7 |
 | T-ICON-GRID-EMPTY | 1.1 | G-U11 | pass | G-U11 §7 |
 | T-SC-SERVE-BUTTON (`tst_shortcuts`) | 1.2 | G-U12 | pass | G-U12 §7 |
-| T-SRV-TOKENS (`tst_serve_manager`) | 2.1 | G-U21 | TODO | — |
-| T-SRV-BROWSER-URL | 2.1 | G-U21 | TODO | — |
-| T-SRV-FLOW (adapted) | 2.1 | G-U21 | TODO | — |
+| T-SRV-TOKENS (`tst_serve_manager`) | 2.1 | G-U21 | pass | G-U21 §7 |
+| T-SRV-BROWSER-URL | 2.1 | G-U21 | pass | G-U21 §7 |
+| T-SRV-FLOW (adapted) | 2.1 | G-U21 | pass | G-U21 §7 |
 | T-SJW-STATE (`tst_serve_job_widget`, I-6) | 2.2 | G-U22 | TODO | — |
 | T-SJW-RESTART | 2.2 | G-U22 | TODO | — |
 | T-SJW-ADOPTED | 2.2 | G-U22 | TODO | — |

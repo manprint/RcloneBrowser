@@ -224,6 +224,116 @@ private slots:
     }
   }
 
+  // T-SRV-TOKENS
+  void T_SRV_TOKENS() {
+    ServeParams p;
+    p.type = "http";
+    p.fs = "loc:/tmp/w";
+
+    // two starts in a row: one serve/start in flight, tokens in order, the
+    // list after each
+    {
+      Fake fake;
+      fake.script["serve/start"] =
+          okReply(QJsonObject{{"addr", "127.0.0.1:40855"},
+                              {"id", "http-8ae93585"}});
+      ServeManager manager(fake.fn());
+      QVector<quint64> tokens;
+      connect(&manager, &ServeManager::started, &manager,
+              [&](quint64 token, const ServeEntry &) { tokens << token; });
+      QCOMPARE(manager.start(p), quint64(1));
+      QCOMPARE(manager.start(p), quint64(2));
+      QCOMPARE(fake.paths().count("serve/start"), 1);
+      QTRY_COMPARE_WITH_TIMEOUT(tokens.size(), 2, 2000);
+      QCOMPARE(tokens, (QVector<quint64>{1, 2}));
+      QTRY_COMPARE_WITH_TIMEOUT(fake.paths().size(), 4, 2000);
+      QCOMPARE(fake.paths(), (QStringList{"serve/start", "serve/list",
+                                          "serve/start", "serve/list"}));
+    }
+
+    // a failed start: startFailed before error, the queue goes on
+    {
+      Fake fake;
+      fake.script["serve/start"] = errReply(500, "boom");
+      ServeManager manager(fake.fn());
+      QStringList order;
+      QVector<quint64> failedTokens, startedTokens;
+      QStringList failedTexts, errorTexts;
+      connect(&manager, &ServeManager::startFailed, &manager,
+              [&](quint64 token, const QString &m) {
+                order << "startFailed";
+                failedTokens << token;
+                failedTexts << m;
+              });
+      connect(&manager, &ServeManager::error, &manager,
+              [&](const QString &m) {
+                order << "error";
+                errorTexts << m;
+              });
+      connect(&manager, &ServeManager::started, &manager,
+              [&](quint64 token, const ServeEntry &) {
+                startedTokens << token;
+              });
+      QCOMPARE(manager.start(p), quint64(1));
+      QCOMPARE(manager.start(p), quint64(2));
+      // the second start is sent only after the first reply: it succeeds
+      fake.script["serve/start"] =
+          okReply(QJsonObject{{"addr", "127.0.0.1:40855"},
+                              {"id", "http-8ae93585"}});
+      QTRY_COMPARE_WITH_TIMEOUT(startedTokens.size(), 1, 2000);
+      QCOMPARE(startedTokens, QVector<quint64>{2});
+      QCOMPARE(order, (QStringList{"startFailed", "error"}));
+      QCOMPARE(failedTokens, QVector<quint64>{1});
+      QCOMPARE(failedTexts, QStringList{"boom"});
+      QCOMPARE(errorTexts, QStringList{"boom"});
+      QCOMPARE(fake.paths().count("serve/start"), 2);
+
+      // an ok reply without an id: startFailed too
+      fake.script["serve/start"] = okReply(QJsonObject{{"addr", "x"}});
+      order.clear();
+      QCOMPARE(manager.start(p), quint64(3));
+      QTRY_COMPARE_WITH_TIMEOUT(order.size(), 2, 2000);
+      QCOMPARE(order, (QStringList{"startFailed", "error"}));
+      QCOMPARE(failedTokens, (QVector<quint64>{1, 3}));
+      QCOMPARE(failedTexts.last(), QString("invalid serve/start reply"));
+    }
+  }
+
+  // T-SRV-BROWSER-URL
+  void T_SRV_BROWSER_URL() {
+    struct Row {
+      const char *type, *addr, *url;
+    };
+    const Row rows[] = {
+        {"http", "127.0.0.1:40855", "http://127.0.0.1:40855/"},
+        {"webdav", "[::]:4321", "http://127.0.0.1:4321/"},
+        {"webdav-webui", "[::]:4321", "http://127.0.0.1:4321/"},
+        {"http", "0.0.0.0:8080", "http://127.0.0.1:8080/"},
+        {"http", ":8080", "http://127.0.0.1:8080/"},
+        {"http", "192.168.1.5:8080", "http://192.168.1.5:8080/"},
+        {"sftp", "[::]:22", "sftp://[::]:22/"},
+    };
+    for (const Row &row : rows) {
+      const ServeEntry e = entry(QString::fromLatin1(row.type),
+                                 QString::fromLatin1(row.addr));
+      const QByteArray what =
+          QByteArray(row.type) + " " + QByteArray(row.addr);
+      QVERIFY2(serveBrowserUrl(e) == QLatin1String(row.url), what.constData());
+    }
+    // a row that needs no change is serveUrl itself
+    const ServeEntry plain = entry("http", "127.0.0.1:40855");
+    QCOMPARE(serveBrowserUrl(plain), serveUrl(plain));
+
+    for (const char *type : {"http", "webdav", "webdav-webui"}) {
+      QVERIFY2(serveOpensInBrowser(QString::fromLatin1(type)), type);
+    }
+    QCOMPARE(QString(kWebuiFlavor), QString("webdav-webui"));
+    for (const char *type :
+         {"ftp", "sftp", "nfs", "dlna", "s3", "restic", ""}) {
+      QVERIFY2(!serveOpensInBrowser(QString::fromLatin1(type)), type);
+    }
+  }
+
   // T-SRV-FLOW
   void T_SRV_FLOW() {
     ServeParams p;
@@ -241,9 +351,11 @@ private slots:
       ServeManager manager(fake.fn());
       QStringList log;
       QVector<ServeEntry> started, listed;
+      QVector<quint64> tokens;
       connect(&manager, &ServeManager::started, &manager,
-              [&](const ServeEntry &e) {
+              [&](quint64 token, const ServeEntry &e) {
                 log << "started";
+                tokens << token;
                 started << e;
               });
       connect(&manager, &ServeManager::listChanged, &manager,
@@ -259,9 +371,10 @@ private slots:
               });
       connect(&manager, &ServeManager::listFailed, &manager,
               [&](const QString &) { log << "listFailed"; });
-      manager.start(p);
+      QCOMPARE(manager.start(p), quint64(1));
       QTRY_COMPARE_WITH_TIMEOUT(log.size(), 2, 2000);
       QCOMPARE(log, (QStringList{"started", "listChanged"}));
+      QCOMPARE(tokens, QVector<quint64>{1});
       QCOMPARE(fake.paths(), (QStringList{"serve/start", "serve/list"}));
       QCOMPARE(fake.calls.at(0).params, serveStartParams(p));
       for (const Call &c : fake.calls) {
@@ -305,7 +418,7 @@ private slots:
       connect(&manager, &ServeManager::listFailed, &manager,
               [&](const QString &) { ++listFailed; });
       connect(&manager, &ServeManager::started, &manager,
-              [&](const ServeEntry &) { ++started; });
+              [&](quint64, const ServeEntry &) { ++started; });
       connect(&manager, &ServeManager::listChanged, &manager,
               [&](const QVector<ServeEntry> &) { ++listed; });
       manager.start(p);
@@ -452,7 +565,7 @@ private slots:
       auto *manager = new ServeManager(fake.fn());
       int emitted = 0;
       connect(manager, &ServeManager::started, this,
-              [&](const ServeEntry &) { ++emitted; });
+              [&](quint64, const ServeEntry &) { ++emitted; });
       connect(manager, &ServeManager::listChanged, this,
               [&](const QVector<ServeEntry> &) { ++emitted; });
       manager->start(p);

@@ -17,6 +17,8 @@ QString failureText(const RcReply &reply) {
 
 } // namespace
 
+const QLatin1String kWebuiFlavor("webdav-webui");
+
 QJsonObject serveStartParams(const ServeParams &p) {
   QJsonObject o{{QStringLiteral("type"), p.type},
                 {QStringLiteral("fs"), p.fs},
@@ -115,17 +117,52 @@ ServeTypeRules serveTypeRules(const QString &type) {
   return r;
 }
 
+bool serveOpensInBrowser(const QString &displayType) {
+  return displayType == QLatin1String("http") ||
+         displayType == QLatin1String("webdav") || displayType == kWebuiFlavor;
+}
+
+QString serveBrowserUrl(const ServeEntry &e) {
+  if (!serveOpensInBrowser(e.type)) {
+    return serveUrl(e);
+  }
+  const qsizetype colon = e.addr.lastIndexOf(QLatin1Char(':'));
+  QString host = colon < 0 ? e.addr : e.addr.left(colon);
+  if (host.startsWith(QLatin1Char('[')) && host.endsWith(QLatin1Char(']'))) {
+    host = host.mid(1, host.size() - 2);
+  }
+  if (host.isEmpty() || host == QLatin1String("0.0.0.0") ||
+      host == QLatin1String("::")) {
+    return QStringLiteral("http://127.0.0.1:") + e.addr.mid(colon + 1) +
+           QLatin1Char('/');
+  }
+  return serveUrl(e);
+}
+
 ServeManager::ServeManager(RcCallFn call, QObject *parent)
     : QObject(parent), mCall(std::move(call)) {}
 
 QStringList ServeManager::types() const { return mTypes; }
 
-void ServeManager::start(const ServeParams &p) {
+quint64 ServeManager::start(const ServeParams &p) {
+  const quint64 token = ++mNextToken;
+  mStartQueue.enqueue({token, p});
+  processStartQueue();
+  return token;
+}
+
+void ServeManager::processStartQueue() {
+  if (mStartInFlight || mStartQueue.isEmpty()) {
+    return;
+  }
+  const PendingStart pending = mStartQueue.dequeue();
+  mStartInFlight = true;
   const QPointer<ServeManager> self(this);
-  const QString type = p.type;
-  const QString fs = p.fs;
-  mCall(QStringLiteral("serve/start"), serveStartParams(p),
-        [self, type, fs](const RcReply &reply) {
+  const quint64 token = pending.token;
+  const QString type = pending.params.type;
+  const QString fs = pending.params.fs;
+  mCall(QStringLiteral("serve/start"), serveStartParams(pending.params),
+        [self, token, type, fs](const RcReply &reply) {
           if (!self) {
             return;
           }
@@ -136,15 +173,25 @@ void ServeManager::start(const ServeParams &p) {
             e.type = type;
             e.fs = fs;
             if (!e.id.isEmpty() && !e.addr.isEmpty()) {
-              emit self->started(e);
+              emit self->started(token, e);
             } else {
-              emit self->error(QStringLiteral("invalid serve/start reply"));
+              const QString text = QStringLiteral("invalid serve/start reply");
+              emit self->startFailed(token, text);
+              if (self) {
+                emit self->error(text);
+              }
             }
           } else {
-            emit self->error(failureText(reply));
+            const QString text = failureText(reply);
+            emit self->startFailed(token, text);
+            if (self) {
+              emit self->error(text);
+            }
           }
           if (self) {
+            self->mStartInFlight = false;
             self->refresh();
+            self->processStartQueue();
           }
         },
         kServeTimeoutMs);

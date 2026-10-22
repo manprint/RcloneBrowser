@@ -1855,7 +1855,7 @@ ServeManager *MainWindow::serveManager() {
         daemonRcCall(QPointer<RcloneDaemon>(global.daemon), ctx), this);
     *ctx = mServeManager;
     connect(mServeManager, &ServeManager::started, this,
-            [this]() { showServes(); });
+            [this](quint64, const ServeEntry &) { showServes(); });
     connect(mServeManager, &ServeManager::error, this,
             [this](const QString &message) {
               // a call cut short by a quit or a backend restart: the serves
