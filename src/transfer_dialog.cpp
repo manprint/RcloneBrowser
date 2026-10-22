@@ -1,6 +1,7 @@
 #include "transfer_dialog.h"
 #include "file_dialog.h"
 #include "list_of_job_options.h"
+#include "upload_headers.h"
 #include "utils.h"
 
 namespace {
@@ -61,6 +62,16 @@ TransferDialog::TransferDialog(bool isDownload, bool isDrop,
     ui.cb_taskAddToQueue->hide();
   }
 
+  // upload headers and S3 tags are for uploads; the S3 tags only for an S3
+  // remote
+  if (mIsDownload) {
+    ui.buttonUploadHeaders->hide();
+    ui.uploadHeadersPanel->hide();
+  }
+  const bool showS3Tags = !mIsDownload && mRemoteType == "s3";
+  ui.labelS3Tags->setVisible(showS3Tags);
+  ui.s3Tags->setVisible(showS3Tags);
+
   // lock vertical resizing
   resize(0, 0);
   adjustSize();
@@ -114,6 +125,18 @@ TransferDialog::TransferDialog(bool isDownload, bool isDrop,
   ui.buttonDefaultDest->setIcon(
       QIcon(":media/images/qbutton_icons/restore" + img_add + ".png"));
 
+  ui.buttonUploadHeaders->setIcon(
+      QIcon(":media/images/qbutton_icons/vrightarrow" + img_add + ".png"));
+  ui.buttonUploadHeaders->setIconSize(QSize(24, 24));
+  QObject::connect(
+      ui.buttonUploadHeaders, &QToolButton::toggled, this, [=](bool checked) {
+        ui.uploadHeadersPanel->setVisible(checked && !mIsDownload);
+        ui.buttonUploadHeaders->setIcon(
+            QIcon(":media/images/qbutton_icons/" +
+                  QString(checked ? "vdownarrow" : "vrightarrow") + img_add +
+                  ".png"));
+      });
+
   ui.buttonSourceFile->setIconSize(QSize(24, 24));
   ui.buttonSourceItems->setIconSize(QSize(24, 24));
   ui.buttonDest->setIconSize(QSize(24, 24));
@@ -139,6 +162,10 @@ TransferDialog::TransferDialog(bool isDownload, bool isDrop,
 
   QPushButton *run =
       ui.buttonBox->addButton("&Run", QDialogButtonBox::AcceptRole);
+
+  mSaveTaskButton = saveTask;
+  mDryRunButton = dryRun;
+  mRunButton = run;
 
   QObject::connect(run, &QPushButton::clicked, this, [=]() {});
 
@@ -223,13 +250,20 @@ TransferDialog::TransferDialog(bool isDownload, bool isDrop,
     run->hide();
   } // if (!mIsEditMode) else
 
-  QObject::connect(ui.pte_textExtra, &QPlainTextEdit::textChanged, this, [=]() {
-    if (ui.pte_textExtra->toPlainText().trimmed().isEmpty()) {
-      ui.tabWidget->setTabText(2, "Extra Options");
-    } else {
-      ui.tabWidget->setTabText(2, "Extra Options(x)");
-    }
-  });
+  // the three buttons follow the validity of the upload headers and S3 tags
+  // (13.1); these are connected after the lambdas above, which run first, so
+  // updateUploadHeadersState has the last word on the buttons
+  QObject::connect(ui.le_taskName, &QLineEdit::textChanged, this,
+                   [=]() { updateUploadHeadersState(); });
+  QObject::connect(ui.cb_taskAutoName, &QCheckBox::clicked, this,
+                   [=]() { updateUploadHeadersState(); });
+  QObject::connect(ui.uploadHeaders, &QPlainTextEdit::textChanged, this,
+                   [=]() { updateUploadHeadersState(); });
+  QObject::connect(ui.s3Tags, &QPlainTextEdit::textChanged, this,
+                   [=]() { updateUploadHeadersState(); });
+
+  QObject::connect(ui.pte_textExtra, &QPlainTextEdit::textChanged, this,
+                   [=]() { updateExtraTabTitle(); });
 
   QObject::connect(ui.textInclude, &QPlainTextEdit::textChanged, this, [=]() {
     if (ui.textInclude->toPlainText().trimmed().isEmpty()) {
@@ -308,6 +342,8 @@ TransferDialog::TransferDialog(bool isDownload, bool isDrop,
         ui.textInclude->clear();
         ui.textExclude->clear();
         ui.pte_textExtra->clear();
+        ui.uploadHeaders->clear();
+        ui.s3Tags->clear();
 
         if (!mIsMultiItem || mIsEditMode) {
           //          ui.textInclude->clear();
@@ -829,6 +865,8 @@ TransferDialog::TransferDialog(bool isDownload, bool isDrop,
     ui.cb_taskAddToQueue->setChecked(false);
   }
 
+  updateUploadHeadersState();
+
   ui.le_defaultRcloneOptions->setText(metrix.elidedText(
       settings->value("Settings/defaultRcloneOptions").toString(),
       Qt::ElideMiddle, 537));
@@ -1019,6 +1057,13 @@ JobOptions *TransferDialog::getJobOptions(JobOptions *taskOptions) {
   taskOptions->excluded = ui.textExclude->toPlainText().trimmed();
   taskOptions->filtered = ui.textFilter->toPlainText().trimmed();
 
+  // upload only; the S3 tags only for an S3 remote
+  taskOptions->uploadHeaders =
+      mIsDownload ? QString() : ui.uploadHeaders->toPlainText().trimmed();
+  taskOptions->s3Tags = (!mIsDownload && mRemoteType == "s3")
+                            ? ui.s3Tags->toPlainText().trimmed()
+                            : QString();
+
   taskOptions->isFolder = mIsFolder;
 
   if (mIsDownload) {
@@ -1109,6 +1154,13 @@ void TransferDialog::putJobOptions() {
 
   ui.pte_textExtra->setPlainText(mJobOptions->extra);
 
+  ui.uploadHeaders->setPlainText(mJobOptions->uploadHeaders);
+  ui.s3Tags->setPlainText(mJobOptions->s3Tags);
+  // restored text is never left hidden
+  if (!mJobOptions->uploadHeaders.isEmpty() || !mJobOptions->s3Tags.isEmpty()) {
+    ui.buttonUploadHeaders->setChecked(true);
+  }
+
   // Elided....Text base measure
   QFontMetrics metrix(ui.l_sourceRemote->font());
 
@@ -1167,6 +1219,11 @@ void TransferDialog::putJobOptions() {
 void TransferDialog::done(int r) {
 
   if (r == QDialog::Accepted) {
+    // the buttons are disabled while the text is wrong; this is a safety net
+    if (!uploadHeadersValid()) {
+      return;
+    }
+
     if (mIsDownload) {
       if (ui.textDest->text().isEmpty()) {
         QMessageBox::warning(this, "Warning", "Please enter destination.");
@@ -1300,6 +1357,12 @@ void TransferDialog::save_AutoName_AddToQueue(void) {
 
 bool TransferDialog::saveTaskToFile(bool forRun) {
 
+  // the Save task button is disabled while the text is wrong; this is a safety
+  // net
+  if (!uploadHeadersValid()) {
+    return false;
+  }
+
   // only generated if needed
   generateAutoTaskName();
 
@@ -1365,8 +1428,71 @@ void TransferDialog::transferWriteSettings() {
   // a first run is never the default of the next task
   settings->remove("cbBisyncResync");
   settings->remove("leBisyncWorkdir");
+  // headers and tags belong to one destination, not to the next task
+  settings->remove("uploadHeaders");
+  settings->remove("s3Tags");
   settings->remove("rcloneCmd");
   settings->endGroup();
+}
+
+// Only the fields that apply are checked, so text that is hidden (the S3 tags
+// of another remote type) never blocks the dialog.
+bool TransferDialog::uploadHeadersValid() const {
+  if (mIsDownload) {
+    return true;
+  }
+  return parseUploadHeaders(ui.uploadHeaders->toPlainText()).has_value() &&
+         (mRemoteType != "s3" ||
+          parseS3Tags(ui.s3Tags->toPlainText()).has_value());
+}
+
+void TransferDialog::updateExtraTabTitle() {
+  if (!uploadHeadersValid()) {
+    // the tab says so even while another tab is current
+    ui.tabWidget->setTabText(2, "Extra Options(!)");
+  } else if (ui.pte_textExtra->toPlainText().trimmed().isEmpty() &&
+             ui.uploadHeaders->toPlainText().trimmed().isEmpty() &&
+             ui.s3Tags->toPlainText().trimmed().isEmpty()) {
+    ui.tabWidget->setTabText(2, "Extra Options");
+  } else {
+    ui.tabWidget->setTabText(2, "Extra Options(x)");
+  }
+}
+
+// Shows what is wrong with the headers or tags and keeps Save task, Dry run
+// and Run off while it is. Save task also follows the task name rule of the
+// handlers in the constructor (this runs after them, so it has the last word).
+void TransferDialog::updateUploadHeadersState() {
+  updateExtraTabTitle();
+
+  QStringList problems;
+  if (!mIsDownload) {
+    if (!parseUploadHeaders(ui.uploadHeaders->toPlainText()).has_value()) {
+      problems << "Headers: one \"Name: value\" per line, the name without "
+                  "spaces.";
+    }
+    if (mRemoteType == "s3" &&
+        !parseS3Tags(ui.s3Tags->toPlainText()).has_value()) {
+      problems << "S3 object tags: one \"key=value\" per line, at most 10, "
+                  "each key once.";
+    }
+  }
+  const bool valid = problems.isEmpty();
+  ui.uploadHeadersError->setText(problems.join('\n'));
+  ui.uploadHeadersError->setVisible(!valid);
+
+  // the buttons say why they are off, whichever tab is current
+  const QString why = "Fix the upload headers or S3 tags (Extra Options)";
+  mSaveTaskButton->setToolTip(valid ? QString() : why);
+  mDryRunButton->setToolTip(
+      valid ? "trial run with no permanent changes (--dry-run)" : why);
+  mRunButton->setToolTip(valid ? "ALT-r" : why);
+
+  mSaveTaskButton->setEnabled(
+      valid && (ui.cb_taskAutoName->isChecked() ||
+                !ui.le_taskName->text().trimmed().isEmpty()));
+  mDryRunButton->setEnabled(valid && !mIsEditMode);
+  mRunButton->setEnabled(valid && !mIsEditMode);
 }
 
 void TransferDialog::generateAutoTaskName() {

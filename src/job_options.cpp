@@ -1,4 +1,5 @@
 #include "job_options.h"
+#include "upload_headers.h"
 #include "utils.h"
 #include <qexception.h>
 #include <qlogging.h>
@@ -22,7 +23,7 @@ JobOptions::JobOptions()
       bisyncConflictResolve("none"), bisyncResilient(false),
       bisyncRecover(false) {}
 
-const qint32 JobOptions::classVersion = 9;
+const qint32 JobOptions::classVersion = 10;
 
 JobOptions::~JobOptions() {}
 
@@ -278,6 +279,22 @@ QStringList JobOptions::getOptions() const {
     }
     if (!bisyncWorkdir.isEmpty()) {
       list << "--workdir" << bisyncWorkdir;
+    }
+  }
+
+  // --header-upload (13.1): only for uploads. The S3 object tags are added only
+  // when the destination remote is S3; they go last, so they win over an
+  // X-Amz-Tagging line typed in the headers (the s3 backend keeps the last
+  // one). The dialog never saves text that does not parse; such text is
+  // dropped here.
+  if (jobType == Upload) {
+    list << headerUploadArgs(
+        parseUploadHeaders(uploadHeaders).value_or(QStringList{}));
+    if (remoteType == "s3") {
+      const auto tags = parseS3Tags(s3Tags);
+      if (tags && !tags->isEmpty()) {
+        list << "--header-upload" << s3TaggingHeader(*tags);
+      }
     }
   }
 

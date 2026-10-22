@@ -5,6 +5,7 @@
 #include "job_options.h"
 #include "list_of_job_options.h"
 #include "rb_test_support.h"
+#include "rclone_process.h"
 #include "transfer_dialog.h"
 #include "utils.h"
 
@@ -137,6 +138,12 @@ void compareBisync(const JobOptions &got, const JobOptions &want) {
   QCOMPARE(got.bisyncResilient, want.bisyncResilient);
   QCOMPARE(got.bisyncRecover, want.bisyncRecover);
   QCOMPARE(got.bisyncWorkdir, want.bisyncWorkdir);
+}
+
+// The version 10 fields: the upload headers and the S3 object tags.
+void compareV10(const JobOptions &got, const JobOptions &want) {
+  QCOMPARE(got.uploadHeaders, want.uploadHeaders);
+  QCOMPARE(got.s3Tags, want.s3Tags);
 }
 
 // Two tasks with distinctive values in every version 9 field: every bisync
@@ -364,13 +371,14 @@ private slots:
   }
 
   // T-JO-COMPAT (I-7): a tasks file written by classVersion 8 loads with the
-  // same value in every field, and the version 9 fields have their defaults.
+  // same value in every field, and the version 9 and 10 fields have their
+  // defaults.
   void T_JO_COMPAT() {
     // the stored values of the enums do not move
     QCOMPARE(int(JobOptions::Sync), 3);
     QCOMPARE(int(JobOptions::CryptCheck), 6);
     QCOMPARE(int(JobOptions::Bisync), 7);
-    QCOMPARE(JobOptions::classVersion, qint32(9));
+    QCOMPARE(JobOptions::classVersion, qint32(10));
 
     const QString fixture =
         rbFixture(QStringLiteral("synthetic/jobopts_v8.bin"));
@@ -388,10 +396,12 @@ private slots:
     QCOMPARE(loaded.first()->bisyncResilient, false);
     QCOMPARE(loaded.first()->bisyncRecover, false);
     QCOMPARE(loaded.first()->bisyncWorkdir, QString());
+    QCOMPARE(loaded.first()->uploadHeaders, QString());
+    QCOMPARE(loaded.first()->s3Tags, QString());
     qDeleteAll(loaded);
   }
 
-  // T-JO-ROUNDTRIP: a version 9 Bisync task survives the stream, and so does
+  // T-JO-ROUNDTRIP: a version 10 Bisync task survives the stream, and so does
   // the tasks file written by ListOfJobOptions. Every pair of the three bisync
   // bools differs in at least one record, so a swapped read or write of two
   // fields shows.
@@ -404,6 +414,8 @@ private slots:
     jo1.bisyncResilient = false;
     jo1.bisyncRecover = true;
     jo1.bisyncWorkdir = QStringLiteral("/some/work dir");
+    jo1.uploadHeaders = QStringLiteral("Cache-Control: no-cache\nX-A: b:c");
+    jo1.s3Tags = QStringLiteral("proj=rb\nenv=test");
 
     JobOptions jo2 = jo1;
     jo2.uniqueId =
@@ -413,6 +425,8 @@ private slots:
     jo2.bisyncResilient = true;
     jo2.bisyncRecover = true;
     jo2.bisyncWorkdir = QStringLiteral("/other/wd");
+    jo2.uploadHeaders = QStringLiteral("X-Two: 2");
+    jo2.s3Tags = QStringLiteral("k=v");
     const JobOptions *records[] = {&jo1, &jo2};
 
     QByteArray bytes;
@@ -432,11 +446,13 @@ private slots:
       QVERIFY(!QTest::currentTestFailed());
       compareBisync(back, *want);
       QVERIFY(!QTest::currentTestFailed());
+      compareV10(back, *want);
+      QVERIFY(!QTest::currentTestFailed());
     }
     QVERIFY(in.atEnd());
 
-    // the layout of the version 9 tail is frozen: bool, QString, bool, bool,
-    // QString (the order phase 13.1 records as jobopts_v9.bin); both records
+    // the layout of the version 9 and 10 tail is frozen: bool, QString, bool,
+    // bool, QString (jobopts_v9.bin) and then QString, QString; both records
     // are pinned, since one record cannot hold three different bools
     struct Pinned {
       const JobOptions *jo;
@@ -445,18 +461,23 @@ private slots:
       bool resilient;
       bool recover;
       QString workdir;
+      QString uploadHeaders, s3Tags;
     };
     const Pinned pinned[] = {
         {&jo1, true, QStringLiteral("newer"), false, true,
-         QStringLiteral("/some/work dir")},
+         QStringLiteral("/some/work dir"),
+         QStringLiteral("Cache-Control: no-cache\nX-A: b:c"),
+         QStringLiteral("proj=rb\nenv=test")},
         {&jo2, false, QStringLiteral("path2"), true, true,
-         QStringLiteral("/other/wd")}};
+         QStringLiteral("/other/wd"), QStringLiteral("X-Two: 2"),
+         QStringLiteral("k=v")}};
     for (const Pinned &p : pinned) {
       QByteArray tail;
       {
         QDataStream out(&tail, QIODevice::WriteOnly);
         out.setVersion(QDataStream::Qt_5_2);
-        out << p.resync << p.conflict << p.resilient << p.recover << p.workdir;
+        out << p.resync << p.conflict << p.resilient << p.recover << p.workdir
+            << p.uploadHeaders << p.s3Tags;
       }
       QVERIFY(tail.size() > 5);
       QByteArray one;
@@ -486,6 +507,8 @@ private slots:
       compareV8(*got, *want);
       QVERIFY(!QTest::currentTestFailed());
       compareBisync(*got, *want);
+      QVERIFY(!QTest::currentTestFailed());
+      compareV10(*got, *want);
       QVERIFY(!QTest::currentTestFailed());
     }
     qDeleteAll(loaded);
@@ -764,6 +787,397 @@ private slots:
         dialogFor(savedFile, true, false, true));
     QVERIFY(
         !savedFileDialog->findChild<QRadioButton *>("rbBisync")->isEnabled());
+  }
+
+  // T-JO-COMPAT-V9 (I-7): a tasks file written by classVersion 9 (two tasks,
+  // recorded by 13.1 S1) loads with the same value in every field, the
+  // version 10 fields have their defaults, and an upload to S3 runs unchanged.
+  void T_JO_COMPAT_V9() {
+    QCOMPARE(JobOptions::classVersion, qint32(10));
+
+    const QString fixture =
+        rbFixture(QStringLiteral("synthetic/jobopts_v9.bin"));
+    QVERIFY2(QFileInfo::exists(fixture), qPrintable(fixture));
+    QVERIFY(replaceFile(fixture, tasksFile()));
+    Probe probe;
+    QVERIFY(ListOfJobOptions::RestoreFromUserData(probe));
+    const QList<JobOptions *> loaded = probe.getTasks();
+    QCOMPARE(loaded.size(), 2);
+
+    // the file order is the Persist order of the recorder
+    const JobOptions wants[] = {makeV9(), makeV9Upload()};
+    for (int i = 0; i < 2; ++i) {
+      QCOMPARE(loaded.at(i)->uniqueId, wants[i].uniqueId);
+      compareV8(*loaded.at(i), wants[i]);
+      QVERIFY(!QTest::currentTestFailed());
+      compareBisync(*loaded.at(i), wants[i]);
+      QVERIFY(!QTest::currentTestFailed());
+      QCOMPARE(loaded.at(i)->uploadHeaders, QString());
+      QCOMPARE(loaded.at(i)->s3Tags, QString());
+    }
+    QVERIFY(!loaded.at(1)->getOptions().contains(
+        QStringLiteral("--header-upload")));
+    qDeleteAll(loaded);
+  }
+
+  // T-JO-UPLOAD-HEADERS: --header-upload comes from uploads only, the S3 tags
+  // from uploads to an S3 remote only, and both go after every other flag.
+  void T_JO_UPLOAD_HEADERS() {
+    const QString flag = QStringLiteral("--header-upload");
+    const QString hdr = QStringLiteral("Cache-Control: no-cache");
+    const QString tag = QStringLiteral("X-Amz-Tagging: proj=rb&env=test");
+    const auto hasPair = [&flag](const QStringList &argv, const QString &v) {
+      for (qsizetype i = 0; i + 1 < argv.size(); ++i) {
+        if (argv.at(i) == flag && argv.at(i + 1) == v) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    JobOptions jo = makeCommon(JobOptions::Copy, JobOptions::Upload);
+    jo.remoteType = QStringLiteral("s3");
+    jo.remoteMode = QStringLiteral("main");
+    jo.uploadHeaders = hdr;
+    jo.s3Tags = QStringLiteral("proj=rb\nenv=test");
+    QStringList argv = jo.getOptions();
+    QVERIFY(hasPair(argv, hdr));
+    QVERIFY(hasPair(argv, tag));
+    QCOMPARE(argv.count(flag), 2);
+    QVERIFY(argv.indexOf(tag) > argv.indexOf(hdr));
+
+    // the argv without the two fields is untouched, they only add to its end
+    JobOptions plain = jo;
+    plain.uploadHeaders.clear();
+    plain.s3Tags.clear();
+    const QStringList base = plain.getOptions();
+    QVERIFY(!base.contains(flag));
+    QCOMPARE(argv.mid(0, base.size()), base);
+    QCOMPARE(argv.size(), base.size() + 4);
+
+    // the app filter keeps the pairs
+    const QStringList filtered =
+        PrepareTransferArgs(argv, QProcessEnvironment()).args;
+    QVERIFY(hasPair(filtered, hdr));
+    QVERIFY(hasPair(filtered, tag));
+
+    // another remote type: the headers, not the tags
+    jo.remoteType = QStringLiteral("drive");
+    argv = jo.getOptions();
+    QVERIFY(hasPair(argv, hdr));
+    QCOMPARE(argv.count(flag), 1);
+    for (const QString &arg : argv) {
+      QVERIFY2(!arg.contains(QStringLiteral("X-Amz-Tagging")),
+               qPrintable(arg));
+    }
+
+    // a download has neither
+    jo.jobType = JobOptions::Download;
+    jo.remoteType = QStringLiteral("s3");
+    QVERIFY(!jo.getOptions().contains(flag));
+
+    // text that does not parse is dropped
+    jo.jobType = JobOptions::Upload;
+    jo.uploadHeaders = QStringLiteral("bad header");
+    jo.s3Tags = QStringLiteral("novalue");
+    QVERIFY(!jo.getOptions().contains(flag));
+
+    // a Bisync upload carries them too
+    JobOptions bisync = makeCommon(JobOptions::Bisync, JobOptions::Upload);
+    bisync.remoteType = QStringLiteral("s3");
+    bisync.remoteMode = QStringLiteral("main");
+    bisync.uploadHeaders = hdr;
+    bisync.s3Tags = QStringLiteral("proj=rb\nenv=test");
+    // with bisync flags, so the pairs are seen to come after them
+    bisync.bisyncResync = true;
+    bisync.bisyncWorkdir = QStringLiteral("/w d");
+    argv = bisync.getOptions();
+    QVERIFY(argv.contains(QStringLiteral("--resync")));
+    QCOMPARE(argv.mid(argv.size() - 4), (QStringList{flag, hdr, flag, tag}));
+  }
+
+  // T-JO-HEADERS-DIALOG: the upload headers panel of the Extra options tab
+  // shows what applies to the job, and keeps Save task, Dry run and Run off
+  // while the text does not parse.
+  void T_JO_HEADERS_DIALOG() {
+    const QString flag = QStringLiteral("--header-upload");
+    auto make = [](JobOptions &task, bool download, const QString &type,
+                   bool edit) {
+      return std::make_unique<TransferDialog>(
+          download, false, QStringLiteral("d:"), QDir(QStringLiteral("/dst")),
+          true, type, QStringLiteral("main"), false, QStringList(), nullptr,
+          &task, edit);
+    };
+    // the dialog is never shown: visible means visible to the dialog, and the
+    // Extra options tab (index 2) has to be the current one for that
+    auto extraTab = [](QDialog *d) {
+      d->findChild<QTabWidget *>("tabWidget")->setCurrentIndex(2);
+    };
+    struct Buttons {
+      QPushButton *save = nullptr, *dry = nullptr, *run = nullptr;
+    };
+    auto buttonsOf = [](QDialog *d) {
+      Buttons b;
+      auto *box = d->findChild<QDialogButtonBox *>("buttonBox");
+      for (QAbstractButton *button : box->buttons()) {
+        auto *push = qobject_cast<QPushButton *>(button);
+        const auto role = box->buttonRole(button);
+        if (role == QDialogButtonBox::ActionRole) {
+          b.save = push;
+        } else if (role == QDialogButtonBox::AcceptRole) {
+          // Dry run first (its text), Run the other one
+          (button->text().contains(QStringLiteral("Dry")) ? b.dry : b.run) =
+              push;
+        }
+      }
+      return b;
+    };
+
+    // (a) an upload to S3
+    {
+      JobOptions task = makeCommon(JobOptions::Copy, JobOptions::Upload);
+      std::unique_ptr<TransferDialog> d =
+          make(task, false, QStringLiteral("s3"), false);
+      extraTab(d.get());
+      auto *toggle = d->findChild<QToolButton *>("buttonUploadHeaders");
+      auto *panel = d->findChild<QWidget *>("uploadHeadersPanel");
+      auto *headers = d->findChild<QPlainTextEdit *>("uploadHeaders");
+      auto *tags = d->findChild<QPlainTextEdit *>("s3Tags");
+      auto *tagsLabel = d->findChild<QLabel *>("labelS3Tags");
+      auto *error = d->findChild<QLabel *>("uploadHeadersError");
+      auto *name = d->findChild<QLineEdit *>("le_taskName");
+      auto *autoName = d->findChild<QCheckBox *>("cb_taskAutoName");
+      QVERIFY(toggle && panel && headers && tags && tagsLabel && error &&
+              name && autoName);
+      const Buttons b = buttonsOf(d.get());
+      QVERIFY(b.save && b.dry && b.run);
+      // the name half of the Save task rule: valid text, no name, no auto-name
+      QVERIFY(!autoName->isChecked());
+      QVERIFY(name->text().isEmpty());
+      QVERIFY(!b.save->isEnabled());
+      QVERIFY(b.run->isEnabled());
+
+      QVERIFY(toggle->isVisibleTo(d.get()));
+      QVERIFY(!panel->isVisibleTo(d.get()));
+      toggle->setChecked(true);
+      QVERIFY(panel->isVisibleTo(d.get()));
+      QVERIFY(tags->isVisibleTo(d.get()));
+      QVERIFY(tagsLabel->isVisibleTo(d.get()));
+      QVERIFY(!error->isVisibleTo(d.get()));
+
+      name->setText(QStringLiteral("t"));
+      QVERIFY(b.save->isEnabled());
+      QVERIFY(b.dry->isEnabled());
+      QVERIFY(b.run->isEnabled());
+      name->clear();
+      QVERIFY(!b.save->isEnabled());
+      name->setText(QStringLiteral("t"));
+      QVERIFY(b.save->isEnabled());
+
+      auto *tabs = d->findChild<QTabWidget *>("tabWidget");
+      headers->setPlainText(QStringLiteral("bad header"));
+      QVERIFY(error->isVisibleTo(d.get()));
+      QVERIFY(!error->text().isEmpty());
+      QVERIFY(!b.save->isEnabled());
+      QVERIFY(!b.dry->isEnabled());
+      QVERIFY(!b.run->isEnabled());
+      // the reason stays visible when the panel is collapsed or another tab is
+      // current: the label is outside the panel, the tab and the buttons say it
+      toggle->setChecked(false);
+      QVERIFY(!panel->isVisibleTo(d.get()));
+      QVERIFY(error->isVisibleTo(d.get()));
+      QCOMPARE(tabs->tabText(2), QStringLiteral("Extra Options(!)"));
+      tabs->setCurrentIndex(0);
+      QCOMPARE(tabs->tabText(2), QStringLiteral("Extra Options(!)"));
+      QVERIFY(!b.run->toolTip().isEmpty());
+      QVERIFY(!b.save->toolTip().isEmpty());
+      extraTab(d.get());
+      toggle->setChecked(true);
+      // the task name handlers enable Save task; the headers have the last word
+      name->setText(QStringLiteral("t2"));
+      QVERIFY(!b.save->isEnabled());
+      autoName->click();
+      QVERIFY(!b.save->isEnabled());
+      autoName->click();
+
+      headers->setPlainText(QStringLiteral("Cache-Control: no-cache"));
+      QVERIFY(!error->isVisibleTo(d.get()));
+      QVERIFY(b.save->isEnabled());
+      QVERIFY(b.dry->isEnabled());
+      QVERIFY(b.run->isEnabled());
+
+      tags->setPlainText(QStringLiteral("novalue"));
+      QVERIFY(error->isVisibleTo(d.get()));
+      QVERIFY(!b.save->isEnabled());
+      QVERIFY(!b.dry->isEnabled());
+      QVERIFY(!b.run->isEnabled());
+
+      tags->setPlainText(QStringLiteral("proj=rb\nenv=test"));
+      QVERIFY(!error->isVisibleTo(d.get()));
+      QVERIFY(b.save->isEnabled());
+      QVERIFY(b.dry->isEnabled());
+      QVERIFY(b.run->isEnabled());
+      const QStringList argv = d->getOptions();
+      QVERIFY(argv.contains(QStringLiteral("Cache-Control: no-cache")));
+      QVERIFY(
+          argv.contains(QStringLiteral("X-Amz-Tagging: proj=rb&env=test")));
+      QCOMPARE(argv.count(flag), 2);
+      QCOMPARE(d->findChild<QTabWidget *>("tabWidget")->tabText(2),
+               QStringLiteral("Extra Options(x)"));
+
+      // Restore defaults clears both fields and the error
+      headers->setPlainText(QStringLiteral("bad header"));
+      QVERIFY(!b.run->isEnabled());
+      d->findChild<QDialogButtonBox *>("buttonBox")
+          ->button(QDialogButtonBox::RestoreDefaults)
+          ->click();
+      QVERIFY(headers->toPlainText().isEmpty());
+      QVERIFY(tags->toPlainText().isEmpty());
+      QVERIFY(!error->isVisibleTo(d.get()));
+      QVERIFY(b.run->isEnabled());
+      QCOMPARE(b.run->toolTip(), QStringLiteral("ALT-r"));
+      QCOMPARE(tabs->tabText(2), QStringLiteral("Extra Options"));
+      // no new tab: the code uses the indices 2 to 6
+      QCOMPARE(tabs->count(), 7);
+      QCOMPARE(tabs->tabText(6), QStringLiteral("rclone cmd"));
+    }
+
+    // (b) an upload to another remote type: no tags
+    {
+      JobOptions task = makeCommon(JobOptions::Copy, JobOptions::Upload);
+      std::unique_ptr<TransferDialog> d =
+          make(task, false, QStringLiteral("drive"), false);
+      extraTab(d.get());
+      auto *toggle = d->findChild<QToolButton *>("buttonUploadHeaders");
+      auto *tags = d->findChild<QPlainTextEdit *>("s3Tags");
+      auto *headers = d->findChild<QPlainTextEdit *>("uploadHeaders");
+      QVERIFY(toggle->isVisibleTo(d.get()));
+      toggle->setChecked(true);
+      QVERIFY(headers->isVisibleTo(d.get()));
+      QVERIFY(!tags->isVisibleTo(d.get()));
+      // hidden text neither blocks the dialog nor reaches the argv
+      tags->setPlainText(QStringLiteral("novalue"));
+      headers->setPlainText(QStringLiteral("X-A: b"));
+      const Buttons b = buttonsOf(d.get());
+      d->findChild<QLineEdit *>("le_taskName")->setText(QStringLiteral("t"));
+      QVERIFY(b.save->isEnabled());
+      QVERIFY(b.run->isEnabled());
+      const QStringList argv = d->getOptions();
+      QCOMPARE(argv.count(flag), 1);
+      for (const QString &arg : argv) {
+        QVERIFY2(!arg.contains(QStringLiteral("novalue")), qPrintable(arg));
+        QVERIFY2(!arg.contains(QStringLiteral("X-Amz-Tagging")),
+                 qPrintable(arg));
+      }
+    }
+
+    // (c) a download has no upload headers
+    {
+      JobOptions task = makeCommon(JobOptions::Copy, JobOptions::Download);
+      std::unique_ptr<TransferDialog> d =
+          make(task, true, QStringLiteral("s3"), false);
+      extraTab(d.get());
+      QVERIFY(!d->findChild<QToolButton *>("buttonUploadHeaders")
+                   ->isVisibleTo(d.get()));
+      QVERIFY(!d->findChild<QWidget *>("uploadHeadersPanel")
+                   ->isVisibleTo(d.get()));
+      QVERIFY(!d->getOptions().contains(flag));
+    }
+
+    // (d) editing a saved upload task: the text is restored and shown
+    {
+      JobOptions task = makeCommon(JobOptions::Copy, JobOptions::Upload);
+      task.description = QStringLiteral("saved");
+      task.remoteType = QStringLiteral("s3");
+      task.uploadHeaders = QStringLiteral("Cache-Control: no-cache");
+      task.s3Tags = QStringLiteral("proj=rb\nenv=test");
+      std::unique_ptr<TransferDialog> d =
+          make(task, false, QStringLiteral("s3"), true);
+      extraTab(d.get());
+      QVERIFY(d->findChild<QToolButton *>("buttonUploadHeaders")->isChecked());
+      QVERIFY(d->findChild<QWidget *>("uploadHeadersPanel")
+                  ->isVisibleTo(d.get()));
+      QCOMPARE(d->findChild<QPlainTextEdit *>("uploadHeaders")->toPlainText(),
+               QStringLiteral("Cache-Control: no-cache"));
+      QCOMPARE(d->findChild<QPlainTextEdit *>("s3Tags")->toPlainText(),
+               QStringLiteral("proj=rb\nenv=test"));
+      const Buttons b = buttonsOf(d.get());
+      QVERIFY(b.save->isEnabled());
+      QVERIFY(!b.dry->isEnabled());
+      QVERIFY(!b.run->isEnabled());
+    }
+
+    // (e) done() refuses text that does not parse: with no task name nothing
+    // is saved and no message box opens, so only the guard keeps it open
+    {
+      JobOptions task = makeCommon(JobOptions::Copy, JobOptions::Upload);
+      std::unique_ptr<TransferDialog> d =
+          make(task, false, QStringLiteral("drive"), false);
+      extraTab(d.get());
+      QVERIFY(d->findChild<QLineEdit *>("le_taskName")->text().isEmpty());
+      QVERIFY(!d->findChild<QCheckBox *>("cb_taskAutoName")->isChecked());
+      d->findChild<QLineEdit *>("textSource")
+          ->setText(QStringLiteral("/tmp/x"));
+      d->findChild<QPlainTextEdit *>("uploadHeaders")
+          ->setPlainText(QStringLiteral("bad header"));
+      static_cast<QDialog *>(d.get())->done(QDialog::Accepted);
+      QVERIFY(d->result() != QDialog::Accepted);
+    }
+
+    // (f) D-REMEMBER: with "remember last options" the next dialog gets the
+    // other options back, but never the headers and tags of this destination
+    {
+      struct Cleanup {
+        ~Cleanup() {
+          auto settings = GetSettings();
+          settings->remove(QStringLiteral("Transfer"));
+          settings->remove(QStringLiteral("Settings/rememberLastOptions"));
+        }
+      } cleanup;
+      {
+        auto settings = GetSettings();
+        settings->remove(QStringLiteral("Transfer"));
+        settings->setValue(QStringLiteral("Settings/rememberLastOptions"),
+                           true);
+      }
+      JobOptions task = makeCommon(JobOptions::Copy, JobOptions::Upload);
+      {
+        std::unique_ptr<TransferDialog> d =
+            make(task, false, QStringLiteral("s3"), false);
+        QVERIFY(d->findChild<QLineEdit *>("le_taskName")->text().isEmpty());
+        QVERIFY(!d->findChild<QCheckBox *>("cb_taskAutoName")->isChecked());
+        d->findChild<QLineEdit *>("textSource")
+            ->setText(QStringLiteral("/tmp/x"));
+        d->findChild<QPlainTextEdit *>("pte_textExtra")
+            ->setPlainText(QStringLiteral("--fast-list"));
+        d->findChild<QPlainTextEdit *>("uploadHeaders")
+            ->setPlainText(QStringLiteral("Cache-Control: no-cache"));
+        d->findChild<QPlainTextEdit *>("s3Tags")
+            ->setPlainText(QStringLiteral("proj=rb"));
+        static_cast<QDialog *>(d.get())->done(QDialog::Accepted);
+        QCOMPARE(d->result(), int(QDialog::Accepted));
+      }
+      {
+        auto settings = GetSettings();
+        // positive control: the other text fields are remembered
+        QVERIFY(settings->contains(
+            QStringLiteral("Transfer/pte_textExtra/size")));
+        QVERIFY(!settings->contains(
+            QStringLiteral("Transfer/uploadHeaders/size")));
+        QVERIFY(!settings->contains(QStringLiteral("Transfer/s3Tags/size")));
+      }
+      std::unique_ptr<TransferDialog> next =
+          make(task, false, QStringLiteral("s3"), false);
+      QCOMPARE(next->findChild<QPlainTextEdit *>("pte_textExtra")
+                   ->toPlainText(),
+               QStringLiteral("--fast-list"));
+      QVERIFY(next->findChild<QPlainTextEdit *>("uploadHeaders")
+                  ->toPlainText()
+                  .isEmpty());
+      QVERIFY(next->findChild<QPlainTextEdit *>("s3Tags")
+                  ->toPlainText()
+                  .isEmpty());
+    }
   }
 
   // T-JO-NEWER: a tasks file from a newer version is refused.

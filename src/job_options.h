@@ -100,6 +100,11 @@ public:
   bool bisyncRecover;
   QString bisyncWorkdir; // empty means rclone's default
 
+  // added for uploads (13.1): the raw text of the Extra options tab, one
+  // header "Name: value" or tag "key=value" per line
+  QString uploadHeaders;
+  QString s3Tags;
+
   void setJobType(bool isDownload) {
     jobType = (isDownload) ? Download : Upload;
   }

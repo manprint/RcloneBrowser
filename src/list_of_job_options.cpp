@@ -191,7 +191,7 @@ QDataStream &operator<<(QDataStream &stream, JobOptions &jo) {
          << jo.included << jo.noTraverse << jo.createEmptySrcDirs << jo.filtered
          << jo.deleteEmptySrcDirs << jo.bisyncResync
          << jo.bisyncConflictResolve << jo.bisyncResilient << jo.bisyncRecover
-         << jo.bisyncWorkdir;
+         << jo.bisyncWorkdir << jo.uploadHeaders << jo.s3Tags;
 
   return stream;
 }
@@ -262,6 +262,11 @@ QDataStream &operator>>(QDataStream &stream, JobOptions &jo) {
     stream >> jo.bisyncResilient;
     stream >> jo.bisyncRecover;
     stream >> jo.bisyncWorkdir;
+  }
+
+  if (actualVersion >= 10) {
+    stream >> jo.uploadHeaders;
+    stream >> jo.s3Tags;
   }
 
   return stream;

@@ -1546,6 +1546,99 @@ QToolButton:pressed {
          </property>
         </widget>
        </item>
+       <item>
+        <widget class="QToolButton" name="buttonUploadHeaders">
+         <property name="styleSheet">
+          <string notr="true">QToolButton { border: none; }</string>
+         </property>
+         <property name="text">
+          <string>  Upload headers</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="toolButtonStyle">
+          <enum>Qt::ToolButtonTextBesideIcon</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QWidget" name="uploadHeadersPanel" native="true">
+         <property name="visible">
+          <bool>false</bool>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayoutUploadHeaders">
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QLabel" name="labelUploadHeaders">
+            <property name="text">
+             <string>Headers, one per line (Name: value):</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPlainTextEdit" name="uploadHeaders">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>80</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Sent with --header-upload, one per line, e.g.:&lt;br/&gt;&lt;br/&gt;Cache-Control: no-cache&lt;br/&gt;X-Amz-Meta-Owner: me&lt;br/&gt;&lt;br/&gt;rclone's S3 backend accepts Cache-Control, Content-Disposition, Content-Encoding, Content-Language, Content-Type, If-Match, If-None-Match, X-Amz-Tagging and X-Amz-Meta-*. Any other key is logged as an error on S3 (the file is still uploaded).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="labelS3Tags">
+            <property name="text">
+             <string>S3 object tags, one per line (key=value, at most 10):</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPlainTextEdit" name="s3Tags">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>80</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Sent as the X-Amz-Tagging header</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="uploadHeadersError">
+         <property name="visible">
+          <bool>false</bool>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">QLabel { color: red; }</string>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
       </layout>
      </widget>
      <widget class="QWidget" name="tab_3">

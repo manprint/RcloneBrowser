@@ -50,6 +50,10 @@ private:
   JobOptions *mJobOptions;
   JobOptions *mJobOptionsRcloneCmd;
 
+  // the buttons of the button box that the upload headers check enables
+  QPushButton *mSaveTaskButton = nullptr, *mDryRunButton = nullptr,
+              *mRunButton = nullptr;
+
   void save_AutoName_AddToQueue();
   bool saveTaskToFile(bool forRun = false);
   bool checkBisyncPaths(bool forRun);
@@ -57,6 +61,11 @@ private:
   void generateAutoTaskName();
 
   void rcloneCmdUpdate();
+
+  // the upload headers and S3 tags of the Extra options tab (13.1)
+  bool uploadHeadersValid() const;
+  void updateUploadHeadersState();
+  void updateExtraTabTitle();
 
   void putJobOptions();
 
