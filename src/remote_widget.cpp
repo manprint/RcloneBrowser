@@ -805,6 +805,9 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
           "Rename", "Renaming...",
           "\"" + metrix.elidedText(pathMsg, Qt::ElideMiddle, 500) + "\"",
           &process, this);
+      // without this the dialog's Cancel button stays disabled while a
+      // hanging rename runs
+      progress.allowToClose();
       if (progress.exec() == QDialog::Accepted) {
         model->rename(index, name);
       }
