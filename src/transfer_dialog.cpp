@@ -75,12 +75,15 @@ TransferDialog::TransferDialog(bool isDownload, bool isDrop,
     const int before = ui.verticalLayout_4->totalSizeHint().height();
     ui.groupBisync->setVisible(on);
     // rclone bisync has no --delete-empty-src-dirs, ignores --update and
-    // --no-traverse, and --delete-excluded makes it delete destination files
-    // (JobOptions::getOptions leaves all four out for Bisync)
+    // --no-traverse, --delete-excluded makes it delete files outside its
+    // changes, and --ignore-existing or --no-update-modtime make it stop out of
+    // sync (JobOptions::getOptions leaves all six out for Bisync)
     ui.deleteEmptySrcDirs->setEnabled(!on);
     ui.checkDeleteExcluded->setEnabled(!on);
     ui.checkSkipNewer->setEnabled(!on);
     ui.noTraverse->setEnabled(!on);
+    ui.checkSkipExisting->setEnabled(!on);
+    ui.checkDontUpdateModified->setEnabled(!on);
     ui.verticalLayout_4->invalidate();
     mLockedHeight += ui.verticalLayout_4->totalSizeHint().height() - before;
     setMinimumHeight(mLockedHeight);

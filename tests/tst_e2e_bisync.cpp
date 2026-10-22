@@ -140,19 +140,27 @@ private slots:
     }
   }
 
-  // T-E2E-BISYNC-UPDATE: after the resync a new file goes across without it.
+  // T-E2E-BISYNC-UPDATE: after the resync a new and a changed file go across
+  // without it.
   void T_E2E_BISYNC_UPDATE() {
     QVERIFY(writeFile(path(QStringLiteral("p1/c.txt")), "c"));
+    QVERIFY(writeFile(path(QStringLiteral("p1/a.txt")), "a2"));
     // The flags the dialog keeps out of a Bisync task: with --delete-excluded
-    // rclone 1.75.2 deletes p2/a.txt and p2/b.txt (outside the delta queue).
+    // rclone 1.75.2 deletes p2/a.txt and p2/b.txt (outside the delta queue),
+    // and with --ignore-existing the changed a.txt stays behind and the run
+    // stops out of sync (exit 7).
     JobOptions jo = makeBisync(false);
     jo.deleteExcluded = true;
     jo.skipNewer = true;
     jo.noTraverse = true;
+    jo.skipExisting = true;
+    jo.dontUpdateModified = true;
     const Outcome o = run(jo);
     QVERIFY(!o.running);
     QVERIFY(!o.argv.contains(QStringLiteral("--resync")));
-    for (const char *flag : {"--delete-excluded", "--update", "--no-traverse"}) {
+    for (const char *flag :
+         {"--delete-excluded", "--update", "--no-traverse", "--ignore-existing",
+          "--no-update-modtime"}) {
       QVERIFY2(!o.argv.contains(QLatin1String(flag)), flag);
     }
     QVERIFY2(o.result == TransferMonitor::Result::Finished,
@@ -161,6 +169,9 @@ private slots:
     QVERIFY(QFileInfo::exists(path(QStringLiteral("p2/c.txt"))));
     QCOMPARE(names(path(QStringLiteral("p2"))),
              (QStringList{"a.txt", "b.txt", "c.txt"}));
+    QFile changed(path(QStringLiteral("p2/a.txt")));
+    QVERIFY(changed.open(QIODevice::ReadOnly));
+    QCOMPARE(changed.readAll(), QByteArray("a2"));
   }
 };
 

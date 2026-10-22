@@ -86,11 +86,14 @@ QStringList JobOptions::getOptions() const {
   }
 
   // rclone bisync ignores --update and --no-traverse and logs a WARNING for
-  // each (cmd/bisync/compare.go notSupported), so a Bisync task leaves them out
+  // each (cmd/bisync/compare.go notSupported), so a Bisync task leaves them out;
+  // --ignore-existing and --no-update-modtime leave a changed file (content or
+  // modtime only) behind, and bisync then stops with "path1 and path2 are out
+  // of sync" and asks for a resync
   if (skipNewer && operation != Bisync) {
     list << "--update";
   }
-  if (skipExisting) {
+  if (skipExisting && operation != Bisync) {
     list << "--ignore-existing";
   }
 
@@ -118,7 +121,7 @@ QStringList JobOptions::getOptions() const {
     list << "--one-file-system";
   }
 
-  if (dontUpdateModified) {
+  if (dontUpdateModified && operation != Bisync) {
     list << "--no-update-modtime";
   }
 

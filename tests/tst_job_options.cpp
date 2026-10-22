@@ -231,12 +231,15 @@ QStringList commonTail() {
 
 // The same without the flags a Bisync task never emits: rclone 1.75.2 bisync
 // rejects --delete-empty-src-dirs ("unknown flag", exit 2), ignores --update and
-// --no-traverse with a WARNING, and --delete-excluded makes it delete the
-// destination files outside the delta queue (queue.go:254, sync.go:961).
+// --no-traverse with a WARNING, --delete-excluded makes it delete the
+// files outside the delta queue (queue.go:254, sync.go:961), and with
+// --ignore-existing or --no-update-modtime a changed file stays behind and the
+// run stops "out of sync" (exit 7).
 QStringList bisyncTail() {
   QStringList tail = commonTail();
-  for (const char *flag : {"--delete-empty-src-dirs", "--update",
-                           "--no-traverse", "--delete-excluded"}) {
+  for (const char *flag :
+       {"--delete-empty-src-dirs", "--update", "--no-traverse",
+        "--delete-excluded", "--ignore-existing", "--no-update-modtime"}) {
     tail.removeAll(QLatin1String(flag));
   }
   return tail;
@@ -643,9 +646,10 @@ private slots:
     // the group is part of the locked height
     QVERIFY(d->maximumHeight() > baseHeight);
     QCOMPARE(d->minimumHeight(), d->maximumHeight());
-    // what bisync ignores or rejects is disabled
-    for (const char *name : {"deleteEmptySrcDirs", "checkDeleteExcluded",
-                             "checkSkipNewer", "noTraverse"}) {
+    // what bisync ignores, rejects or cannot sync with is disabled
+    for (const char *name :
+         {"deleteEmptySrcDirs", "checkDeleteExcluded", "checkSkipNewer",
+          "noTraverse", "checkSkipExisting", "checkDontUpdateModified"}) {
       QVERIFY2(!d->findChild<QCheckBox *>(name)->isEnabled(), name);
     }
     QCOMPARE(d->getOptions(), wantArgv);
@@ -663,8 +667,9 @@ private slots:
     QVERIFY(!group->isVisibleTo(d.get()));
     QCOMPARE(d->maximumHeight(), baseHeight);
     QCOMPARE(d->minimumHeight(), baseHeight);
-    for (const char *name : {"deleteEmptySrcDirs", "checkDeleteExcluded",
-                             "checkSkipNewer", "noTraverse"}) {
+    for (const char *name :
+         {"deleteEmptySrcDirs", "checkDeleteExcluded", "checkSkipNewer",
+          "noTraverse", "checkSkipExisting", "checkDontUpdateModified"}) {
       QVERIFY2(d->findChild<QCheckBox *>(name)->isEnabled(), name);
     }
     QVERIFY(!d->getOptions().contains(QStringLiteral("--resync")));
