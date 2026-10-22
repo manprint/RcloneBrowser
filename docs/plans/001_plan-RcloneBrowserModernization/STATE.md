@@ -64,17 +64,17 @@ Recover an unresolved audit completion commit first, without finalizing the susp
 
 - Active scope: plan 001, all phases 0–14 (invocation `/plan-execute-verify-mid execute 001`, 2026-10-21; phase 14 added by revision 11). User, 2026-10-21: "finisci il piano in autonomia".
 - Scope result: RUNNING
-- Type: phase closure
-- ID / attempt: P9 / 1
-- Status: CLOSED (unit:P9:1)
-- Intent: close phase 9 (Serve): README FAQ `faq-serve`, Known limitations, the Backend cross-link and the Fork changes bullet; CHANGELOG 2.1.0 NEW line; triage #129; full phase gates and the P9 review. Revision 25 (user) skipped phases 11 and 12; revision 26 adds B-T5.
-- Assigned: agent-1:opus (coordinator, writer, state writer); `p9-docs-review` opus-5-5 reviewers `rclone-facts` and `ui-and-code`.
-- File / unit heading: phase_10.md "Phase gates and closure"
-- Current step: closed
-- Next action: G-CI on the P9 commit; revision 27 (phase_11.md anchors after P7–P9, the Ctrl+W collision, the typed roots on a Drive mode switch); open 10.1.
-- Next eligible plan unit: 10.1 (phase_11.md).
-- Unit base: unit:9.1:1 (1834176) + revision 25 (2e9913a) + B-T4 (b4f2324) + B-T5 (32ce4ab); branch: `dev/001-modernization`.
-- Repo state: HEAD = unit:P9:1; untracked `.serena/` (unrelated).
+- Type: sub-phase
+- ID / attempt: 10.1 / 1
+- Status: OPEN
+- Intent: #16 editable path with Go (typed roots, rootless remotes such as Internet Archive) and `actionGoToPath` (Ctrl+L), per phase_11.md 10.1 as revised by revision 27.
+- Assigned: `pev-subphase-v2` workflow (sonnet-5-5 implementer, haiku-5-5 gate runner, opus-5-5 reviewers); agent-1:opus (coordinator, final reviewer, state writer).
+- File / unit heading: phase_11.md "10.1 Editable path with Go (#16); rootless remotes"
+- Current step: S1
+- Next action: run the workflow from the brief; record G-CI (P9) run 39757528236 at the 10.1 close.
+- Next eligible plan unit: 10.2 (phase_11.md), after unit:10.1:1.
+- Unit base: unit:P9:1 (5732ff7) + revision 27; branch: `dev/001-modernization`; owned changes: `src/remote_widget.h/.cpp/.ui`, NEW `src/path_entry.h/.cpp`, `src/CMakeLists.txt`, NEW `tests/tst_path_entry.cpp`, NEW `tests/tst_e2e_path_entry.cpp`, `tests/CMakeLists.txt`; STATE.md.
+- Repo state: HEAD = revision 27 + this opening on unit:P9:1; untracked `.serena/` (unrelated).
 
 ## 2. Feature context and readiness
 
@@ -491,7 +491,7 @@ Cold-read note (1.4, agent-1:opus, 2026-10-21): every symbol 1.4 uses is defined
 | 24 | phase_10 9.1 (revision 23): ServeDialog OK gating without the password-only case; no `tst_serve_widget` (D3); serve errors always in a box; G-U9.1 `tst_serve_manager` only, totals 24/18 | the 9.1 reviews (serve-rc F6) and the P9 prefetch: rclone 1.75.2 enables the login only with a user name, so a password alone gives an open serve: OK needs a user name with any password; the dialog carries the type rules, so T-SRV-DIALOG and T-SRV-WINDOW in NEW `tests/tst_serve_widget.cpp` (mutation check: removing the password rule fails T_SRV_DIALOG); an error while the backend is not Running goes to the status bar (no modal box inside the quit loop); totals 25/18 | agent-1:opus (9.1 closure) | phase_10.md 9.1 "Revision 24" note; §11 test map row 9.1 |
 | 25 | phases 11 (11.1, 11.2: drag between views, dual pane) and 12 (12.1–12.3: i18n, Italian) in scope; phase 13 after P12; G-I18N at P12/P13 and in G-FINAL; G-FINAL item 7 with DRAG and DUAL; T-MW-SNAPSHOT re-record at 11.2 | User, 2026-10-22: "per me puoi non tradurre mi sta bene l'inglese!" and, on the dual pane, "a me va bene l'interafccia come è adesso, possiamo anche skippare questa fase." Phases 11 and 12 are SKIPPED (their files stay as the design record); phase 13 follows P10; G-I18N is not used; G-FINAL item 7 lists BISYNC, COPYTO, COPYURL, SERVE, PATH, FILTER and S3-TAGS; no 11.2 re-record; triage #28, #71, #47 and #138 become `deferred` | user (2026-10-22); agent-1:opus | phase_12.md and phase_13.md banners; phase_14.md prerequisites and gates; overview.md F3 list and phase table; `docs/triage/upstream-issues.md` four rows; §3 G-I18N and G-FINAL; §11 boards |
 | 26 | phase_10 9.1 (revisions 23–24): `serveStartParams` sends only type, fs, addr, user, pass and read_only ("no other key is ever added") | the P9 review (rclone-facts F5, probed in `scratchpad/rfprobe2`–`rfprobe4`): without `authorized_keys` rclone 1.75.2 `serve sftp` loads the backend account's `~/.ssh/authorized_keys`, accepts those keys under any user name, drops their options, and loops forever on a line that is not a key, holding the serve lock (every later serve/* call hangs, rcd ignores core/quit). An sftp serve/start always carries `"authorized_keys": ""` (rclone then skips the file); T_SRV_PARAMS and T_E2E_SERVE_TYPES (a temporary HOME with a comment-only authorized_keys) pin it; README: sftp logs in only with the dialog's user name and password | agent-1:opus (P9 closure) | phase_10.md "Revision 26" note; B-T5 (§4); §11 test map row 9.1 |
-Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 14.1 (new `actionCopyTaskCommand`, revision 15; R-SNAP of phase 14), 9.1 S2 (new `actionServes`); the 11.2 S2 re-record (`openDual` button) is dropped with phase 11 (revision 25). Each re-recording lists only the added lines here when it happens. 9.1 S2 (done): `+A|actionServes|Serves…|1|0|0|` only (`git diff --numstat` `1 0`), sha256 `fccc386d5b1fa157378e67e2d43a401d0f8f0de01b8eb750760213c5370f31ae`.
+| 27 | phase_11 (plan revision 1): fixed tabs 0–3 and remote tabs from 4, Ctrl+1–4; a MainWindow Ctrl+W; RemoteWidget actions in `Qt::WidgetWithChildrenShortcut`; uniqueness per scope; `normalizeEnteredPath(text, isLocal)`; no rule for the path field during a Drive mode switch, for typed roots on that switch, for the `QDir` root paths or for the focus after Go; G-CI only at phase closure | agent-1:opus read the code after P7–P9 before 10.1 (advisor-checked): the Scheduler tab is index 4, so remote tabs start at 5 and the tab shortcuts are Ctrl+1–5; every RemoteWidget already has `QShortcut(QKeySequence::Close)` (Ctrl+W) that only calls `removeTab` (the widget is never deleted, unlike the tab's ×), so the MainWindow Ctrl+W is dropped and 10.3 routes the shortcut through `tabCloseRequested`; with the dual pane skipped (revision 25) only one RemoteWidget is visible and Qt never matches a hidden widget's shortcut, while WidgetWithChildrenShortcut would stop F5/F2/Del after a click on the tab bar, so the actions keep `Qt::WindowShortcut` and are added to the RemoteWidget; uniqueness is checked over every scope active at once (Qt runs neither of two ambiguous shortcuts); `isLocal` is true only on Windows; the default root of a non-local remote has the `QDir` path `"."` and differs from `"/"`; the path field ignores selection writes while focused, is read-only during the Drive switch wait, Go moves focus to the tree, the Drive switch removes typed roots; the error-row oracle uses `Item::Special` and `"⚠ "`; MSVC `/W4 /WX` applies since B-T4, so G-CI runs after every 10.x commit; P10 gates also G-SERVERS, check-triage and the leftover check | agent-1:opus | phase_11.md "Revision 27" note and the updated 10.1–10.3 contracts and tests; §1 |Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 14.1 (new `actionCopyTaskCommand`, revision 15; R-SNAP of phase 14), 9.1 S2 (new `actionServes`); the 11.2 S2 re-record (`openDual` button) is dropped with phase 11 (revision 25). Each re-recording lists only the added lines here when it happens. 9.1 S2 (done): `+A|actionServes|Serves…|1|0|0|` only (`git diff --numstat` `1 0`), sha256 `fccc386d5b1fa157378e67e2d43a401d0f8f0de01b8eb750760213c5370f31ae`.
 
 ## 9. Blockers
 
@@ -573,7 +573,7 @@ Expected fixture changes (approved in the plan): T-MW-SNAPSHOT re-recording in 1
 | 8.1 | phase_09.md | P14 | DONE | 1 | G-U8.1, G-U8.1e pass; unit:8.1:1 |
 | 8.2 | phase_09.md | 8.1 | DONE | 1 | G-U8.2, G-U8.2e pass; unit:8.2:1 |
 | 9.1 | phase_10.md | P14 | DONE | 1 | G-U9.1, G-U9.1e pass; unit:9.1:1 |
-| 10.1 | phase_11.md | P8, P9 | TODO | 1 | — |
+| 10.1 | phase_11.md | P8, P9 | IN_PROGRESS | 1 | — |
 | 10.2 | phase_11.md | 10.1 | TODO | 1 | — |
 | 10.3 | phase_11.md | 10.2 | TODO | 1 | — |
 | 11.1 | phase_12.md | P10 | SKIPPED | 1 | revision 25: dropped at the user's request |
@@ -600,7 +600,7 @@ Units run in ID order. A prerequisite must be DONE; SKIPPED never satisfies it i
 | 14 | phase_15.md | P14 (runs after P7, before P8; v2.0.0 readiness) | DONE | P14 review (§7); unit:P14:1; tag `v2.0.0` published 2026-10-22 (REL-200) |
 | 8 | phase_09.md | P8 | DONE | P8 review (§7); unit:P8:1 |
 | 9 | phase_10.md | P9 | DONE | P9 review (§7); unit:P9:1 |
-| 10 | phase_11.md | P10 | TODO | — |
+| 10 | phase_11.md | P10 | IN_PROGRESS | — |
 | 11 | phase_12.md | P11 | SKIPPED | revision 25: dropped at the user's request |
 | 12 | phase_13.md | P12 | SKIPPED | revision 25: dropped at the user's request |
 | 13 | phase_14.md | P13 (final: G-FINAL) | TODO | — |
