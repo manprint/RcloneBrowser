@@ -89,6 +89,7 @@ set(SOURCE
   pch.cpp
   main.cpp
   main_window.cpp
+  main_window_tasks.cpp
   remote_widget.cpp
   transfer_dialog.cpp
   mount_dialog.cpp
