@@ -175,6 +175,12 @@ private:
   static QStringList mountTaskArgs(const JobOptions &jo);
   static QStringList mountArgsWithDefaults(const QStringList &args);
   void editSelectedTask();
+  // #139: a copy of the selected task with a new id and "<description> (copy)"
+  void duplicateSelectedTask();
+  // the "Ask before running a task" question of Run, Dry run and a job's
+  // Restart (#144): true when the user agreed or the preference is off
+  bool confirmTaskRun(const QString &title, const QString &question,
+                      const QString &names);
   QIcon mUploadIcon;
   QIcon mDownloadIcon;
   QIcon mMountIcon;

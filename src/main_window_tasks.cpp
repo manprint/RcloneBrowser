@@ -154,6 +154,7 @@ void MainWindow::setupTasksTab() {
           menu.addSeparator();
           if (items.count() == 1) {
             menu.addAction(ui.actionEdit);
+            menu.addAction(ui.actionDuplicateTask);
           }
           if (!isRunning && !isScheduled) {
             menu.addAction(ui.actionDelete);
@@ -209,6 +210,9 @@ void MainWindow::setupTasksActions() {
     }
   });
 
+  QObject::connect(ui.actionDuplicateTask, &QAction::triggered, this,
+                   [=]() { duplicateSelectedTask(); });
+
   QObject::connect(ui.actionCopyTaskCommand, &QAction::triggered, this,
                    [=]() { copySelectedTaskCommands(); });
 
@@ -230,13 +234,10 @@ void MainWindow::setupTasksActions() {
     }
 
     if (items.count() > 0) {
-      int button = QMessageBox::question(
-          this, "Dry run",
-          QString(
-              "Are you sure you want to dry run the following task(s)?\n\n" +
-              itemsToRun),
-          QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
-      if (button == QMessageBox::Yes) {
+      if (confirmTaskRun(
+              "Dry run",
+              "Are you sure you want to dry run the following task(s)?\n\n",
+              itemsToRun)) {
         foreach (auto i, items) {
           JobOptionsListWidgetItem *item =
               static_cast<JobOptionsListWidgetItem *>(i);
@@ -348,12 +349,10 @@ void MainWindow::setupTasksActions() {
     }
 
     if (items.count() > 0) {
-      int button = QMessageBox::question(
-          this, "Run",
-          QString("Are you sure you want to run the following task(s)?\n\n" +
-                  itemsToRun),
-          QMessageBox::No | QMessageBox::Yes, QMessageBox::No);
-      if (button == QMessageBox::Yes) {
+      if (confirmTaskRun(
+              "Run",
+              "Are you sure you want to run the following task(s)?\n\n",
+              itemsToRun)) {
 
         foreach (auto i, items) {
           JobOptionsListWidgetItem *item =
@@ -1845,6 +1844,52 @@ void MainWindow::copySelectedTaskCommands() {
     lines << commandLineForClipboard(program, argv, nativeShell());
   }
   QGuiApplication::clipboard()->setText(lines.join(QLatin1Char('\n')));
+}
+
+// Run and Dry run ask this before they start the tasks named in `names`
+// (#144). The question is on by default; the preference turns it off.
+bool MainWindow::confirmTaskRun(const QString &title, const QString &question,
+                                const QString &names) {
+  if (!GetSettings()->value("Settings/confirmTaskRun", true).toBool()) {
+    return true;
+  }
+  return QMessageBox::question(this, title, question + names,
+                               QMessageBox::No | QMessageBox::Yes,
+                               QMessageBox::No) == QMessageBox::Yes;
+}
+
+// Persists a copy of the selected task under a new id (#139). The context menu
+// offers it for exactly one task, so any other selection does nothing.
+void MainWindow::duplicateSelectedTask() {
+  const auto items = ui.tasksListWidget->selectedItems();
+  if (items.count() != 1) {
+    return;
+  }
+
+  const JobOptions *original =
+      static_cast<JobOptionsListWidgetItem *>(items.first())->GetData();
+  JobOptions *copy = new JobOptions(*original);
+  copy->uniqueId = QUuid::createUuid();
+  copy->description = original->description + tr(" (copy)");
+  // neither a dry run nor an automatic mount start is part of a stored task
+  copy->dryRun = false;
+  if (copy->operation == JobOptions::Mount) {
+    copy->mountAutoStart = false;
+  }
+
+  // Persist() emits tasksListUpdated, which rebuilds the list
+  ListOfJobOptions::getInstance()->Persist(copy);
+
+  ui.tasksListWidget->clearSelection();
+  for (int i = 0; i < ui.tasksListWidget->count(); ++i) {
+    QListWidgetItem *item = ui.tasksListWidget->item(i);
+    if (static_cast<JobOptionsListWidgetItem *>(item)->GetData() == copy) {
+      ui.tasksListWidget->setCurrentItem(item);
+      item->setSelected(true);
+      break;
+    }
+  }
+  setTasksButtons();
 }
 
 // The rclone arguments Run starts for a mount task (without the default mount

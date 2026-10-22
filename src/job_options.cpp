@@ -171,16 +171,45 @@ QStringList JobOptions::getOptions() const {
     }
   }
 
-  if (!included.isEmpty()) {
-    for (auto line : included.split('\n')) {
-      list << "--include" << line;
+  // rclone adds every include rule before every exclude rule whatever the
+  // order of the flags, so with both an Include and an Exclude text the Exclude
+  // text would never apply to a file that an include matches (#179). Then the
+  // rules go out as ordered --filter rules, exclude first; they are followed by
+  // the Filter tab and a final "- **" (rclone only implies it for the include
+  // flags). Every other combination keeps the plain flags.
+  const auto rules = [](const QString &text) {
+    QStringList out;
+    for (const QString &line : text.split('\n')) {
+      if (!line.trimmed().isEmpty()) {
+        out << line;
+      }
     }
-  }
+    return out;
+  };
+  const QStringList includeRules = rules(included);
+  const QStringList excludeRules = rules(excluded);
+  const bool ordered = !includeRules.isEmpty() && !excludeRules.isEmpty();
 
-  // excluded after included and extra options as they can also contain included
-  if (!excluded.isEmpty()) {
-    for (auto line : excluded.split('\n')) {
-      list << "--exclude" << line;
+  if (ordered) {
+    for (const QString &line : excludeRules) {
+      list << "--filter" << ("- " + line);
+    }
+    for (const QString &line : includeRules) {
+      list << "--filter" << ("+ " + line);
+    }
+  } else {
+    if (!included.isEmpty()) {
+      for (auto line : included.split('\n')) {
+        list << "--include" << line;
+      }
+    }
+
+    // excluded after included and extra options as they can also contain
+    // included
+    if (!excluded.isEmpty()) {
+      for (auto line : excluded.split('\n')) {
+        list << "--exclude" << line;
+      }
     }
   }
 
@@ -188,6 +217,11 @@ QStringList JobOptions::getOptions() const {
     for (auto line : filtered.split('\n')) {
       list << "--filter" << line;
     }
+  }
+
+  if (ordered) {
+    list << "--filter"
+         << "- **";
   }
 
   // get Google Drive mode option

@@ -63,6 +63,7 @@ A|actionCopyTaskCommand|Copy command|1|0|0|
 A|actionDelete|Delete|1|0|0|
 A|actionDownQueue|Down|0|0|0|
 A|actionDryRun|Dry Run|1|0|0|
+A|actionDuplicateTask|Duplicate|1|0|0|
 A|actionEdit|Edit|1|0|0|
 A|actionOpen|Open|1|0|0|
 A|actionPurgeQueue|Purge|1|0|0|

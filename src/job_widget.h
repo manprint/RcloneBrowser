@@ -36,6 +36,8 @@ public slots:
 signals:
   void finished(const QString &info, const QString &jobFinalStatus);
   void closed();
+  // the user asked for the same transfer again (the job has ended)
+  void restartRequested();
 
 private:
   Ui::JobWidget ui;

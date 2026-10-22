@@ -1026,6 +1026,17 @@
     <string>Copy the rclone command of the selected tasks to the clipboard</string>
    </property>
   </action>
+  <action name="actionDuplicateTask">
+   <property name="text">
+    <string>Duplicate</string>
+   </property>
+   <property name="toolTip">
+    <string>Duplicate the selected task</string>
+   </property>
+   <property name="statusTip">
+    <string>Duplicate the selected task</string>
+   </property>
+  </action>
   <action name="actionSortTask">
    <property name="text">
     <string>Sort</string>

@@ -132,6 +132,26 @@ QToolButton:pressed {
        </widget>
       </item>
       <item>
+       <widget class="QToolButton" name="restart">
+        <property name="toolTip">
+         <string>Run this transfer again</string>
+        </property>
+        <property name="statusTip">
+         <string>Run this transfer again</string>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">QToolButton { border: 0; }
+
+QToolButton:pressed {
+ border: 4;
+ border-radius: 10px;
+ border-style: inset;
+ border-color: rgba(1, 1, 1, 0);
+}</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QToolButton" name="cancel">
         <property name="toolTip">
          <string>Stop job</string>

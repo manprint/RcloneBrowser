@@ -43,6 +43,7 @@ public:
   bool getDarkMode() const;
 
   bool getRememberLastOptions() const;
+  bool getConfirmTaskRun() const;
 
   QString getButtonStyle() const;
   QString getIconsLayout() const;

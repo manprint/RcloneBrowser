@@ -588,6 +588,19 @@
             </property>
            </widget>
           </item>
+          <item row="10" column="0">
+           <widget class="QCheckBox" name="confirmTaskRun">
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;When checked Run, Dry run and the Restart button of a job ask for confirmation before anything starts.&lt;/p&gt;&lt;p&gt;When unchecked they start at once.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
+            <property name="text">
+             <string>Ask before running a task</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
           <item row="0" column="0" colspan="2">
            <widget class="QCheckBox" name="showFolderIcons">
             <property name="sizePolicy">

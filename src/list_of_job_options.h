@@ -14,6 +14,8 @@ public:
   bool Persist(JobOptions *jo);
   bool Forget(JobOptions *jo);
   QList<JobOptions *> &getTasks() { return tasks; }
+  // loads the tasks file into dataIn (public so that a test can reload it)
+  static bool RestoreFromUserData(ListOfJobOptions &dataIn);
 
 signals:
   void tasksListUpdated();
@@ -21,7 +23,6 @@ signals:
 private:
   static ListOfJobOptions *SavedJobOptions;
   static const QString persistenceFileName;
-  static bool RestoreFromUserData(ListOfJobOptions &dataIn);
   static QString GetPersistenceFilePath();
   static QFile *GetPersistenceFile(QIODevice::OpenModeFlag mode);
 

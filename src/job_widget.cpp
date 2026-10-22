@@ -151,6 +151,16 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
     clipboard->setText(mCommand);
   });
 
+  // only an ended job can be run again, so the button shows up in step 5 of
+  // the finished handler
+  ui.restart->setIcon(
+      QIcon(":media/images/qbutton_icons/refresh" + img_add + ".png"));
+  ui.restart->setIconSize(QSize(24, 24));
+  ui.restart->setVisible(false);
+
+  QObject::connect(ui.restart, &QToolButton::clicked, this,
+                   [=]() { emit restartRequested(); });
+
   QObject::connect(mMonitor, &TransferMonitor::statsUpdated, this,
                    [=](const RcloneStats &stats) {
     const QString percent = formatPercent(stats.bytes, stats.totalBytes);
@@ -293,6 +303,7 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
         ui.gridLayout_2->setRowMinimumHeight(mProgressRow, 0);
         mProgressStrut->hide();
         isRunning = false;
+        ui.restart->setVisible(true);
         mFinishDateTime = QDateTime::currentDateTime();
         updateStartFinishInfo();
 

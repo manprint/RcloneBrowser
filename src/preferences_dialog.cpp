@@ -392,6 +392,9 @@ PreferencesDialog::PreferencesDialog(QWidget *parent) : QDialog(parent) {
   ui.rememberLastOptions->setChecked(
       settings->value("Settings/rememberLastOptions", true).toBool());
 
+  ui.confirmTaskRun->setChecked(
+      settings->value("Settings/confirmTaskRun", true).toBool());
+
   if ((settings->value("Settings/buttonStyle").toString()) == "icononly") {
     ui.cb_icononly->setChecked(true);
   } else {
@@ -791,6 +794,10 @@ bool PreferencesDialog::getDarkMode() const { return ui.darkMode->isChecked(); }
 
 bool PreferencesDialog::getRememberLastOptions() const {
   return ui.rememberLastOptions->isChecked();
+}
+
+bool PreferencesDialog::getConfirmTaskRun() const {
+  return ui.confirmTaskRun->isChecked();
 }
 
 QString PreferencesDialog::getPreemptiveLoadingLevel() const {

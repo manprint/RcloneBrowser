@@ -759,6 +759,8 @@ void MainWindow::setupPreferences() {
       settings->setValue("Settings/darkMode", dialog.getDarkMode());
       settings->setValue("Settings/rememberLastOptions",
                          dialog.getRememberLastOptions());
+      settings->setValue("Settings/confirmTaskRun",
+                         dialog.getConfirmTaskRun());
 
       settings->setValue("Settings/buttonStyle",
                          dialog.getButtonStyle().trimmed());
@@ -2544,6 +2546,53 @@ void MainWindow::addTransfer(const QString &message, const QString &source,
     ui.buttonCleanNotRunning->setEnabled(mJobCount !=
                                          (ui.jobs->count() - 2) / 2);
   });
+
+  // Restart (#118): the same transfer again, as a new job with a fresh request
+  // id (the scheduler and queue ids stay with their own jobs). args is the
+  // original list, so a restarted dry run is a dry run again.
+  QObject::connect(
+      widget, &JobWidget::restartRequested, this,
+      [this, message, source, dest, args, uniqueId, transferMode]() {
+        // like Run, refuse while a job of the same task is running
+        if (!uniqueId.isEmpty()) {
+          const int widgetsCount = ui.jobs->count();
+          for (int j = widgetsCount - 2; j >= 0; j = j - 2) {
+            QWidget *w = ui.jobs->itemAt(j)->widget();
+            bool running = false;
+            if (auto t = qobject_cast<JobWidget *>(w)) {
+              running = t->getUniqueID() == uniqueId && t->isRunning;
+            } else if (auto m = qobject_cast<MountWidget *>(w)) {
+              running = m->getUniqueID() == uniqueId && m->isRunning;
+            }
+            if (running) {
+              QMessageBox::warning(this, tr("Restart"),
+                                   tr("This job is already running."));
+              return;
+            }
+          }
+        }
+
+        // the button sits next to Close, so it asks like Run does
+        if (!confirmTaskRun(
+                tr("Restart"),
+                tr("Are you sure you want to run this transfer again?\n\n"),
+                message)) {
+          return;
+        }
+
+        addTransfer(message, source, dest, args, uniqueId, transferMode,
+                    QUuid::createUuid().toString());
+
+        // running items have darkGreen background
+        for (int k = 0; k < ui.tasksListWidget->count(); ++k) {
+          auto *item = static_cast<JobOptionsListWidgetItem *>(
+              ui.tasksListWidget->item(k));
+          if (item->GetData()->uniqueId.toString() == uniqueId) {
+            item->setBackground(Qt::darkGreen);
+          }
+        }
+        setTasksButtons();
+      });
 
   if (ui.jobs->count() == 2) {
     ui.noJobsAvailable->hide();
