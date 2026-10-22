@@ -68,16 +68,16 @@ this file. Tests never read the host rclone config (temp config only). No push, 
 - Active scope: plan 002 (all phases) — `/plan-execute-verify execute 002` (user, 2026-10-23); full-autonomous:true, WIP on (§3)
 - Scope result: RUNNING
 - Type: sub-phase
-- ID / attempt: 1.3 / 1
-- Status: OPEN (closing: commit unit:1.3:1)
-- Intent: README: Serve button in #faq-serve; icon scale wording
-- Assigned: agent-3:haiku (delegated worker); supervisor: agent-1:opus
-- File / unit heading: phase_02.md "1.3 Update README.md"
-- Current step: commit
-- Next action: commit 1.3; P1 when gates (running) finish.
-- Next eligible plan unit: P1 / phase_02.md
-- Unit base: `d577ba0`; branch: `dev/002-serve-jobs-webui`; owned changes: `README.md`
-- Repo state: HEAD `d577ba0` (unit:1.2:1); untracked `.serena/` (unrelated)
+- ID / attempt: 2.1 / 1
+- Status: OPEN
+- Intent: ServeManager start tokens, FIFO, startFailed, browser URL helpers (D5, D9)
+- Assigned: agent-2:sonnet (delegated worker); supervisor: agent-1:opus
+- File / unit heading: phase_03.md "2.1 ServeManager tokens, FIFO and browser URL helpers"
+- Current step: S1
+- Next action: worker S1–S3; supervisor reviews diff (signal order, FIFO, I-2); G-U21, G-U21e; commit.
+- Next eligible plan unit: 2.2 / phase_03.md
+- Unit base: `(HEAD after unit:P1:1)`; branch: `dev/002-serve-jobs-webui`; owned changes: `src/serve_manager.{h,cpp}`, `tests/tst_serve_manager.cpp`, `src/main_window.cpp` (started connection), `tests/tst_e2e_serve.cpp` (only if it spies `started`)
+- Repo state: HEAD `(HEAD after unit:P1:1)`; untracked `.serena/` (unrelated)
 
 ## 2. Feature context and readiness
 
@@ -148,6 +148,7 @@ Required supervisor reviews cannot be silently replaced by weaker self-review.
 | Type | ID / attempt | Plan revision | Agent | Changes | Evidence/review | Commit |
 |------|--------------|---------------|-------|---------|-----------------|--------|
 | plan | 002 / 1 | 1 | agent-1:opus | plan folder created (overview, phase_01–04, STATE) | user answers U1–U4; probes R2–R4 | uncommitted (committed with 0.2) |
+| phase-close | P1 / 1 | 2 | agent-1:opus | phase 1 closure | P1 gates §7; review §7 | unit:P1:1 |
 | sub-phase | 1.3 / 1 | 2 | agent-3:haiku | README `#faq-serve`: Serve button; S2 no icon-size text to update (recorded) | supervisor check | unit:1.3:1 |
 | sub-phase | 1.2 / 1 | 2 | agent-3:haiku | `buttonServe` in `remote_widget.ui`/`.cpp`; `T_SC_SERVE_BUTTON` | G-U12 §7; review §7 | unit:1.2:1 |
 | sub-phase | 1.1 / 1 | 2 | agent-2:sonnet | NEW `src/remote_list_layout.{h,cpp}`, `tests/tst_remote_list_layout.cpp`; `rcloneListRemotes` uses it; CMake registrations; plan revision 2 records | G-U11 §7; review §7; revision 2 §8 | unit:1.1:1 |
@@ -170,13 +171,15 @@ reconcile. A SHA recorded by a later update is optional.
 
 ## 6. In-flight checkpoint
 
-Unit 1.3: README L598 updated; S2: no icon-size description exists in README (only the changelog bullet L83, left unchanged per contract). Pending commit unit:1.3:1.
-Running resources: P1 gate run (logs /tmp/rb-gates/p1-*.log).
+Unit 2.1 claimed — dispatched to agent-2:sonnet. Running resources: none.
 
 ## 7. Verification and reviews
 
 | Gate/test | Command | Result | Test count/named evidence | Tested revision/diff | When |
 |-----------|---------|--------|--------------------------|---------------------|------|
+| G-BUILD64 (P1) | §3 | pass | exit 0, 0 warnings | `05ec215` | 2026-10-23 |
+| G-UNIT (P1) | §3 | pass | 31/31 (G-BASE 30 + tst_remote_list_layout) | `05ec215` | 2026-10-23 |
+| G-E2E (P1) | §3 | pass | 21/21 | `05ec215` | 2026-10-23 |
 | G-U12 | §3 | pass | build 0 warnings; `PASS   : TestShortcuts::T_SC_SERVE_BUTTON()`, Totals 6 passed 0 failed; buttonServe/buttonStream statements 7/7; full unit 31/31; layout index check used (no fallback) | 1.2 working diff on `ce5068f` | 2026-10-23 |
 | G-U11 | §3 | pass | build 0 warnings; `tst_remote_list_layout` Totals 22 passed 0 failed (T_ICON_GRID_LEGACY: legacy tiles 7, list 0, longlist 13; T_ICON_GRID 18 rows; T_ICON_GRID_EMPTY); full unit 31/31; worker e2e 21/21 | 1.1 working diff on `a809b8b` (rev 2) | 2026-10-23 |
 | G-BUILD64 (P0) | §3, `RB_RCLONE_WEBUI` exported | pass | exit 0, 0 warnings (/tmp/rb-gates/p0-build64.log) | `5d9cdba` + README-only 0.3 diff (= `0e20ab7`) | 2026-10-23 |
@@ -187,6 +190,7 @@ Running resources: P1 gate run (logs /tmp/rb-gates/p1-*.log).
 
 | Review | Reviewer | Plan revision / reviewed change | Invariants/assertions checked | Verdict |
 |--------|----------|---------------------------------|------------------------------|---------|
+| P1 | agent-1:opus | rev 2 / `05ec215` | D1 as implemented (formula match), I-1 evidence (legacy repro tiles 7 / longlist 13; 18 rows 0 violations), D2 parity (all 3 styles), README 1.3, gates | approved |
 | 1.2 | agent-1:opus | rev 2 / 1.2 working diff on `ce5068f` | D2 parity (default action, 6 styling statements mirrored, tabstop), test asserts all 3 styles | approved |
 | 1.1 | agent-1:opus | rev 2 / 1.1 working diff on `a809b8b` | D1 formula line-by-line (kPad 6, label bounds, tiles/list/longlist sizes, grid, spacing, elide, wordWrap false, uniform sizes, per-item SizeHint); rcloneListRemotes keeps order/icons/tooltips/`_inv`/macOS 1.5×; hoisted size block; oracle C1–C4 per revision 2 with `.ui` properties; S1 legacy evidence | approved (note: `kPad` is a header-level constexpr, no clash in src/) |
 | P0 | agent-1:opus | rev 1 / `0e20ab7` | dev.sh/CMake diff for I-9 and backwards compatibility (no variable ⇒ identical behaviour plus a notice on e2e); counts equal G-BASE; README 0.3 accurate | approved |
@@ -222,7 +226,7 @@ none.
 | 1.1 | phase_02.md | P0 | DONE | 1 | G-U11 pass; review approved; unit:1.1:1 |
 | 1.2 | phase_02.md | P0 | DONE | 1 | G-U12 pass; unit:1.2:1 |
 | 1.3 | phase_02.md | 1.1, 1.2 | DONE | 1 | README L598; no icon-size section exists; unit:1.3:1 |
-| 2.1 | phase_03.md | P1 | TODO | 1 | — |
+| 2.1 | phase_03.md | P1 | IN_PROGRESS | 1 | dispatched agent-2:sonnet |
 | 2.2 | phase_03.md | 2.1 | TODO | 1 | — |
 | 2.3 | phase_03.md | 2.1, 2.2 | TODO | 1 | — |
 | 2.4 | phase_03.md | 2.3 | TODO | 1 | — |
@@ -235,8 +239,8 @@ none.
 | ID | File | Closure unit | Status | Review / commit reference |
 |----|------|--------------|--------|---------------------------|
 | 0 | phase_01.md | P0 | DONE | review §7; unit:P0:1 |
-| 1 | phase_02.md | P1 | IN_PROGRESS | — |
-| 2 | phase_03.md | P2 | TODO | — |
+| 1 | phase_02.md | P1 | DONE | review §7; unit:P1:1 |
+| 2 | phase_03.md | P2 | IN_PROGRESS | — |
 | 3 | phase_04.md | P3 | TODO | — |
 
 Statuses: TODO, IN_PROGRESS, IN_REVIEW, DONE, SKIPPED, BLOCKED.
