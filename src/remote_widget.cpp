@@ -10,6 +10,7 @@
 #include "list_of_job_options.h"
 #include "mount_dialog.h"
 #include "progress_dialog.h"
+#include "rclone_daemon.h"
 #include "remote_folder_dialog.h"
 #include "remote_actions.h"
 #include "remote_ops.h"
@@ -201,6 +202,8 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
       QIcon(":media/images/qbutton_icons/copy" + img_add + ".png"));
   ui.actionUploadFromUrl->setIcon(
       QIcon(":media/images/qbutton_icons/upload" + img_add + ".png"));
+  ui.actionServe->setIcon(
+      QIcon(":media/images/qbutton_icons/link" + img_add + ".png"));
   ui.actionCheck->setIcon(
       QIcon(":media/images/qbutton_icons/check" + img_add + ".png"));
   ui.getSize->setIcon(
@@ -396,6 +399,9 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
       "Copy the file to a chosen name or place - rclone copyto");
   ui.actionUploadFromUrl->setStatusTip(
       "Upload a file from a URL - rclone copyurl");
+  ui.actionServe->setStatusTip(tr("Serve this folder - rclone serve"));
+  mServeToolTip = ui.actionServe->toolTip();
+  mServeStatusTip = ui.actionServe->statusTip();
   ui.getSize->setStatusTip("Get items size - rclone size");
   ui.getTree->setStatusTip("Show directory tree - rclone tree");
   ui.link->setStatusTip("Fetch public link - rclone link");
@@ -413,6 +419,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
   menuMode->addAction(ui.link);
   menuMode->addAction(ui.actionCopyTo);
   menuMode->addAction(ui.actionUploadFromUrl);
+  menuMode->addAction(ui.actionServe);
   menuMode->addAction(ui.export_);
   menuMode->addAction(ui.actionCheck);
 
@@ -424,6 +431,8 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
   //  {
   menuMode->addAction(ui.cleanup);
   //  }
+  // the tooltip says why Serve is disabled
+  menuMode->setToolTipsVisible(true);
   ui.buttonTools->setMenu(menuMode);
   ui.buttonTools->setPopupMode(QToolButton::InstantPopup);
 
@@ -524,6 +533,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
           }
           ui.getInfo->setDisabled(false);
           ui.cleanup->setDisabled(false);
+          updateServeAction();
           ui.path->clear();
           return;
         }
@@ -553,6 +563,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
             }
           }
 
+          updateServeAction();
           ui.path->clear();
           return;
         }
@@ -601,6 +612,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
           ui.download->setDisabled(true);
           ui.actionCopyTo->setDisabled(true);
           ui.actionUploadFromUrl->setDisabled(true);
+          ui.actionServe->setDisabled(true);
 
           ui.getSize->setDisabled(true);
 
@@ -648,10 +660,20 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
           path = model->path(index);
         }
 
+        updateServeAction();
+
         ui.path->setText(
             remote + ":" +
             (isLocal ? QDir::toNativeSeparators(path.path()) : path.path()));
       });
+
+  // Serve needs the daemon: follow its state (global.daemon is null without
+  // one; the receiver is this, so the connection goes with the tab)
+  if (global.daemon) {
+    QObject::connect(global.daemon, &RcloneDaemon::stateChanged, this,
+                     [this]() { updateServeAction(); });
+  }
+  updateServeAction();
 
   // QObject::connect(ui.refresh
   QObject::connect(ui.refresh, &QAction::triggered, this, [=]() {
@@ -1517,6 +1539,19 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
         QUuid::createUuid().toString(), "", QUuid::createUuid().toString());
   });
 
+  //!!! QObject::connect(ui.actionServe
+  QObject::connect(ui.actionServe, &QAction::triggered, this, [=]() {
+    const QModelIndexList selection = ui.tree->selectionModel()->selectedRows();
+    if (selection.isEmpty()) {
+      return;
+    }
+    const QModelIndex index = selection.front();
+
+    // plain string: the root has the path "", QDir("") would become "."
+    const QString fs = remote + ":" + model->path(index).path();
+    emit serveRequested(fs);
+  });
+
   //!!! QObject::connect(ui.getTree
   QObject::connect(ui.getTree, &QAction::triggered, this, [=]() {
     setRemoteMode(ui.cb_GoogleDriveMode->currentIndex(), remoteType);
@@ -1946,6 +1981,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
                                    remoteType);
 
                      QMenu menu;
+                     menu.setToolTipsVisible(true);
                      menu.addAction(ui.refresh);
                      menu.addSeparator();
                      menu.addAction(ui.mkdir);
@@ -1958,6 +1994,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
                      menu.addAction(ui.stream);
                      menu.addAction(ui.upload);
                      menu.addAction(ui.actionUploadFromUrl);
+                     menu.addAction(ui.actionServe);
                      menu.addAction(ui.download);
                      menu.addAction(ui.actionCopyTo);
                      menu.addSeparator();
@@ -2446,4 +2483,29 @@ void RemoteWidget::clearPreemptiveQueues() {
   mPreemptiveLoadingListPending.clear();
 
   return;
+}
+
+void RemoteWidget::updateServeAction() {
+  // a folder (the root too) that is not a Drive shared or trashed view
+  bool folderSelected = false;
+  const QModelIndexList selection = ui.tree->selectionModel()->selectedRows();
+  if (selection.count() == 1) {
+    const QModelIndex index = selection.at(0);
+    const bool driveView = mRemoteType == "drive" &&
+                           (ui.cb_GoogleDriveMode->currentIndex() == 1 ||
+                            ui.cb_GoogleDriveMode->currentIndex() == 2);
+    folderSelected = !model->isLoading(index) && !model->isSpecial(index) &&
+                     model->isFolder(index) && !driveView;
+  }
+  const bool daemonRunning =
+      global.daemon && global.daemon->state() == RcloneDaemon::State::Running;
+
+  ui.actionServe->setEnabled(folderSelected && daemonRunning);
+  if (folderSelected && !daemonRunning) {
+    ui.actionServe->setToolTip(tr("Requires the rclone backend"));
+    ui.actionServe->setStatusTip(tr("Requires the rclone backend"));
+  } else {
+    ui.actionServe->setToolTip(mServeToolTip);
+    ui.actionServe->setStatusTip(mServeStatusTip);
+  }
 }

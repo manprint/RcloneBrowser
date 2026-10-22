@@ -66,6 +66,8 @@ set(MOC
   config_flow.h
   remote_config_dialog.h
   url_upload_dialog.h
+  serve_manager.h
+  serve_widget.h
 )
 
 set(OTHER
@@ -138,6 +140,8 @@ set(SOURCE
   remote_folder_dialog.cpp
   remote_actions.cpp
   url_upload_dialog.cpp
+  serve_manager.cpp
+  serve_widget.cpp
 )
 
 if(APPLE)

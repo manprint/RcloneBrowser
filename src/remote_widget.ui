@@ -695,6 +695,14 @@ rclone about</string>
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Upload a file from a URL&lt;/p&gt;&lt;p&gt;rclone copyurl&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </action>
+  <action name="actionServe">
+   <property name="text">
+    <string>Serve…</string>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Serve this folder over http, webdav, ftp, sftp, dlna, nfs, restic or s3&lt;/p&gt;&lt;p&gt;rclone serve&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </action>
  </widget>
  <tabstops>
   <tabstop>buttonRefresh</tabstop>

@@ -9,6 +9,8 @@
 
 class JobWidget;
 class RcloneDaemon;
+class ServeManager;
+class ServesWindow;
 class UpdateChecker;
 struct RcloneVersion;
 
@@ -33,6 +35,10 @@ private slots:
   void editRemote(const QString &name);
   // context menu of the remotes list: Edit remote and Advanced (terminal)
   void showRemotesMenu(const QPoint &pos);
+  // the window of the running serves
+  void showServes();
+  // asks how to serve `fs` ("remote:path") and starts it
+  void openServeDialog(const QString &fs);
   void rcloneListRemotes();
   void listTasks();
 
@@ -79,6 +85,9 @@ private:
   void unlockDaemonSilently();
   // one round of the ensureRcUnlocked() prompt loop
   void promptRcUnlock(bool wrongPassword);
+  // both are created on first use, as children of this window
+  ServeManager *serveManager();
+  ServesWindow *servesWindow();
 
   // the constructor body, split in contiguous blocks that run in this order
   void setupPowerSavingAndTitle();
@@ -119,6 +128,8 @@ private:
   RcloneDaemon *mDaemon = nullptr;
   // ensureRcUnlocked() prompt loop is active
   bool mRcUnlockBusy = false;
+  ServeManager *mServeManager = nullptr;
+  ServesWindow *mServesWindow = nullptr;
 
   bool mAlwaysShowInTray;
   bool mCloseToTray;

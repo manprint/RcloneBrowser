@@ -16,6 +16,8 @@
 #include "remote_config_dialog.h"
 #include "remote_widget.h"
 #include "scheduler_widget.h"
+#include "serve_manager.h"
+#include "serve_widget.h"
 #include "stream_widget.h"
 #include "transfer_dialog.h"
 #include "lsjson_parser.h"
@@ -871,6 +873,8 @@ void MainWindow::setupMenuActions() {
   });
   QObject::connect(ui.aboutQt, &QAction::triggered, qApp,
                    &QApplication::aboutQt);
+  QObject::connect(ui.actionServes, &QAction::triggered, this,
+                   &MainWindow::showServes);
 }
 
 void MainWindow::setupRemotesTab() {
@@ -939,6 +943,8 @@ void MainWindow::setupRemotesTab() {
                        &MainWindow::addSavedTransfer);
       QObject::connect(remote, &RemoteWidget::configLocked, this,
                        &MainWindow::ensureRcUnlocked);
+      QObject::connect(remote, &RemoteWidget::serveRequested, this,
+                       &MainWindow::openServeDialog);
 
       QString nameTrimmed = name;
 
@@ -1785,6 +1791,77 @@ void MainWindow::openRemoteConfig() {
 void MainWindow::editRemote(const QString &name) {
   if (runRemoteConfigDialog(this, RemoteConfigDialog::Mode::Update, name)) {
     rcloneListRemotes();
+  }
+}
+
+ServeManager *MainWindow::serveManager() {
+  if (!mServeManager) {
+    auto ctx = std::make_shared<QPointer<QObject>>();
+    mServeManager = new ServeManager(
+        daemonRcCall(QPointer<RcloneDaemon>(global.daemon), ctx), this);
+    *ctx = mServeManager;
+    connect(mServeManager, &ServeManager::started, this,
+            [this]() { showServes(); });
+    connect(mServeManager, &ServeManager::error, this,
+            [this](const QString &message) {
+              // a call cut short by a quit or a backend restart: the serves
+              // end with the daemon, so no box (it would block the quit)
+              if (!daemonRunning()) {
+                statusBar()->showMessage(tr("Serve: %1").arg(message), 10000);
+                return;
+              }
+              QMessageBox box(QMessageBox::Warning, tr("Serve"), message,
+                              QMessageBox::Ok, this);
+              // rclone's text is never markup
+              box.setTextFormat(Qt::PlainText);
+              box.exec();
+            });
+    // without a daemon refresh() ends in listFailed, shown inline
+    if (global.daemon) {
+      ServeManager *manager = mServeManager;
+      connect(global.daemon, &RcloneDaemon::stateChanged, manager,
+              [manager](RcloneDaemon::State state) {
+                // the list goes empty or failed after a restart or a quit
+                manager->refresh();
+                if (state == RcloneDaemon::State::Running) {
+                  manager->loadTypes();
+                }
+              });
+    }
+    // not without a Running daemon: that would only log a warning, and the
+    // stateChanged(Running) handler above loads the types later
+    if (daemonRunning()) {
+      mServeManager->loadTypes();
+    }
+  }
+  return mServeManager;
+}
+
+ServesWindow *MainWindow::servesWindow() {
+  if (!mServesWindow) {
+    mServesWindow = new ServesWindow(serveManager(), this);
+  }
+  return mServesWindow;
+}
+
+void MainWindow::showServes() {
+  ServesWindow *window = servesWindow();
+  window->show();
+  window->raise();
+  window->activateWindow();
+}
+
+void MainWindow::openServeDialog(const QString &fs) {
+  if (!daemonRunning()) {
+    statusBar()->showMessage(tr("Serve requires the rclone backend"));
+    return;
+  }
+  ServeDialog dlg(fs, serveManager()->types(), this);
+  connect(serveManager(), &ServeManager::typesChanged, &dlg,
+          &ServeDialog::setTypes);
+  serveManager()->loadTypes();
+  if (dlg.exec() == QDialog::Accepted) {
+    serveManager()->start(dlg.params());
   }
 }
 

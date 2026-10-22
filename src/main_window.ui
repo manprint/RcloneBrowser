@@ -924,6 +924,8 @@
     <property name="title">
      <string>&amp;File</string>
     </property>
+    <addaction name="actionServes"/>
+    <addaction name="separator"/>
     <addaction name="preferences"/>
     <addaction name="separator"/>
     <addaction name="quit"/>
@@ -978,6 +980,11 @@
    </property>
    <property name="menuRole">
     <enum>QAction::QuitRole</enum>
+   </property>
+  </action>
+  <action name="actionServes">
+   <property name="text">
+    <string>Serves…</string>
    </property>
   </action>
   <action name="actionEdit">

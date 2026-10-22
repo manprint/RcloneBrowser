@@ -33,6 +33,8 @@ signals:
   void addSavedTransfer(const QString &uniqueId, bool dryRun, bool addToQueue);
   // the rc listing found the rclone config locked (forwarded from the model)
   void configLocked();
+  // "Serve..." on the folder `fs` ("remote:path")
+  void serveRequested(const QString &fs);
 
 private slots:
 
@@ -89,4 +91,8 @@ private:
   QModelIndex mDestIndex;
 
   void clearPreemptiveQueues();
+
+  // actionServe: one folder selected and a Running daemon
+  void updateServeAction();
+  QString mServeToolTip, mServeStatusTip;
 };
