@@ -91,6 +91,32 @@ MainWindow::MainWindow() {
 
   ui.setupUi(this);
 
+  setupPowerSavingAndTitle();
+  setupDaemonAndUpdateChecks();
+  setupWindowAndTheme();
+  setupSettingsDefaults();
+  setupActions();
+  setupInitialStatus();
+  setupPreferences();
+  setupTabClosure();
+  setupMenuActions();
+  setupRemotesTab();
+  setupTasksTab();
+  setupQueueContextMenu();
+  setupJobsTab();
+  setupTasksActions();
+  setupScheduler();
+  setupJobsSorting();
+  setupSchedulerAdd();
+  setupQueue();
+  setupQueueEditing();
+  setupListSignalsAndIcons();
+  setupTabs();
+  setupRestoredState();
+  setupTrayAndStartup();
+}
+
+void MainWindow::setupPowerSavingAndTitle() {
 #ifdef Q_OS_MACOS
   // macOS power saving control object
   mMacOsPowerSaving = new MacOsPowerSaving();
@@ -101,9 +127,9 @@ MainWindow::MainWindow() {
   } else {
     this->setWindowTitle("Rclone Browser - BETA release");
   }
+}
 
-  auto settings = GetSettings();
-
+void MainWindow::setupDaemonAndUpdateChecks() {
   // asynchronous update checks (started from rcloneGetVersion)
   mRcloneUpdateChecker = new UpdateChecker(this);
   mBrowserUpdateChecker = new UpdateChecker(this);
@@ -170,6 +196,10 @@ MainWindow::MainWindow() {
                 << "Rclone Browser update check failed (" << kBrowserUpdateRepo
                 << "):" << reason;
           });
+}
+
+void MainWindow::setupWindowAndTheme() {
+  auto settings = GetSettings();
 
 #if defined(Q_OS_WIN) && QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
   // disable "?" WindowContextHelpButton (Qt 6 no longer shows it by default)
@@ -281,6 +311,10 @@ MainWindow::MainWindow() {
   mSoundNotif = settings->value("Settings/soundNotif", false).toBool();
 
   mSystemTray.setVisible(mAlwaysShowInTray);
+}
+
+void MainWindow::setupSettingsDefaults() {
+  auto settings = GetSettings();
 
   // during first run the lastUsed keys might not exist
   if (!(settings->contains("Settings/lastUsedSourceFolder"))) {
@@ -311,6 +345,10 @@ MainWindow::MainWindow() {
     // if defaultRcloneOptions does not exist create new empty key
     settings->setValue("Settings/defaultRcloneOptions", "--fast-list");
   };
+}
+
+void MainWindow::setupActions() {
+  auto settings = GetSettings();
 
   QString buttonStyle = settings->value("Settings/buttonStyle").toString();
   QString buttonSize = settings->value("Settings/buttonSize").toString();
@@ -395,13 +433,13 @@ MainWindow::MainWindow() {
   QPixmap sortTimeAZPixmap(":media/images/qbutton_icons/sortTimeAZ" + img_add +
                            ".png");
 
-  QIcon arrowDownIcon(arrowDownPixmap);
-  QIcon arrowUpIcon(arrowUpPixmap);
-  QIcon mount1Icon(mount1Pixmap);
-  QIcon sortZAIcon(sortZAPixmap);
-  QIcon sortAZIcon(sortAZPixmap);
-  QIcon sortTimeZAIcon(sortTimeZAPixmap);
-  QIcon sortTimeAZIcon(sortTimeAZPixmap);
+  mArrowDownIcon = QIcon(arrowDownPixmap);
+  mArrowUpIcon = QIcon(arrowUpPixmap);
+  mMount1Icon = QIcon(mount1Pixmap);
+  mSortZAIcon = QIcon(sortZAPixmap);
+  mSortAZIcon = QIcon(sortAZPixmap);
+  mSortTimeZAIcon = QIcon(sortTimeZAPixmap);
+  mSortTimeAZIcon = QIcon(sortTimeAZPixmap);
 
   ui.buttonDryrunTask->setDefaultAction(ui.actionDryRun);
   ui.buttonRunTask->setDefaultAction(ui.actionRun);
@@ -672,7 +710,9 @@ MainWindow::MainWindow() {
   ui.buttonStartScheduler->setEnabled(false);
   ui.buttonStopAllJobs->setEnabled(false);
   ui.buttonCleanNotRunning->setEnabled(false);
+}
 
+void MainWindow::setupInitialStatus() {
   // initial queue status
   ui.labelQueueInfoStop->setText("Queue is not running.");
   setQueueButtons();
@@ -682,7 +722,9 @@ MainWindow::MainWindow() {
   ui.labelSchedulerInfoStop->setText("Scheduler is not running.");
   ui.labelSchedulerInfoStart->show();
   ui.labelSchedulerInfoStop->hide();
+}
 
+void MainWindow::setupPreferences() {
   QObject::connect(ui.preferences, &QAction::triggered, this, [=]() {
     PreferencesDialog dialog(this);
     if (dialog.exec() == QDialog::Accepted) {
@@ -803,11 +845,15 @@ MainWindow::MainWindow() {
       }
     }
   });
+}
 
+void MainWindow::setupTabClosure() {
   // intercept tab closure
   MainWindow::connect(ui.tabs, SIGNAL(tabCloseRequested(int)), this,
                       SLOT(slotCloseTab(int)));
+}
 
+void MainWindow::setupMenuActions() {
   QObject::connect(ui.quit, &QAction::triggered, this, [=]() {
     mCloseToTray = false;
     close();
@@ -829,7 +875,9 @@ MainWindow::MainWindow() {
   });
   QObject::connect(ui.aboutQt, &QAction::triggered, qApp,
                    &QApplication::aboutQt);
+}
 
+void MainWindow::setupRemotesTab() {
   QObject::connect(ui.remotes, &QListWidget::currentItemChanged, this, [=]() {
     if (ui.remotes->selectedItems().empty()) {
       ui.open->setEnabled(false);
@@ -917,6 +965,10 @@ MainWindow::MainWindow() {
 
   QObject::connect(ui.tabs, &QTabWidget::tabCloseRequested, ui.tabs,
                    &QTabWidget::removeTab);
+}
+
+void MainWindow::setupTasksTab() {
+  auto settings = GetSettings();
 
   QObject::connect(ui.tasksListWidget, &QListWidget::itemClicked, this,
                    [=]() { setTasksButtons(); });
@@ -936,12 +988,12 @@ MainWindow::MainWindow() {
   bool sortTask = settings->value("Settings/sortTask").toBool();
 
   if (sortTask) {
-    ui.actionSortTask->setIcon(sortZAIcon);
+    ui.actionSortTask->setIcon(mSortZAIcon);
     ui.buttonSortTask->setToolTip("Sort Descending");
     ui.tasksListWidget->setSortingEnabled(true);
     ui.tasksListWidget->sortItems(Qt::AscendingOrder);
   } else {
-    ui.actionSortTask->setIcon(sortAZIcon);
+    ui.actionSortTask->setIcon(mSortAZIcon);
     ui.buttonSortTask->setToolTip("Sort Ascending");
     ui.tasksListWidget->setSortingEnabled(true);
     ui.tasksListWidget->sortItems(Qt::DescendingOrder);
@@ -1031,7 +1083,9 @@ MainWindow::MainWindow() {
           menu.exec(ui.tasksListWidget->viewport()->mapToGlobal(pos));
         }
       });
+}
 
+void MainWindow::setupQueueContextMenu() {
   QObject::connect(ui.queueListWidget, &QWidget::customContextMenuRequested,
                    this, [=](const QPoint &pos) {
                      QMenu menu;
@@ -1042,7 +1096,9 @@ MainWindow::MainWindow() {
                      menu.exec(
                          ui.queueListWidget->viewport()->mapToGlobal(pos));
                    });
+}
 
+void MainWindow::setupJobsTab() {
   QObject::connect(ui.actionCleanNotRunning, &QAction::triggered, this, [=]() {
     int jobsCount = ((ui.jobs->count() - 2) / 2 - mJobCount);
 
@@ -1166,19 +1222,21 @@ MainWindow::MainWindow() {
     mDoNotSort = false;
     sortJobs();
   });
+}
 
+void MainWindow::setupTasksActions() {
   QObject::connect(ui.actionSortTask, &QAction::triggered, this, [=]() {
     auto settings = GetSettings();
     bool sortTask = settings->value("Settings/sortTask").toBool();
 
     if (sortTask) {
-      ui.actionSortTask->setIcon(sortAZIcon);
+      ui.actionSortTask->setIcon(mSortAZIcon);
       ui.buttonSortTask->setToolTip("Sort Ascending");
       ui.tasksListWidget->setSortingEnabled(true);
       ui.tasksListWidget->sortItems(Qt::DescendingOrder);
       settings->setValue("Settings/sortTask", "false");
     } else {
-      ui.actionSortTask->setIcon(sortZAIcon);
+      ui.actionSortTask->setIcon(mSortZAIcon);
       settings->setValue("Settings/sortTask", "true");
       ui.tasksListWidget->setSortingEnabled(true);
       ui.tasksListWidget->sortItems(Qt::AscendingOrder);
@@ -1467,7 +1525,9 @@ MainWindow::MainWindow() {
       }
     }
   });
+}
 
+void MainWindow::setupScheduler() {
   //!!! QObject::connect(ui.actionStartScheduler
   QObject::connect(ui.actionStartScheduler, &QAction::triggered, this, [=]() {
     mDoNotSort = true;
@@ -1521,7 +1581,9 @@ MainWindow::MainWindow() {
     mDoNotSort = false;
     sortJobs();
   });
+}
 
+void MainWindow::setupJobsSorting() {
   //!!!  QObject::connect(ui.actionSortByStatus
   QObject::connect(ui.actionSortByStatus, &QAction::triggered, this, [=]() {
     ui.buttonSortByTime->setStyleSheet("QToolButton {border: 0;}");
@@ -1534,9 +1596,9 @@ MainWindow::MainWindow() {
     mJobsSort = "byStatus";
 
     if (mJobsStatusSortOrder) {
-      ui.buttonSortByStatus->setIcon(sortAZIcon);
+      ui.buttonSortByStatus->setIcon(mSortAZIcon);
     } else {
-      ui.buttonSortByStatus->setIcon(sortZAIcon);
+      ui.buttonSortByStatus->setIcon(mSortZAIcon);
     }
 
     sortJobs();
@@ -1555,14 +1617,16 @@ MainWindow::MainWindow() {
     mJobsSort = "byDate";
 
     if (mJobsTimeSortOrder) {
-      ui.buttonSortByTime->setIcon(sortTimeAZIcon);
+      ui.buttonSortByTime->setIcon(mSortTimeAZIcon);
     } else {
-      ui.buttonSortByTime->setIcon(sortTimeZAIcon);
+      ui.buttonSortByTime->setIcon(mSortTimeZAIcon);
     }
 
     sortJobs();
   });
+}
 
+void MainWindow::setupSchedulerAdd() {
   //!!!  QObject::connect(ui.actionAddToScheduler
   QObject::connect(ui.actionAddToScheduler, &QAction::triggered, this, [=]() {
     auto selection = ui.tasksListWidget->selectedItems();
@@ -1640,7 +1704,9 @@ MainWindow::MainWindow() {
       }
     }
   });
+}
 
+void MainWindow::setupQueue() {
   //!!! QObject::connect(ui.actionAddToQueue
   QObject::connect(ui.actionAddToQueue, &QAction::triggered, this, [=]() {
     auto selection = ui.tasksListWidget->selectedItems();
@@ -1880,7 +1946,9 @@ MainWindow::MainWindow() {
     ui.labelQueueInfoStop->show();
     ui.labelQueueInfoStart->hide();
   });
+}
 
+void MainWindow::setupQueueEditing() {
   //!!! QObject::connect(ui.actionPurgeQueue
   QObject::connect(ui.actionPurgeQueue, &QAction::triggered, this, [=]() {
     if (ui.queueListWidget->count() > 0) {
@@ -2133,7 +2201,9 @@ MainWindow::MainWindow() {
 
     saveQueueFile();
   });
+}
 
+void MainWindow::setupListSignalsAndIcons() {
   QObject::connect(ui.queueListWidget, &QListWidget::itemChanged, this,
                    [=]() { setQueueButtons(); });
 
@@ -2150,10 +2220,12 @@ MainWindow::MainWindow() {
                    &ListOfJobOptions::tasksListUpdated, this,
                    &MainWindow::listTasks);
 
-  mUploadIcon = arrowUpIcon;
-  mDownloadIcon = arrowDownIcon;
-  mMountIcon = mount1Icon;
+  mUploadIcon = mArrowUpIcon;
+  mDownloadIcon = mArrowDownIcon;
+  mMountIcon = mMount1Icon;
+}
 
+void MainWindow::setupTabs() {
   // remove close button from these tabs
   ui.tabs->tabBar()->setTabButton(0, QTabBar::RightSide, nullptr);
   ui.tabs->tabBar()->setTabButton(0, QTabBar::LeftSide, nullptr);
@@ -2170,6 +2242,10 @@ MainWindow::MainWindow() {
 
   ApplyOptionalTabsVisibility(ui.tabs);
   ApplyFixedTabsTextColor(ui.tabs);
+}
+
+void MainWindow::setupRestoredState() {
+  auto settings = GetSettings();
 
   {
     restoreSchedulersFromFile();
@@ -2200,6 +2276,10 @@ MainWindow::MainWindow() {
   if ((settings->value("Settings/queueStatus").toBool())) {
     ui.actionStartQueue->trigger();
   }
+}
+
+void MainWindow::setupTrayAndStartup() {
+  auto settings = GetSettings();
 
   QObject::connect(&mSystemTray, &QSystemTrayIcon::activated, this,
                    [=](QSystemTrayIcon::ActivationReason reason) {

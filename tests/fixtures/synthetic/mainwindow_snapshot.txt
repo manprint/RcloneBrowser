@@ -1,0 +1,88 @@
+W|ScrollLeftButton|QToolButton|0|1|||-
+W|ScrollRightButton|QToolButton|1|1|||-
+W|buttonAddToQueue|QToolButton|0|0|Add|Add to the queue|-
+W|buttonAddToScheduler|QToolButton|0|0|Add|Add to the scheduler|-
+W|buttonCleanNotRunning|QToolButton|0|0|Clean|<html><head/><body><p>Remove all not running jobs</p></body></html>|-
+W|buttonDeleteTask|QToolButton|0|0|Delete|Delete selected tasks|-
+W|buttonDownQueue|QToolButton|0|0|Down|Move task down in the queue|-
+W|buttonDryrunTask|QToolButton|0|0|Dry Run|<html><head/><body><p>Dry Run all selected tasks at once</p></body></html>|-
+W|buttonEditTask|QToolButton|0|0|Edit|Edit selected task|-
+W|buttonPrefs|QToolButton|1|1|Prefs|Rclone Browser preferences (ALT-p)|-
+W|buttonPurgeQueue|QToolButton|0|0|Purge|Remove all not running tasks from the queue|-
+W|buttonRemoveFromQueue|QToolButton|0|0|Remove|Remove from the queue|-
+W|buttonRunTask|QToolButton|0|0|Run|Run all selected tasks at once|-
+W|buttonSortByStatus|QToolButton|0|0|Sort|Sort by status|-
+W|buttonSortByTime|QToolButton|0|0|Sort|Sort by start time|-
+W|buttonSortTask|QToolButton|0|0|Sort|Sort Ascending|-
+W|buttonStartQueue|QToolButton|1|0|Start|<html><head/><body><p>Start actively processing items from the queue</p></body></html>|-
+W|buttonStartScheduler|QToolButton|1|0|Start|Start all schedulers|-
+W|buttonStop|QToolButton|0|0|Stop|Stop all selected tasks|-
+W|buttonStopAllJobs|QToolButton|0|0|Stop All|<html><head/><body><p>Stop all running transfers</p></body></html>|-
+W|buttonStopQueue|QToolButton|1|0|Stop|<html><head/><body><p>Stop the queue processing.</p><p>Active task will be cancelled.</p></body></html>|-
+W|buttonStopScheduler|QToolButton|0|0|Stop|Stop scheduler|-
+W|buttonUpQueue|QToolButton|0|0|Up|Move task up in the queue|-
+W|config|QToolButton|1|1|Config|<html><head/><body><p>rclone config</p><p>if you want to specify which terminal to use<br/>define $TERMINAL env variable e.g.:<br/>TERMINAL=/usr/local/bin/myterminal</p></body></html>|-
+W|jobsArea|QScrollArea|1|0|||-
+W|jobsArea_2|QScrollArea|1|0|||-
+W|labelQueueInfoStart|QLabel|1|0|||-
+W|labelQueueInfoStop|QLabel|1|0|Queue is not running.||-
+W|labelSchedulerInfoStart|QLabel|1|0|Scheduler is running.||-
+W|labelSchedulerInfoStop|QLabel|1|0|Scheduler is not running.||-
+W|layoutcontrol1|QCheckBox|0|0|CheckBox||0
+W|layoutcontrol1_queue|QCheckBox|0|0|CheckBox||0
+W|layoutcontrol1_sch|QCheckBox|0|0|CheckBox||0
+W|layoutcontrol2|QCheckBox|0|0|CheckBox||0
+W|layoutcontrol3|QCheckBox|0|0|CheckBox||0
+W|menuBar|QMenuBar|1|1|||-
+W|menuFile|QMenu|1|0|||-
+W|menuHelp|QMenu|1|0|||-
+W|noJobsAvailable|QLabel|1|0|No jobs are available||-
+W|noSchedulesAvailable|QLabel|1|0|No schedules are available||-
+W|open|QToolButton|1|1|Open|Open remote|-
+W|queue|QWidget|1|0|||-
+W|queueListWidget|QListWidget|1|0|||-
+W|refresh|QToolButton|1|1|Refresh|Refresh remotes view|-
+W|remotes|QListWidget|1|1|||-
+W|scrollAreaWidgetContents|QWidget|1|0|||-
+W|scrollAreaWidgetContents_2|QWidget|1|0|||-
+W|statusBar|QStatusBar|1|1|||-
+W|tab|QWidget|1|0|||-
+W|tab_2|QWidget|1|0|||-
+W|tabs|QTabWidget|1|1|||-
+W|tasksListWidget|QListWidget|1|0|||-
+W|tasksTab|QWidget|1|0|||-
+W|widget|QWidget|1|1|||-
+W|widgetMain|QWidget|1|1|||-
+A|about|&About|1|0|0|
+A|aboutQt|About &Qt|1|0|0|
+A|actionAddToQueue|Add to the queue|1|0|0|
+A|actionAddToScheduler|Add to the scheduler|1|0|0|
+A|actionCleanNotRunning|Clean|1|0|0|
+A|actionConfig|Config|1|0|0|
+A|actionDelete|Delete|1|0|0|
+A|actionDownQueue|Down|0|0|0|
+A|actionDryRun|Dry Run|1|0|0|
+A|actionEdit|Edit|1|0|0|
+A|actionOpen|Open|1|0|0|
+A|actionPurgeQueue|Purge|1|0|0|
+A|actionQueueScriptRun|queueScriptRun|1|0|0|
+A|actionRefresh|Refresh|1|0|0|
+A|actionRemoveFromQueue|Remove|0|0|0|
+A|actionRun|Run|1|0|0|
+A|actionSortByStatus|Sort|1|0|0|
+A|actionSortByTime|Sort|1|0|0|
+A|actionSortTask|Sort|1|0|0|
+A|actionStartQueue|Start|1|0|0|
+A|actionStartScheduler|Start|1|0|0|
+A|actionStop|Stop|1|0|0|
+A|actionStopAllTransfers|Stop All|1|0|0|
+A|actionStopQueue|Stop|1|0|0|
+A|actionStopScheduler|Stop|1|0|0|
+A|actionUpQueue|Up|0|0|0|
+A|preferences|&Preferences...|1|0|0|Alt+P
+A|quit|&Quit|1|0|0|Ctrl+Q
+T|0|Remotes
+T|1|Jobs
+T|2|Tasks
+T|3|Queue
+T|4|Scheduler (0)

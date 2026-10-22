@@ -76,6 +76,7 @@ Plan revision: 1.
 - **Change:**
   - Preconditions: 7.1 DONE.
   - Move verbatim, in their current order: `setTasksButtons`, `setQueueButtons`, `restoreSchedulersFromFile`, `addTasksToQueue`, `listTasks`, `runItem`, `editSelectedTask`, `saveQueueFile`, `saveSchedulerFile`, `addSavedTransfer`, `addScheduler`, `runScript`, plus the setup methods `setupTasksTab`, `setupQueue` and `setupScheduler` from 7.1.
+  - Revision 14 (replaces the three setup names above): the constructor blocks are interleaved, so 7.1 produced 23 contiguous setup methods. 7.2 moves the 9 that hold only tasks, queue and scheduler code: setupInitialStatus, setupTasksTab, setupQueueContextMenu, setupTasksActions, setupScheduler, setupSchedulerAdd, setupQueue, setupQueueEditing, setupRestoredState (in constructor call order, first in the new file), then the 12 methods above in their current file order (`runScript` comes before `addScheduler`). `setupListSignalsAndIcons` stays (it mixes queue signals with icon assignments). `src/main_window_p.h` is created only if a file-local helper is used on both sides.
   - File-local helpers (anonymous namespace, `static` functions) used by both files go to NEW `src/main_window_p.h` as `inline` functions. Helpers used only by moved code move with it.
   - `main_window_tasks.cpp` starts with the same include block as `main_window.cpp` (keep the PCH include first).
   - Steps:

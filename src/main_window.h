@@ -76,6 +76,31 @@ private:
   // one round of the ensureRcUnlocked() prompt loop
   void promptRcUnlock(bool wrongPassword);
 
+  // the constructor body, split in contiguous blocks that run in this order
+  void setupPowerSavingAndTitle();
+  void setupDaemonAndUpdateChecks();
+  void setupWindowAndTheme();
+  void setupSettingsDefaults();
+  void setupActions();
+  void setupInitialStatus();
+  void setupPreferences();
+  void setupTabClosure();
+  void setupMenuActions();
+  void setupRemotesTab();
+  void setupTasksTab();
+  void setupQueueContextMenu();
+  void setupJobsTab();
+  void setupTasksActions();
+  void setupScheduler();
+  void setupJobsSorting();
+  void setupSchedulerAdd();
+  void setupQueue();
+  void setupQueueEditing();
+  void setupListSignalsAndIcons();
+  void setupTabs();
+  void setupRestoredState();
+  void setupTrayAndStartup();
+
   Ui::MainWindow ui;
 
   QSystemTrayIcon mSystemTray;
@@ -147,6 +172,14 @@ private:
   QIcon mUploadIcon;
   QIcon mDownloadIcon;
   QIcon mMountIcon;
+  // icons made by setupActions() and used by later setup blocks
+  QIcon mArrowDownIcon;
+  QIcon mArrowUpIcon;
+  QIcon mMount1Icon;
+  QIcon mSortZAIcon;
+  QIcon mSortAZIcon;
+  QIcon mSortTimeZAIcon;
+  QIcon mSortTimeAZIcon;
   QMessageBox *mQuittingErrorMsgBox = NULL;
 
 #ifdef Q_OS_MACOS
