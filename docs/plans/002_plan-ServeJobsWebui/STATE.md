@@ -65,19 +65,19 @@ this file. Tests never read the host rclone config (temp config only). No push, 
 
 ## 1. Current unit and scope
 
-- Active scope: bug B-A001 (`bugs.md`), user request 2026-10-23 after plan closure; full-autonomous:true, WIP on (§3). Plan 002 scope: COMPLETE at unit:P3:1.
-- Scope result: COMPLETE (B-A001)
-- Type: bug
-- ID / attempt: B-A001 / 1
-- Status: OPEN (closing: commit unit:B-A001:1)
-- Intent: honest message when the webdav-webui capability check fails (start refusal and Serve dialog)
-- Assigned: workflow worker (implementation), workflow reviewers (adversarial); supervisor: agent-1:opus
-- File / unit heading: bugs.md "B-A001"
+- Active scope: task T-A001 (`tasks.md`), user "continua" 2026-10-23; full-autonomous:true. Plan 002: COMPLETE at unit:P3:1; B-A001 COMPLETE.
+- Scope result: COMPLETE (T-A001)
+- Type: task
+- ID / attempt: T-A001 / 1
+- Status: OPEN (closing: commit unit:T-A001:1)
+- Intent: CHANGELOG `## [Unreleased]` entries for plan 002
+- Assigned: agent-1:opus
+- File / unit heading: tasks.md "T-A001"
 - Current step: commit
-- Next action: commit B-A001; scope complete. No push/tag/release.
+- Next action: commit T-A001; nothing else in scope. No push/tag/release.
 - Next eligible plan unit: none
-- Unit base: `751779a`; branch: `dev/002-serve-jobs-webui`; owned changes: see bugs.md B-A001 Files
-- Repo state: HEAD `751779a` (unit:P3:1); untracked `.serena/` (unrelated)
+- Unit base: `55b67bd`; branch: `dev/002-serve-jobs-webui`; owned changes: `CHANGELOG.md`, `tasks.md`
+- Repo state: HEAD `55b67bd` (unit:B-A001:1); untracked `.serena/` (unrelated)
 
 ## 2. Feature context and readiness
 
@@ -152,6 +152,7 @@ Required supervisor reviews cannot be silently replaced by weaker self-review.
 | sub-phase | 2.3 / 1 | 2 | agent-2:sonnet | serves in Jobs (MainWindow), Serves window/actionServes removed, 8 ServeJobWidget branches, `tst_e2e_serve_jobs`, snapshot fixture | G-U23/G-U23e §7; reviews §7 | unit:2.3:1 |
 | sub-phase | 2.2 / 1 | 2 | agent-2:sonnet (+ agent-1:opus fix) | NEW `ServeJobWidget`, `tst_serve_job_widget`; CMake registrations | G-U22 §7; review §7 | unit:2.2:1 |
 | sub-phase | 2.1 / 1 | 2 | agent-2:sonnet | ServeManager tokens/FIFO/startFailed, `kWebuiFlavor`, `serveBrowserUrl`, `serveOpensInBrowser`; main_window lambda; tst_e2e_serve entryOf index | G-U21/G-U21e §7; review §7 | unit:2.1:1 |
+| task | T-A001 / 1 | — | agent-1:opus | CHANGELOG [Unreleased] for plan 002 (supersedes the 3.4 "CHANGELOG untouched" note) | review in tasks.md | unit:T-A001:1 |
 | bug | B-A001 / 1 | — | workflow worker | honest message on a failed webdav-webui capability check (manager + dialog) | G-BA001 §7; review §7 | unit:B-A001:1 |
 | phase-close | P3 / 1 | 3 | agent-1:opus | phase 3 and plan closure | P3 gates + G-FINAL §7; review §7 | unit:P3:1 |
 | sub-phase | 3.4 / 1 | 3 | agent-3:haiku | README: webdav-webui type, Web interface options table, limits | S2 options.go check §7 | unit:3.4:1 |

@@ -1,5 +1,15 @@
 # Change Log
 
+## [Unreleased]
+Changes since 2.1.0-beta.1.
+
+-   NEW: running serves are listed in the Jobs tab like mounts: each row shows "Starting", "Serving", "Finished" or "Error" with the type and source folder, and has Copy URL, Open in browser (http, webdav and webdav-webui), Stop (then Close), Restart with the same settings and a details panel. Serves count in "Jobs (N)" and follow the Jobs filter, sort and Clean; Stop All does not stop them; a backend restart or stop marks them finished ("Backend stopped")
+-   NEW: "webdav-webui" serve type, right after webdav in the Serve dialog: rclone's `serve webdav` with the web interface of the rclone webui fork (browse, upload, download, edit, delete and move, download and public links, media player), with all its options (Basic and Advanced), a VFS cache mode, and the last values remembered except the secret. It needs an rclone built from that fork; with another rclone the dialog says so and OK stays disabled, and with the fork the plain webdav type is served without the web interface
+-   NEW: a "Serve" button in a remote tab's button row, next to Mount and Stream
+-   FIXED: at small remote icon sizes (for example 1.0) the items of the Remotes list overlapped, so a remote could not be selected precisely; the list now sizes its items from the icon and the font for the tiles, list and long list layouts at every icon size
+-   CHANGED: the "Serves" window and File > "Serves…" are removed; serves are in the Jobs tab
+-   CHANGED: tests: `scripts/dev.sh` takes `RB_RCLONE_WEBUI=/path/to/rclone` (an rclone built from the webui fork) to run the webdav-webui end-to-end test; without it that test is not registered
+
 ## [2.1.0-beta.1] - 2026-10-22
 Changes since 2.0.0. They include the fixes for two bugs of 2.0.0 that could delete data: Delete on a multi-selection that included a top-level row could purge that whole folder, and a folder Move with "Delete empty source directories" could remove an emptied Google Cloud Storage bucket (the first two FIXED lines).
 
