@@ -67,6 +67,10 @@ Q_DECLARE_METATYPE(ServeEntry)
 // type stays "webdav", the Jobs list shows this name instead.
 extern const QLatin1String kWebuiFlavor;
 
+// The message for a webdav-webui start on an rclone without the fork's
+// "webdav_webui" block (the dialog and the manager show this one text).
+extern const QLatin1String kWebuiUnsupported;
+
 // reply["list"]; entries without a string id are skipped, type and fs come
 // from the object "params" (type falls back to the id prefix before the last
 // '-'), user and pass are never copied. A non-array "list" gives no entries.

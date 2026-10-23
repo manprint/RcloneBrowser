@@ -6,10 +6,6 @@ namespace {
 
 const int kServeTimeoutMs = 30000;
 
-const QLatin1String kWebuiUnsupported(
-    "This rclone does not support webdav-webui: it needs rclone built from the "
-    "webui fork. Choose webdav for a WebDAV serve without the web interface.");
-
 // rclone's own text, "HTTP <status>" or "no reply" only when there is none.
 QString failureText(const RcReply &reply) {
   if (!reply.error.isEmpty()) {
@@ -22,6 +18,10 @@ QString failureText(const RcReply &reply) {
 } // namespace
 
 const QLatin1String kWebuiFlavor("webdav-webui");
+
+const QLatin1String kWebuiUnsupported(
+    "This rclone does not support webdav-webui: it needs rclone built from the "
+    "webui fork. Choose webdav for a WebDAV serve without the web interface.");
 
 const QStringList &webuiOptionKeys() {
   static const QStringList keys = {

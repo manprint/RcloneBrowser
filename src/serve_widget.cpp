@@ -1,5 +1,7 @@
 #include "serve_widget.h"
 
+#include "utils.h"
+
 namespace {
 
 const char *const kBuiltInTypes[] = {"dlna", "ftp",    "http", "nfs",
@@ -39,6 +41,44 @@ QString portOf(const QString &addr) {
     return QString();
   }
   return addr.mid(colon + 1);
+}
+
+// kWebuiFlavor right after "webdav" when "webdav" is offered.
+QStringList withWebuiFlavor(QStringList types) {
+  const qsizetype webdav = types.indexOf(QStringLiteral("webdav"));
+  if (webdav >= 0 && !types.contains(kWebuiFlavor)) {
+    types.insert(webdav + 1, QString(kWebuiFlavor));
+  }
+  return types;
+}
+
+bool matchesDuration(const QString &text) {
+  static const QRegularExpression re(QString::fromUtf8(
+      "^(off|([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h|d|w|M|y))+)$"));
+  return re.match(text).hasMatch();
+}
+
+bool matchesSize(const QString &text) {
+  static const QRegularExpression re(
+      QStringLiteral("^(off|[0-9]+(\\.[0-9]+)?([bkMGTPE]i?)?)$"));
+  return re.match(text).hasMatch();
+}
+
+// split on ',', trim each, drop the empty ones
+QStringList parsePublinkPaths(const QString &text) {
+  QStringList out;
+  const QStringList parts = text.split(QLatin1Char(','));
+  for (const QString &part : parts) {
+    const QString path = part.trimmed();
+    if (!path.isEmpty()) {
+      out << path;
+    }
+  }
+  return out;
+}
+
+QString webuiKey(const char *goKey) {
+  return QStringLiteral("Serve/webui/") + QLatin1String(goKey);
 }
 
 void setWarningColor(QLabel *label) {
@@ -109,11 +149,16 @@ ServeDialog::ServeDialog(const QString &fs, const QStringList &types,
   form->addRow(tr("Password"), mPass);
   form->addRow(QString(), mReadOnly);
 
+  buildWebuiGroup();
+
   QVBoxLayout *layout = new QVBoxLayout(this);
   layout->addWidget(fsLabel);
   layout->addLayout(form);
+  layout->addWidget(mWebuiGroup);
   layout->addWidget(mProblem);
   layout->addWidget(mButtons);
+
+  loadWebuiSettings();
 
   setTypes(types.isEmpty() ? builtInTypes() : types);
 
@@ -128,6 +173,11 @@ ServeDialog::ServeDialog(const QString &fs, const QStringList &types,
   });
   connect(mUser, &QLineEdit::textChanged, this, [this]() { updateOk(); });
   connect(mPass, &QLineEdit::textChanged, this, [this]() { updateOk(); });
+  for (QLineEdit *edit :
+       {mSearchTimeout, mPublinkPaths, mSecret, mTokenExpiry, mResumeDir,
+        mResumeRetention, mEditMaxSize}) {
+    connect(edit, &QLineEdit::textChanged, this, [this]() { updateOk(); });
+  }
   connect(mButtons, &QDialogButtonBox::accepted, this, &QDialog::accept);
   connect(mButtons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
@@ -149,13 +199,56 @@ ServeParams ServeDialog::params() const {
     p.pass = mPass->text();
   }
   p.readOnly = rules.readOnlyAllowed && mReadOnly->isChecked();
+  if (type() == kWebuiFlavor) {
+    p.type = QStringLiteral("webdav");
+    p.flavor = QString(kWebuiFlavor);
+    p.webui = webuiOptions();
+    const QString mode = mVfsCacheMode->currentText();
+    p.vfsCacheMode = mode == QLatin1String("off") ? QString() : mode;
+  }
   return p;
 }
 
-void ServeDialog::setTypes(const QStringList &types) {
-  if (types.isEmpty()) {
+WebuiOptions ServeDialog::webuiOptions() const {
+  WebuiOptions o;
+  o.allowDelete = mAllowDelete->isChecked();
+  o.search = mSearch->isChecked();
+  o.searchMaxDepth = mSearchMaxDepth->value();
+  o.searchMaxResults = mSearchMaxResults->value();
+  o.searchTimeout = mSearchTimeout->text().trimmed();
+  o.publinkPaths = parsePublinkPaths(mPublinkPaths->text());
+  o.secret = mSecret->text();
+  o.tokenExpiry = mTokenExpiry->text().trimmed();
+  o.resume = mResume->isChecked();
+  o.resumeDir = mResumeDir->text().trimmed();
+  o.resumeRetention = mResumeRetention->text().trimmed();
+  o.playerMaxRetry = mPlayerMaxRetry->value();
+  o.playerReconnectInterval = mPlayerReconnectInterval->value();
+  o.diskStats = mDiskStats->isChecked();
+  o.uploadSettings = mUploadSettings->isChecked();
+  o.editMaxSize = mEditMaxSize->text().trimmed();
+  o.dirCount = mDirCount->isChecked();
+  o.multiZipMax = mMultiZipMax->value();
+  return o;
+}
+
+void ServeDialog::setWebuiSupport(ServeManager::WebuiSupport support) {
+  mWebuiSupport = support;
+  updateOk();
+}
+
+void ServeDialog::accept() {
+  if (type() == kWebuiFlavor) {
+    saveWebuiSettings();
+  }
+  QDialog::accept();
+}
+
+void ServeDialog::setTypes(const QStringList &offered) {
+  if (offered.isEmpty()) {
     return;
   }
+  const QStringList types = withWebuiFlavor(offered);
   QStringList current;
   for (int i = 0; i < mType->count(); ++i) {
     current << mType->itemText(i);
@@ -184,6 +277,7 @@ void ServeDialog::setTypes(const QStringList &types) {
 
 void ServeDialog::applyRules() {
   const ServeTypeRules rules = serveTypeRules(type());
+  mWebuiGroup->setVisible(type() == kWebuiFlavor);
 
   if (mAddr->text().trimmed() == mLastDefaultAddr) {
     mAddr->setText(rules.defaultAddr);
@@ -240,7 +334,239 @@ void ServeDialog::updateOk() {
     problem = tr("A password needs a user name");
     ok = false;
   }
+  if (type() == kWebuiFlavor) {
+    if (mWebuiSupport == ServeManager::WebuiSupport::Yes) {
+      mWebuiUnsupported->setVisible(false);
+    } else {
+      mWebuiUnsupported->setText(
+          mWebuiSupport == ServeManager::WebuiSupport::No
+              ? QString(kWebuiUnsupported)
+              : tr("Checking whether this rclone supports webdav-webui..."));
+      mWebuiUnsupported->setVisible(true);
+      ok = false;
+    }
+    if (problem.isEmpty()) {
+      auto *advanced = qobject_cast<QFormLayout *>(mWebuiAdvanced->layout());
+      auto rowLabel = [advanced](QLineEdit *edit) {
+        QWidget *label = advanced->labelForField(edit);
+        return label ? static_cast<QLabel *>(label)->text() : QString();
+      };
+      for (QLineEdit *edit :
+           {mSearchTimeout, mTokenExpiry, mResumeRetention}) {
+        if (!matchesDuration(edit->text().trimmed())) {
+          problem = tr("Invalid duration: %1").arg(rowLabel(edit));
+          break;
+        }
+      }
+      if (problem.isEmpty() && !matchesSize(mEditMaxSize->text().trimmed())) {
+        problem = tr("Invalid size: %1").arg(rowLabel(mEditMaxSize));
+      }
+      if (!problem.isEmpty()) {
+        ok = false;
+      }
+    }
+  } else {
+    mWebuiUnsupported->setVisible(false);
+  }
   mProblem->setText(problem);
   mProblem->setVisible(!problem.isEmpty());
   mButtons->button(QDialogButtonBox::Ok)->setEnabled(ok);
+}
+
+void ServeDialog::buildWebuiGroup() {
+  mWebuiGroup = new QGroupBox(tr("Web interface"), this);
+  mWebuiGroup->setObjectName("webuiGroup");
+  mWebuiGroup->setVisible(false);
+
+  const WebuiOptions d;
+
+  mWebuiUnsupported = new QLabel(mWebuiGroup);
+  mWebuiUnsupported->setObjectName("webuiUnsupported");
+  mWebuiUnsupported->setTextFormat(Qt::PlainText);
+  mWebuiUnsupported->setWordWrap(true);
+  setWarningColor(mWebuiUnsupported);
+  mWebuiUnsupported->setVisible(false);
+
+  auto checkBox = [this](const QString &name, const QString &text,
+                         bool value) {
+    auto *box = new QCheckBox(text, mWebuiGroup);
+    box->setObjectName(name);
+    box->setChecked(value);
+    return box;
+  };
+  auto spinBox = [this](const QString &name, int min, int max, int value) {
+    auto *spin = new QSpinBox(mWebuiGroup);
+    spin->setObjectName(name);
+    spin->setRange(min, max);
+    spin->setValue(value);
+    return spin;
+  };
+  auto lineEdit = [this](const QString &name, const QString &value) {
+    auto *edit = new QLineEdit(value, mWebuiGroup);
+    edit->setObjectName(name);
+    return edit;
+  };
+
+  mAllowDelete = checkBox("webuiAllowDelete",
+                          tr("Allow deleting, moving and overwriting"),
+                          d.allowDelete);
+  mSearch = checkBox("webuiSearch", tr("Search"), d.search);
+  mPublinkPaths = lineEdit("webuiPublinkPaths", QString());
+  mResume = checkBox("webuiResume", tr("Remember playback positions"),
+                     d.resume);
+  mDiskStats = checkBox("webuiDiskStats", tr("Disk usage statistics"),
+                        d.diskStats);
+  mUploadSettings = checkBox("webuiUploadSettings",
+                             tr("Concurrent upload settings"),
+                             d.uploadSettings);
+  mDirCount = checkBox("webuiDirCount",
+                       tr("Show the number of entries of folders"),
+                       d.dirCount);
+
+  mVfsCacheMode = new QComboBox(mWebuiGroup);
+  mVfsCacheMode->setObjectName("vfsCacheMode");
+  mVfsCacheMode->addItems({"off", "minimal", "writes", "full"});
+  QLabel *vfsHint = new QLabel(
+      tr("writes or full is needed to resume interrupted uploads"),
+      mWebuiGroup);
+  vfsHint->setObjectName("vfsHint");
+  vfsHint->setWordWrap(true);
+
+  QFormLayout *basic = new QFormLayout;
+  basic->addRow(mAllowDelete);
+  basic->addRow(mSearch);
+  basic->addRow(tr("Public link paths"), mPublinkPaths);
+  basic->addRow(mResume);
+  basic->addRow(mDiskStats);
+  basic->addRow(mUploadSettings);
+  basic->addRow(mDirCount);
+  basic->addRow(tr("VFS cache mode"), mVfsCacheMode);
+  basic->addRow(QString(), vfsHint);
+
+  mSearchMaxDepth = spinBox("webuiSearchMaxDepth", 1, 1000, d.searchMaxDepth);
+  mSearchMaxResults =
+      spinBox("webuiSearchMaxResults", 1, 1000000, d.searchMaxResults);
+  mSearchTimeout = lineEdit("webuiSearchTimeout", d.searchTimeout);
+  mSecret = lineEdit("webuiSecret", QString());
+  mSecret->setEchoMode(QLineEdit::Password);
+  mSecret->setToolTip(
+      tr("Signs download links and public links. Empty: a new random secret "
+         "at every start, so earlier links stop working."));
+  mTokenExpiry = lineEdit("webuiTokenExpiry", d.tokenExpiry);
+  mResumeDir = lineEdit("webuiResumeDir", QString());
+  mResumeDir->setPlaceholderText(tr("rclone cache folder"));
+  mResumeRetention = lineEdit("webuiResumeRetention", d.resumeRetention);
+  mPlayerMaxRetry = spinBox("webuiPlayerMaxRetry", 0, 10000, d.playerMaxRetry);
+  mPlayerReconnectInterval = spinBox("webuiPlayerReconnectInterval", 1, 3600,
+                                     d.playerReconnectInterval);
+  mEditMaxSize = lineEdit("webuiEditMaxSize", d.editMaxSize);
+  mMultiZipMax = spinBox("webuiMultiZipMax", 1, 1000000, d.multiZipMax);
+
+  mWebuiAdvanced = new QWidget(mWebuiGroup);
+  mWebuiAdvanced->setObjectName("webuiAdvanced");
+  QFormLayout *advanced = new QFormLayout(mWebuiAdvanced);
+  advanced->setContentsMargins(0, 0, 0, 0);
+  advanced->addRow(tr("Search max depth"), mSearchMaxDepth);
+  advanced->addRow(tr("Search max results"), mSearchMaxResults);
+  advanced->addRow(tr("Search timeout"), mSearchTimeout);
+  advanced->addRow(tr("Secret"), mSecret);
+  advanced->addRow(tr("Token expiry"), mTokenExpiry);
+  advanced->addRow(tr("Resume folder"), mResumeDir);
+  advanced->addRow(tr("Resume retention"), mResumeRetention);
+  advanced->addRow(tr("Player max retries"), mPlayerMaxRetry);
+  advanced->addRow(tr("Player reconnect interval (s)"),
+                   mPlayerReconnectInterval);
+  advanced->addRow(tr("Edit max size"), mEditMaxSize);
+  advanced->addRow(tr("Multi-zip max files"), mMultiZipMax);
+  mWebuiAdvanced->setVisible(false);
+
+  mWebuiAdvancedToggle = new QToolButton(mWebuiGroup);
+  mWebuiAdvancedToggle->setObjectName("webuiAdvancedToggle");
+  mWebuiAdvancedToggle->setText(tr("Advanced"));
+  mWebuiAdvancedToggle->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  mWebuiAdvancedToggle->setArrowType(Qt::RightArrow);
+  mWebuiAdvancedToggle->setCheckable(true);
+  mWebuiAdvancedToggle->setAutoRaise(true);
+  connect(mWebuiAdvancedToggle, &QToolButton::toggled, this,
+          [this](bool open) {
+            mWebuiAdvancedToggle->setArrowType(open ? Qt::DownArrow
+                                                    : Qt::RightArrow);
+            mWebuiAdvanced->setVisible(open);
+          });
+
+  QVBoxLayout *box = new QVBoxLayout(mWebuiGroup);
+  box->addWidget(mWebuiUnsupported);
+  box->addLayout(basic);
+  box->addWidget(mWebuiAdvancedToggle);
+  box->addWidget(mWebuiAdvanced);
+}
+
+// The 17 remembered option keys (Enabled is the flavor, the secret is never
+// remembered, I-2) and the VFS cache mode: 18 settings keys.
+void ServeDialog::loadWebuiSettings() {
+  const auto settings = GetSettings();
+  auto flag = [&](const char *key, QCheckBox *box) {
+    const QString k = webuiKey(key);
+    if (settings->contains(k)) {
+      box->setChecked(settings->value(k).toBool());
+    }
+  };
+  auto number = [&](const char *key, QSpinBox *spin) {
+    const QString k = webuiKey(key);
+    if (settings->contains(k)) {
+      spin->setValue(settings->value(k).toInt());
+    }
+  };
+  auto text = [&](const char *key, QLineEdit *edit) {
+    const QString k = webuiKey(key);
+    if (settings->contains(k)) {
+      edit->setText(settings->value(k).toString());
+    }
+  };
+  flag("AllowDelete", mAllowDelete);
+  flag("Search", mSearch);
+  number("SearchMaxDepth", mSearchMaxDepth);
+  number("SearchMaxResults", mSearchMaxResults);
+  text("SearchTimeout", mSearchTimeout);
+  text("PublinkPaths", mPublinkPaths);
+  text("TokenExpiry", mTokenExpiry);
+  flag("Resume", mResume);
+  text("ResumeDir", mResumeDir);
+  text("ResumeRetention", mResumeRetention);
+  number("PlayerMaxRetry", mPlayerMaxRetry);
+  number("PlayerReconnectInterval", mPlayerReconnectInterval);
+  flag("DiskStats", mDiskStats);
+  flag("UploadSettings", mUploadSettings);
+  text("EditMaxSize", mEditMaxSize);
+  flag("DirCount", mDirCount);
+  number("MultiZipMax", mMultiZipMax);
+  const QString mode = settings->value(webuiKey("VfsCacheMode")).toString();
+  const int index = mVfsCacheMode->findText(mode);
+  if (index >= 0) {
+    mVfsCacheMode->setCurrentIndex(index);
+  }
+}
+
+void ServeDialog::saveWebuiSettings() const {
+  const auto settings = GetSettings();
+  settings->setValue(webuiKey("AllowDelete"), mAllowDelete->isChecked());
+  settings->setValue(webuiKey("Search"), mSearch->isChecked());
+  settings->setValue(webuiKey("SearchMaxDepth"), mSearchMaxDepth->value());
+  settings->setValue(webuiKey("SearchMaxResults"), mSearchMaxResults->value());
+  settings->setValue(webuiKey("SearchTimeout"), mSearchTimeout->text().trimmed());
+  settings->setValue(webuiKey("PublinkPaths"), mPublinkPaths->text());
+  settings->setValue(webuiKey("TokenExpiry"), mTokenExpiry->text().trimmed());
+  settings->setValue(webuiKey("Resume"), mResume->isChecked());
+  settings->setValue(webuiKey("ResumeDir"), mResumeDir->text().trimmed());
+  settings->setValue(webuiKey("ResumeRetention"),
+                     mResumeRetention->text().trimmed());
+  settings->setValue(webuiKey("PlayerMaxRetry"), mPlayerMaxRetry->value());
+  settings->setValue(webuiKey("PlayerReconnectInterval"),
+                     mPlayerReconnectInterval->value());
+  settings->setValue(webuiKey("DiskStats"), mDiskStats->isChecked());
+  settings->setValue(webuiKey("UploadSettings"), mUploadSettings->isChecked());
+  settings->setValue(webuiKey("EditMaxSize"), mEditMaxSize->text().trimmed());
+  settings->setValue(webuiKey("DirCount"), mDirCount->isChecked());
+  settings->setValue(webuiKey("MultiZipMax"), mMultiZipMax->value());
+  settings->setValue(webuiKey("VfsCacheMode"), mVfsCacheMode->currentText());
 }

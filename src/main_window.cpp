@@ -1924,7 +1924,11 @@ void MainWindow::openServeDialog(const QString &fs) {
   ServeDialog dlg(fs, serveManager()->types(), this);
   connect(serveManager(), &ServeManager::typesChanged, &dlg,
           &ServeDialog::setTypes);
+  dlg.setWebuiSupport(serveManager()->webuiSupport());
+  connect(serveManager(), &ServeManager::capabilitiesChanged, &dlg,
+          &ServeDialog::setWebuiSupport);
   serveManager()->loadTypes();
+  serveManager()->loadCapabilities();
   if (dlg.exec() == QDialog::Accepted) {
     startServe(dlg.params());
   }

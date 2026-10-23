@@ -1,8 +1,10 @@
 #include <QtTest>
 #include <QtWidgets>
 
+#include "rb_test_support.h"
 #include "serve_manager.h"
 #include "serve_widget.h"
+#include "utils.h"
 
 namespace {
 
@@ -16,6 +18,8 @@ class TestServeWidget : public QObject {
   Q_OBJECT
 
 private slots:
+  void initTestCase() { rbInitTestEnvironment(); }
+
   // T-SRV-DIALOG: the defaults, the network warning and the serveTypeRules
   // applied on type change (fields, default address, OK gating, params()).
   void T_SRV_DIALOG() {
@@ -40,7 +44,7 @@ private slots:
       items << type->itemText(i);
     }
     QCOMPARE(items, (QStringList{"dlna", "ftp", "http", "nfs", "restic", "s3",
-                                 "sftp", "webdav"}));
+                                 "sftp", "webdav", "webdav-webui"}));
     QCOMPARE(type->currentText(), QString("http"));
     QCOMPARE(addr->text(), QString("127.0.0.1:0"));
     QVERIFY(readOnly->isChecked());
@@ -146,14 +150,188 @@ private slots:
     QCOMPARE(p.pass, QString("p"));
 
     // the serve/types list replaces the built-in one, keeping the selection
+    // (webdav-webui follows webdav in every list that offers webdav)
     dlg.setTypes({"webdav", "sftp"});
-    QCOMPARE(type->count(), 2);
+    QCOMPARE(type->count(), 3);
     QCOMPARE(type->currentText(), QString("sftp"));
     dlg.setTypes({"webdav", "http"});
     QCOMPARE(type->currentText(), QString("http"));
     QVERIFY(readOnly->isEnabled());
     dlg.setTypes(QStringList());
-    QCOMPARE(type->count(), 2);
+    QCOMPARE(type->count(), 3);
+  }
+
+  // T-WEBUI-DIALOG: the webdav-webui type, its option block, the capability
+  // gate, the validation and params().
+  void T_WEBUI_DIALOG() {
+    ServeDialog dlg("r:a", QStringList());
+    dlg.show();
+    auto *type = dlg.findChild<QComboBox *>("type");
+    QVERIFY(type);
+    auto items = [type]() {
+      QStringList out;
+      for (int i = 0; i < type->count(); ++i) {
+        out << type->itemText(i);
+      }
+      return out;
+    };
+    QCOMPARE(type->itemText(items().indexOf("webdav") + 1),
+             QString(kWebuiFlavor));
+    dlg.setTypes({"http", "webdav"});
+    QCOMPARE(items(), (QStringList{"http", "webdav", "webdav-webui"}));
+    dlg.setTypes({"http"});
+    QCOMPARE(items(), (QStringList{"http"}));
+    dlg.setTypes({"http", "webdav"});
+
+    auto *group = dlg.findChild<QGroupBox *>("webuiGroup");
+    auto *advanced = dlg.findChild<QWidget *>("webuiAdvanced");
+    auto *toggle = dlg.findChild<QToolButton *>("webuiAdvancedToggle");
+    auto *unsupported = dlg.findChild<QLabel *>("webuiUnsupported");
+    QVERIFY(group && advanced && toggle && unsupported);
+    QPushButton *ok = okButton(dlg);
+    auto *problem = dlg.findChild<QLabel *>("problem");
+    QVERIFY(ok && problem);
+
+    type->setCurrentText("webdav");
+    QVERIFY(!group->isVisible());
+    QVERIFY(ok->isEnabled());
+    type->setCurrentText(kWebuiFlavor);
+    QVERIFY(group->isVisible());
+    QVERIFY(!advanced->isVisible());
+    QVERIFY(unsupported->text().startsWith("Checking"));
+    QVERIFY(!ok->isEnabled());
+    dlg.setWebuiSupport(ServeManager::WebuiSupport::No);
+    QVERIFY(!ok->isEnabled());
+    QVERIFY(unsupported->isVisible());
+    QCOMPARE(unsupported->text(), QString(kWebuiUnsupported));
+    dlg.setWebuiSupport(ServeManager::WebuiSupport::Yes);
+    QVERIFY(ok->isEnabled());
+    QVERIFY(!unsupported->isVisible());
+
+    toggle->click();
+    QVERIFY(advanced->isVisible());
+    QCOMPARE(toggle->arrowType(), Qt::DownArrow);
+    toggle->click();
+    QVERIFY(!advanced->isVisible());
+    toggle->click();
+
+    // defaults of the table
+    QVERIFY(dlg.findChild<QCheckBox *>("webuiAllowDelete")->isChecked());
+    QCOMPARE(dlg.findChild<QSpinBox *>("webuiSearchMaxDepth")->value(), 8);
+    QCOMPARE(dlg.findChild<QLineEdit *>("webuiTokenExpiry")->text(),
+             QString("72h"));
+    QCOMPARE(dlg.findChild<QComboBox *>("vfsCacheMode")->currentText(),
+             QString("off"));
+    QVERIFY(dlg.findChild<QLabel *>("vfsHint"));
+    QCOMPARE(dlg.findChild<QLineEdit *>("webuiSecret")->echoMode(),
+             QLineEdit::Password);
+
+    dlg.findChild<QCheckBox *>("webuiAllowDelete")->setChecked(false);
+    dlg.findChild<QLineEdit *>("webuiPublinkPaths")->setText(" /a , ,/b ");
+    dlg.findChild<QSpinBox *>("webuiSearchMaxDepth")->setValue(3);
+    dlg.findChild<QLineEdit *>("webuiEditMaxSize")->setText("8Mi");
+    dlg.findChild<QLineEdit *>("webuiTokenExpiry")->setText("1h");
+    dlg.findChild<QLineEdit *>("webuiSecret")->setText("s3cr3t");
+    auto *vfs = dlg.findChild<QComboBox *>("vfsCacheMode");
+    vfs->setCurrentText("writes");
+    ServeParams p = dlg.params();
+    QCOMPARE(p.type, QString("webdav"));
+    QCOMPARE(p.flavor, QString("webdav-webui"));
+    QVERIFY(!p.webui.allowDelete);
+    QCOMPARE(p.webui.publinkPaths, (QStringList{"/a", "/b"}));
+    QCOMPARE(p.webui.searchMaxDepth, 3);
+    QCOMPARE(p.webui.editMaxSize, QString("8Mi"));
+    QCOMPARE(p.webui.tokenExpiry, QString("1h"));
+    QVERIFY(p.webui.secret == QString("s3cr3t"));
+    QCOMPARE(p.vfsCacheMode, QString("writes"));
+
+    auto *timeout = dlg.findChild<QLineEdit *>("webuiSearchTimeout");
+    timeout->setText("abc");
+    QVERIFY(!ok->isEnabled());
+    QVERIFY(problem->text().startsWith("Invalid duration: "));
+    timeout->setText("30s");
+    QVERIFY(ok->isEnabled());
+    auto *editMax = dlg.findChild<QLineEdit *>("webuiEditMaxSize");
+    editMax->setText("8 Mi");
+    QVERIFY(!ok->isEnabled());
+    QCOMPARE(problem->text(), QString("Invalid size: Edit max size"));
+    editMax->setText("8Mi");
+    QVERIFY(ok->isEnabled());
+
+    vfs->setCurrentText("off");
+    QVERIFY(dlg.params().vfsCacheMode.isEmpty());
+
+    type->setCurrentText("webdav");
+    p = dlg.params();
+    QCOMPARE(p.type, QString("webdav"));
+    QVERIFY(p.flavor.isEmpty());
+    QVERIFY(p.vfsCacheMode.isEmpty());
+    QVERIFY(p.webui.secret.isEmpty());
+    QVERIFY(p.webui.allowDelete);
+  }
+
+  // T-WEBUI-REMEMBER: the options persist through GetSettings() when a
+  // webdav-webui dialog is accepted, never the secret.
+  void T_WEBUI_REMEMBER() {
+    GetSettings()->remove("Serve/webui");
+    auto childKeys = []() {
+      auto s = GetSettings();
+      s->beginGroup("Serve/webui");
+      return s->childKeys();
+    };
+    QVERIFY(childKeys().isEmpty());
+
+    {
+      ServeDialog a("r:a", QStringList());
+      a.show();
+      a.setWebuiSupport(ServeManager::WebuiSupport::Yes);
+      a.findChild<QComboBox *>("type")->setCurrentText(kWebuiFlavor);
+      a.findChild<QCheckBox *>("webuiAllowDelete")->setChecked(false);
+      a.findChild<QLineEdit *>("webuiPublinkPaths")->setText(" /a , ,/b ");
+      a.findChild<QSpinBox *>("webuiSearchMaxDepth")->setValue(3);
+      a.findChild<QLineEdit *>("webuiEditMaxSize")->setText("8Mi");
+      a.findChild<QLineEdit *>("webuiTokenExpiry")->setText("1h");
+      a.findChild<QLineEdit *>("webuiSecret")->setText("s3cr3t");
+      a.findChild<QComboBox *>("vfsCacheMode")->setCurrentText("writes");
+      a.accept();
+    }
+    const QStringList keys = childKeys();
+    QCOMPARE(keys.size(), 18);
+    for (const QString &k : keys) {
+      QVERIFY2(!k.contains("Secret"), qPrintable(k));
+    }
+    {
+      auto s = GetSettings();
+      QCOMPARE(s->value("Serve/webui/SearchMaxDepth").toInt(), 3);
+      QCOMPARE(s->value("Serve/webui/VfsCacheMode").toString(),
+               QString("writes"));
+      QVERIFY(!s->value("Serve/webui/AllowDelete").toBool());
+      QVERIFY(!s->contains("Serve/webui/Secret"));
+    }
+
+    {
+      ServeDialog b("r:a", QStringList());
+      QCOMPARE(b.findChild<QSpinBox *>("webuiSearchMaxDepth")->value(), 3);
+      QVERIFY(!b.findChild<QCheckBox *>("webuiAllowDelete")->isChecked());
+      QCOMPARE(b.findChild<QLineEdit *>("webuiPublinkPaths")->text(),
+               QString(" /a , ,/b "));
+      QCOMPARE(b.findChild<QLineEdit *>("webuiEditMaxSize")->text(),
+               QString("8Mi"));
+      QCOMPARE(b.findChild<QLineEdit *>("webuiTokenExpiry")->text(),
+               QString("1h"));
+      QCOMPARE(b.findChild<QComboBox *>("vfsCacheMode")->currentText(),
+               QString("writes"));
+      QVERIFY(b.findChild<QLineEdit *>("webuiSecret")->text().isEmpty());
+    }
+
+    // a classic webdav accept writes nothing new
+    GetSettings()->remove("Serve/webui");
+    {
+      ServeDialog c("r:a", QStringList());
+      c.findChild<QComboBox *>("type")->setCurrentText("webdav");
+      c.accept();
+    }
+    QVERIFY(childKeys().isEmpty());
   }
 };
 
