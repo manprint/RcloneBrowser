@@ -23,6 +23,9 @@ const QLatin1String kWebuiUnsupported(
     "This rclone does not support webdav-webui: it needs rclone built from the "
     "webui fork. Choose webdav for a WebDAV serve without the web interface.");
 
+const QLatin1String kWebuiCheckFailed(
+    "Could not check whether this rclone supports webdav-webui: ");
+
 const QStringList &webuiOptionKeys() {
   static const QStringList keys = {
       QStringLiteral("Enabled"),
@@ -214,8 +217,10 @@ void ServeManager::processStartQueue() {
   const bool isWebdav =
       mStartQueue.head().params.type == QLatin1String("webdav");
   // a webdav start needs to know what the rclone supports: resolve it first;
-  // the reply comes back here (a failed check is tried once per start)
-  if (isWebdav && mWebui == WebuiSupport::Unknown && !mCapsTriedForFront) {
+  // the reply comes back here (a failed check is tried once per start, and a
+  // check in flight is waited for: its answer is the newest one)
+  if (isWebdav && mWebui == WebuiSupport::Unknown &&
+      (mCapsInFlight || !mCapsTriedForFront)) {
     loadCapabilities();
     return;
   }
@@ -228,8 +233,14 @@ void ServeManager::processStartQueue() {
   }
   const bool webui = pending.params.flavor == kWebuiFlavor;
   if (webui && mWebui != WebuiSupport::Yes) {
-    // never start the web UI on an rclone that cannot serve it (I-10)
-    const QString text(kWebuiUnsupported);
+    // never start the web UI on an rclone that cannot serve it (I-10); a failed
+    // check is named as such, the rclone may well support it
+    QString text(kWebuiUnsupported);
+    if (mWebui == WebuiSupport::Unknown) {
+      text = QString(kWebuiCheckFailed) +
+             (mWebuiCheckError.isEmpty() ? QStringLiteral("no reply")
+                                         : mWebuiCheckError);
+    }
     emit startFailed(pending.token, text);
     emit error(text);
     mStartInFlight = false;
@@ -313,6 +324,8 @@ ServeManager::WebuiSupport ServeManager::webuiSupport() const {
   return mWebui;
 }
 
+QString ServeManager::webuiCheckError() const { return mWebuiCheckError; }
+
 void ServeManager::loadCapabilities() {
   if (mCapsInFlight) {
     return;
@@ -331,6 +344,7 @@ void ServeManager::loadCapabilities() {
           // failed check without one leaves the next webdav start to retry
           self->mCapsTriedForFront = !self->mStartQueue.isEmpty();
           if (reply.ok) {
+            self->mWebuiCheckError.clear();
             bool found = false;
             const QJsonValue blocks =
                 reply.result.value(QStringLiteral("options"));
@@ -351,8 +365,10 @@ void ServeManager::loadCapabilities() {
               emit self->capabilitiesChanged(support);
             }
           } else {
+            self->mWebuiCheckError = failureText(reply);
             qWarning().noquote()
-                << "options/blocks failed:" << failureText(reply);
+                << "options/blocks failed:" << self->mWebuiCheckError;
+            emit self->capabilitiesCheckFailed(self->mWebuiCheckError);
           }
           if (self) {
             self->processStartQueue();
@@ -365,7 +381,10 @@ void ServeManager::resetCapabilities() {
   ++mCapsGeneration;
   mCapsInFlight = false;
   mCapsTriedForFront = false;
-  if (mWebui != WebuiSupport::Unknown) {
+  // a shown check failure must go too: the open dialog hears Unknown only here
+  const bool hadCheckError = !mWebuiCheckError.isEmpty();
+  mWebuiCheckError.clear();
+  if (mWebui != WebuiSupport::Unknown || hadCheckError) {
     mWebui = WebuiSupport::Unknown;
     emit capabilitiesChanged(mWebui);
   }

@@ -71,6 +71,10 @@ extern const QLatin1String kWebuiFlavor;
 // "webdav_webui" block (the dialog and the manager show this one text).
 extern const QLatin1String kWebuiUnsupported;
 
+// The start message while the capability check failed: followed by rclone's
+// text (webuiCheckError()), never a claim that the rclone lacks the block.
+extern const QLatin1String kWebuiCheckFailed;
+
 // reply["list"]; entries without a string id are skipped, type and fs come
 // from the object "params" (type falls back to the id prefix before the last
 // '-'), user and pass are never copied. A non-array "list" gives no entries.
@@ -138,6 +142,9 @@ public:
   // Back to Unknown (the backend restarted or stopped); a load still in flight
   // is abandoned: its reply changes nothing.
   void resetCapabilities();
+  // rclone's text of the last failed check; empty after a successful one and
+  // after resetCapabilities().
+  QString webuiCheckError() const;
 
 signals:
   void started(quint64 token, const ServeEntry &entry);
@@ -149,6 +156,8 @@ signals:
   // refresh() failures only; shown inline, never in a message box.
   void listFailed(const QString &message);
   void capabilitiesChanged(ServeManager::WebuiSupport support);
+  // A failed options/blocks check (not a stale one): the text is rclone's.
+  void capabilitiesCheckFailed(const QString &text);
 
 private:
   struct PendingStart {
@@ -165,6 +174,7 @@ private:
   bool mStartInFlight = false;
   quint64 mNextToken = 0;
   WebuiSupport mWebui = WebuiSupport::Unknown;
+  QString mWebuiCheckError;
   bool mCapsInFlight = false;
   bool mCapsTriedForFront = false;
   quint64 mCapsGeneration = 0;

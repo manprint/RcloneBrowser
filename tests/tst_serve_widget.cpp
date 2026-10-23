@@ -270,6 +270,50 @@ private slots:
     QVERIFY(p.webui.allowDelete);
   }
 
+  // T-WEBUI-DIALOG-CHECK-FAILED: a failed capability check replaces "Checking"
+  // with its text (plain), and OK stays disabled; any new answer or a new
+  // check (Unknown) clears the failure
+  void T_WEBUI_DIALOG_CHECK_FAILED() {
+    ServeDialog dlg("r:a", QStringList());
+    dlg.show();
+    auto *type = dlg.findChild<QComboBox *>("type");
+    QVERIFY(type);
+    dlg.setTypes({"http", "webdav"});
+    type->setCurrentText(kWebuiFlavor);
+    auto *unsupported = dlg.findChild<QLabel *>("webuiUnsupported");
+    QPushButton *ok = okButton(dlg);
+    QVERIFY(unsupported && ok);
+    QVERIFY(unsupported->text().startsWith("Checking"));
+    QVERIFY(!ok->isEnabled());
+
+    dlg.setWebuiCheckFailed("x");
+    QCOMPARE(unsupported->text(), QString(kWebuiCheckFailed) + QString("x"));
+    QCOMPARE(unsupported->textFormat(), Qt::PlainText);
+    QVERIFY(unsupported->isVisible());
+    QVERIFY(!ok->isEnabled());
+
+    // a new check starts: back to "Checking", the failure is gone
+    dlg.setWebuiSupport(ServeManager::WebuiSupport::Unknown);
+    QVERIFY(unsupported->text().startsWith("Checking"));
+    QVERIFY(!ok->isEnabled());
+
+    dlg.setWebuiCheckFailed("x");
+    dlg.setWebuiCheckFailed(QString());
+    QVERIFY(unsupported->text().startsWith("Checking"));
+    QVERIFY(!ok->isEnabled());
+
+    // an answer replaces the failure: No shows the unsupported text
+    dlg.setWebuiCheckFailed("x");
+    dlg.setWebuiSupport(ServeManager::WebuiSupport::No);
+    QCOMPARE(unsupported->text(), QString(kWebuiUnsupported));
+    QVERIFY(!ok->isEnabled());
+
+    dlg.setWebuiCheckFailed("x");
+    dlg.setWebuiSupport(ServeManager::WebuiSupport::Yes);
+    QVERIFY(!unsupported->isVisible());
+    QVERIFY(ok->isEnabled());
+  }
+
   // T-WEBUI-REMEMBER: the options persist through GetSettings() when a
   // webdav-webui dialog is accepted, never the secret.
   void T_WEBUI_REMEMBER() {

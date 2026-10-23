@@ -6,6 +6,7 @@
 #include "rb_test_support.h"
 #include "rc_client.h"
 #include "rclone_daemon.h"
+#include "remote_config_dialog.h"
 #include "serve_manager.h"
 #include "utils.h"
 
@@ -391,6 +392,53 @@ private slots:
     QVERIFY2(classic.done && classic.failure.isEmpty(),
              qPrintable(classic.failure));
     expectUi(classic.entry, false, "classic webdav on upstream has no UI");
+  }
+
+  // T-E2E-WEBUI-RESTART (B-A001): the manager is bound as MainWindow binds it
+  // (daemonRcCall). A webui start made while the backend is down fails with the
+  // failed check's text, never "not supported"; once the backend runs again the
+  // same start succeeds with the web UI.
+  void T_E2E_WEBUI_RESTART() {
+    QVERIFY(startDaemon(mFork));
+    auto ctx = std::make_shared<QPointer<QObject>>();
+    mManager = std::make_unique<ServeManager>(
+        daemonRcCall(QPointer<RcloneDaemon>(mDaemon), ctx));
+    *ctx = mManager.get();
+    mManager->loadCapabilities();
+    QTRY_VERIFY_WITH_TIMEOUT(mManager->webuiSupport() !=
+                                 ServeManager::WebuiSupport::Unknown,
+                             10000);
+    QCOMPARE(mManager->webuiSupport(), ServeManager::WebuiSupport::Yes);
+
+    // the backend stops; MainWindow resets the capabilities on stateChanged
+    mDaemon->stop();
+    QVERIFY(QTest::qWaitFor(
+        [this]() { return mDaemon->state() != RcloneDaemon::State::Running; },
+        15000));
+    mManager->resetCapabilities();
+    const StartResult down = startAndWait(webuiParams());
+    QVERIFY(down.done);
+    QVERIFY2(down.failure.startsWith(QString(kWebuiCheckFailed)),
+             qPrintable(down.failure));
+    QVERIFY(down.failure != QString(kWebuiUnsupported));
+    QVERIFY(!mManager->webuiCheckError().isEmpty());
+
+    // the backend runs again: the check is redone and the same start succeeds
+    mDaemon->start();
+    QVERIFY(QTest::qWaitFor(
+        [this]() { return mDaemon->state() == RcloneDaemon::State::Running; },
+        10000));
+    mManager->resetCapabilities();
+    mManager->loadCapabilities();
+    QTRY_VERIFY_WITH_TIMEOUT(mManager->webuiSupport() !=
+                                 ServeManager::WebuiSupport::Unknown,
+                             10000);
+    QCOMPARE(mManager->webuiSupport(), ServeManager::WebuiSupport::Yes);
+    QVERIFY(mManager->webuiCheckError().isEmpty());
+    const StartResult up = startAndWait(webuiParams());
+    QVERIFY2(up.done && up.failure.isEmpty(), qPrintable(up.failure));
+    QVERIFY(!up.entry.id.isEmpty());
+    expectUi(up.entry, true, "webdav-webui after the restart");
   }
 };
 

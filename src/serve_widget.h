@@ -26,6 +26,9 @@ public slots:
   // Whether the rclone behind the rc has the webdav_webui option block; it
   // gates OK while webdav-webui is selected.
   void setWebuiSupport(ServeManager::WebuiSupport support);
+  // The text of a failed capability check (ServeManager::webuiCheckError); it
+  // is shown while the support is Unknown. Empty clears it.
+  void setWebuiCheckFailed(const QString &text);
 
 public:
   // Saves the webdav-webui options (never the secret) when that type is
@@ -55,6 +58,7 @@ private:
   QDialogButtonBox *mButtons;
 
   ServeManager::WebuiSupport mWebuiSupport = ServeManager::WebuiSupport::Unknown;
+  QString mWebuiCheckFailed;
   QGroupBox *mWebuiGroup = nullptr;
   QToolButton *mWebuiAdvancedToggle = nullptr;
   QWidget *mWebuiAdvanced = nullptr;

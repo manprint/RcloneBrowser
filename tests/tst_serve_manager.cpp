@@ -550,6 +550,210 @@ private slots:
     }
   }
 
+  // T-WEBUI-CHECK-FAILED: a webui start that waits for a failed capability
+  // check names that check, never "not supported"; the text is kept until a
+  // check succeeds, and a rclone without the block still gets kWebuiUnsupported
+  void T_WEBUI_CHECK_FAILED() {
+    using Support = ServeManager::WebuiSupport;
+    qRegisterMetaType<ServeManager::WebuiSupport>();
+    const QString checkText = QStringLiteral("rclone daemon is not running");
+    const QString expected = QString(kWebuiCheckFailed) + checkText;
+    const QJsonObject startOk{{"addr", "127.0.0.1:1"}, {"id", "webdav-1"}};
+    ServeParams webui;
+    webui.type = "webdav";
+    webui.flavor = kWebuiFlavor;
+    webui.fs = "r:a";
+
+    // (i) the check fails: the start fails with the check's text, and nothing
+    // reaches options/set or serve/start (I-5)
+    {
+      Fake fake;
+      fake.script["options/blocks"] = errReply(500, checkText);
+      ServeManager manager(fake.fn());
+      QVector<quint64> failedTokens;
+      QStringList failedTexts, errorTexts, checkTexts;
+      connect(&manager, &ServeManager::startFailed, &manager,
+              [&](quint64 t, const QString &m) {
+                failedTokens << t;
+                failedTexts << m;
+              });
+      connect(&manager, &ServeManager::error, &manager,
+              [&](const QString &m) { errorTexts << m; });
+      connect(&manager, &ServeManager::capabilitiesCheckFailed, &manager,
+              [&](const QString &m) { checkTexts << m; });
+      QTest::ignoreMessage(QtWarningMsg,
+                           "options/blocks failed: rclone daemon is not running");
+      QCOMPARE(manager.start(webui), quint64(1));
+      QTRY_COMPARE_WITH_TIMEOUT(failedTokens.size(), 1, 3000);
+      QTest::qWait(50);
+      QCOMPARE(failedTokens, QVector<quint64>{1});
+      QCOMPARE(failedTexts, QStringList{expected});
+      QCOMPARE(errorTexts, QStringList{expected});
+      QCOMPARE(checkTexts, QStringList{checkText});
+      QCOMPARE(manager.webuiCheckError(), checkText);
+      QCOMPARE(manager.webuiSupport(), Support::Unknown);
+      QVERIFY(!fake.paths().contains("options/set"));
+      QVERIFY(!fake.paths().contains("serve/start"));
+    }
+
+    // (ii) a reset drains the queue while a check is in flight: the failed check
+    // before it shows its text until the reset, which clears it at once; the
+    // stale reply (a failure, the backend was restarting) changes nothing, the
+    // fresh check fails and the start fails with its text
+    {
+      Fake fake;
+      const QString staleText = QStringLiteral("rclone was restarting");
+      fake.script["options/blocks"] = errReply(500, checkText);
+      ServeManager manager(fake.fn());
+      QVector<quint64> failedTokens;
+      QStringList failedTexts;
+      QSignalSpy spy(&manager, &ServeManager::capabilitiesChanged);
+      QSignalSpy checkSpy(&manager, &ServeManager::capabilitiesCheckFailed);
+      connect(&manager, &ServeManager::startFailed, &manager,
+              [&](quint64 t, const QString &m) {
+                failedTokens << t;
+                failedTexts << m;
+              });
+      QTest::ignoreMessage(QtWarningMsg,
+                           "options/blocks failed: rclone daemon is not running");
+      manager.loadCapabilities();
+      QTRY_COMPARE_WITH_TIMEOUT(checkSpy.count(), 1, 3000);
+      QCOMPARE(manager.webuiCheckError(), checkText);
+      // the start is queued while the next check is in flight: its reply is held
+      fake.hold.insert("options/blocks");
+      fake.script["options/blocks"] = errReply(500, staleText);
+      QCOMPARE(manager.start(webui), quint64(1));
+      QCOMPARE(fake.held.size(), 1);
+      QCOMPARE(fake.paths().count("options/blocks"), 2);
+      // the backend stopped: the next check fails, the held one is stale
+      fake.script["options/blocks"] = errReply(500, checkText);
+      fake.hold.clear();
+      QTest::ignoreMessage(QtWarningMsg,
+                           "options/blocks failed: rclone daemon is not running");
+      manager.resetCapabilities();
+      QVERIFY(manager.webuiCheckError().isEmpty());
+      QCOMPARE(spy.count(), 1);
+      QCOMPARE(manager.webuiSupport(), Support::Unknown);
+      fake.releaseHeld();
+      QTRY_COMPARE_WITH_TIMEOUT(failedTokens.size(), 1, 3000);
+      QTest::qWait(50);
+      QCOMPARE(failedTokens, QVector<quint64>{1});
+      QCOMPARE(failedTexts, QStringList{expected});
+      QCOMPARE(manager.webuiCheckError(), checkText);
+      QCOMPARE(manager.webuiSupport(), Support::Unknown);
+      QCOMPARE(spy.count(), 1);
+      // the stale failure emitted nothing: only the two fresh failures did
+      QCOMPARE(checkSpy.count(), 2);
+      QCOMPARE(checkSpy.last().at(0).toString(), checkText);
+      QCOMPARE(fake.paths().count("options/blocks"), 3);
+      QVERIFY(!fake.paths().contains("options/set"));
+      QVERIFY(!fake.paths().contains("serve/start"));
+
+      // (iii) a later successful check clears the text; webui starts again
+      fake.script["options/blocks"] =
+          okReply(jsonOf(R"({"options":["main","webdav_webui"]})"));
+      fake.script["serve/start"] = okReply(startOk);
+      QSignalSpy startedSpy(&manager, &ServeManager::started);
+      manager.loadCapabilities();
+      QTRY_COMPARE_WITH_TIMEOUT(spy.count(), 2, 3000);
+      QCOMPARE(manager.webuiSupport(), Support::Yes);
+      QVERIFY(manager.webuiCheckError().isEmpty());
+      const int before = fake.calls.size();
+      QCOMPARE(manager.start(webui), quint64(2));
+      QTRY_COMPARE_WITH_TIMEOUT(startedSpy.count(), 1, 3000);
+      QCOMPARE(failedTokens, QVector<quint64>{1});
+      const QStringList later = fake.paths().mid(before);
+      QVERIFY(later.size() >= 2);
+      QCOMPARE(later.mid(0, 2),
+               (QStringList{"options/set", "serve/start"}));
+    }
+
+    // (iv) an rclone without the block: still exactly kWebuiUnsupported
+    {
+      Fake fake;
+      fake.script["options/blocks"] = okReply(jsonOf(R"({"options":["main"]})"));
+      ServeManager manager(fake.fn());
+      QSignalSpy checkSpy(&manager, &ServeManager::capabilitiesCheckFailed);
+      QStringList failedTexts;
+      connect(&manager, &ServeManager::startFailed, &manager,
+              [&](quint64, const QString &m) { failedTexts << m; });
+      manager.start(webui);
+      QTRY_COMPARE_WITH_TIMEOUT(failedTexts.size(), 1, 3000);
+      QCOMPARE(failedTexts.at(0), QString(kWebuiUnsupported));
+      QCOMPARE(checkSpy.count(), 0);
+      QVERIFY(manager.webuiCheckError().isEmpty());
+      QVERIFY(!fake.paths().contains("options/set"));
+      QVERIFY(!fake.paths().contains("serve/start"));
+    }
+
+    // (v) a check fails while a classic start is in flight and the webui start
+    // waits behind it; a second check is in flight when that start ends: the
+    // webui start waits for that reply and names its error, not the old one
+    {
+      Fake fake;
+      const QString firstText = QStringLiteral("rclone daemon is not running");
+      const QString secondText = QStringLiteral("rclone is still starting");
+      ServeParams classic;
+      classic.type = "http";
+      classic.fs = "loc:/tmp/w";
+      fake.hold.insert("serve/start");
+      fake.script["serve/start"] = okReply(startOk);
+      fake.script["options/blocks"] = errReply(500, firstText);
+      ServeManager manager(fake.fn());
+      QVector<quint64> failedTokens;
+      QStringList failedTexts;
+      QSignalSpy startedSpy(&manager, &ServeManager::started);
+      QSignalSpy checkSpy(&manager, &ServeManager::capabilitiesCheckFailed);
+      connect(&manager, &ServeManager::startFailed, &manager,
+              [&](quint64 t, const QString &m) {
+                failedTokens << t;
+                failedTexts << m;
+              });
+      QCOMPARE(manager.start(classic), quint64(1));
+      QCOMPARE(fake.held.size(), 1);
+      QTest::ignoreMessage(QtWarningMsg,
+                           "options/blocks failed: rclone daemon is not running");
+      manager.loadCapabilities();
+      QCOMPARE(manager.start(webui), quint64(2));
+      QTRY_COMPARE_WITH_TIMEOUT(checkSpy.count(), 1, 3000);
+      QCOMPARE(manager.webuiCheckError(), firstText);
+      QVERIFY(failedTokens.isEmpty());
+
+      // a second check starts while the classic start is still in flight
+      fake.hold.insert("options/blocks");
+      fake.script["options/blocks"] = errReply(500, secondText);
+      QTest::ignoreMessage(QtWarningMsg,
+                           "options/blocks failed: rclone is still starting");
+      manager.loadCapabilities();
+      QCOMPARE(fake.held.size(), 2);
+
+      // the classic start ends first: the webui start still waits for the check
+      const std::function<void()> startDone = fake.held.first();
+      fake.held.removeFirst();
+      QTimer::singleShot(0, startDone);
+      QTRY_COMPARE_WITH_TIMEOUT(startedSpy.count(), 1, 3000);
+      QTest::qWait(50);
+      QVERIFY(failedTokens.isEmpty());
+      QCOMPARE(checkSpy.count(), 1);
+      QCOMPARE(manager.webuiCheckError(), firstText);
+
+      // the second check fails: the webui start is refused with its text
+      const std::function<void()> checkDone = fake.held.first();
+      fake.held.removeFirst();
+      QTimer::singleShot(0, checkDone);
+      QTRY_COMPARE_WITH_TIMEOUT(failedTokens.size(), 1, 3000);
+      QTest::qWait(50);
+      QCOMPARE(failedTokens, QVector<quint64>{2});
+      QCOMPARE(failedTexts,
+               QStringList{QString(kWebuiCheckFailed) + secondText});
+      QCOMPARE(checkSpy.count(), 2);
+      QCOMPARE(checkSpy.last().at(0).toString(), secondText);
+      QCOMPARE(manager.webuiCheckError(), secondText);
+      QCOMPARE(fake.paths().count("serve/start"), 1);
+      QVERIFY(!fake.paths().contains("options/set"));
+    }
+  }
+
   // T-SRV-LIST
   void T_SRV_LIST() {
     const QVector<ServeEntry> list = parseServeList(jsonOf(kR15List));

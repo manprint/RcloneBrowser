@@ -1925,8 +1925,15 @@ void MainWindow::openServeDialog(const QString &fs) {
   connect(serveManager(), &ServeManager::typesChanged, &dlg,
           &ServeDialog::setTypes);
   dlg.setWebuiSupport(serveManager()->webuiSupport());
+  // a check that failed before the dialog opened is still the answer
+  if (serveManager()->webuiSupport() == ServeManager::WebuiSupport::Unknown &&
+      !serveManager()->webuiCheckError().isEmpty()) {
+    dlg.setWebuiCheckFailed(serveManager()->webuiCheckError());
+  }
   connect(serveManager(), &ServeManager::capabilitiesChanged, &dlg,
           &ServeDialog::setWebuiSupport);
+  connect(serveManager(), &ServeManager::capabilitiesCheckFailed, &dlg,
+          &ServeDialog::setWebuiCheckFailed);
   serveManager()->loadTypes();
   serveManager()->loadCapabilities();
   if (dlg.exec() == QDialog::Accepted) {

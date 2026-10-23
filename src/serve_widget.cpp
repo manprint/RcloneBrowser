@@ -234,6 +234,13 @@ WebuiOptions ServeDialog::webuiOptions() const {
 
 void ServeDialog::setWebuiSupport(ServeManager::WebuiSupport support) {
   mWebuiSupport = support;
+  // an answer ends a failed check, and Unknown means a new check is running
+  mWebuiCheckFailed.clear();
+  updateOk();
+}
+
+void ServeDialog::setWebuiCheckFailed(const QString &text) {
+  mWebuiCheckFailed = text;
   updateOk();
 }
 
@@ -338,10 +345,13 @@ void ServeDialog::updateOk() {
     if (mWebuiSupport == ServeManager::WebuiSupport::Yes) {
       mWebuiUnsupported->setVisible(false);
     } else {
-      mWebuiUnsupported->setText(
-          mWebuiSupport == ServeManager::WebuiSupport::No
-              ? QString(kWebuiUnsupported)
-              : tr("Checking whether this rclone supports webdav-webui..."));
+      QString text = tr("Checking whether this rclone supports webdav-webui...");
+      if (mWebuiSupport == ServeManager::WebuiSupport::No) {
+        text = QString(kWebuiUnsupported);
+      } else if (!mWebuiCheckFailed.isEmpty()) {
+        text = QString(kWebuiCheckFailed) + mWebuiCheckFailed;
+      }
+      mWebuiUnsupported->setText(text);
       mWebuiUnsupported->setVisible(true);
       ok = false;
     }

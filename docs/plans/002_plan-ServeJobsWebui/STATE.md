@@ -9,7 +9,7 @@ Plan baseline: `19e93fa54a260a3e3318a74ade157d9e66bb226e` (HEAD of `dev/001-mode
 Sibling repository `../rclone` (the rclone webui fork, HEAD `a527815ae` at planning): read-only for this plan.
 Roster: agent-1:opus (supervisor), agent-2:sonnet, agent-3:haiku. Active execution style: delegated
 (coordinator agent-1:opus dispatches workers); fallback handoff (successive sessions) when the host cannot dispatch.
-State writer: agent-1:opus execute session (2026-10-23); ownership: released (scope COMPLETE at unit:P3:1).
+State writer: agent-1:opus execute session (2026-10-23); ownership: released (B-A001 complete at unit:B-A001:1).
 
 ## 0. Resume and completion protocol
 
@@ -65,19 +65,19 @@ this file. Tests never read the host rclone config (temp config only). No push, 
 
 ## 1. Current unit and scope
 
-- Active scope: plan 002 (all phases) — `/plan-execute-verify execute 002` (user, 2026-10-23); full-autonomous:true, WIP on (§3)
-- Scope result: COMPLETE (plan 002 all phases; final evidence G-FINAL on `8d485f9`)
-- Type: phase-close
-- ID / attempt: P3 / 1
-- Status: OPEN (closing: commit unit:P3:1)
-- Intent: phase 3 and plan closure: final gates, reference scenario, agent-1:opus review
-- Assigned: agent-1:opus
-- File / unit heading: phase_04.md "Phase gates and closure"
+- Active scope: bug B-A001 (`bugs.md`), user request 2026-10-23 after plan closure; full-autonomous:true, WIP on (§3). Plan 002 scope: COMPLETE at unit:P3:1.
+- Scope result: COMPLETE (B-A001)
+- Type: bug
+- ID / attempt: B-A001 / 1
+- Status: OPEN (closing: commit unit:B-A001:1)
+- Intent: honest message when the webdav-webui capability check fails (start refusal and Serve dialog)
+- Assigned: workflow worker (implementation), workflow reviewers (adversarial); supervisor: agent-1:opus
+- File / unit heading: bugs.md "B-A001"
 - Current step: commit
-- Next action: commit P3; scope complete — no further units. No push/tag/release.
-- Next eligible plan unit: none (final phase)
-- Unit base: `8d485f9`; branch: `dev/002-serve-jobs-webui`; owned changes: STATE.md only
-- Repo state: HEAD `8d485f9` (unit:3.4:1); untracked `.serena/` (unrelated)
+- Next action: commit B-A001; scope complete. No push/tag/release.
+- Next eligible plan unit: none
+- Unit base: `751779a`; branch: `dev/002-serve-jobs-webui`; owned changes: see bugs.md B-A001 Files
+- Repo state: HEAD `751779a` (unit:P3:1); untracked `.serena/` (unrelated)
 
 ## 2. Feature context and readiness
 
@@ -152,6 +152,7 @@ Required supervisor reviews cannot be silently replaced by weaker self-review.
 | sub-phase | 2.3 / 1 | 2 | agent-2:sonnet | serves in Jobs (MainWindow), Serves window/actionServes removed, 8 ServeJobWidget branches, `tst_e2e_serve_jobs`, snapshot fixture | G-U23/G-U23e §7; reviews §7 | unit:2.3:1 |
 | sub-phase | 2.2 / 1 | 2 | agent-2:sonnet (+ agent-1:opus fix) | NEW `ServeJobWidget`, `tst_serve_job_widget`; CMake registrations | G-U22 §7; review §7 | unit:2.2:1 |
 | sub-phase | 2.1 / 1 | 2 | agent-2:sonnet | ServeManager tokens/FIFO/startFailed, `kWebuiFlavor`, `serveBrowserUrl`, `serveOpensInBrowser`; main_window lambda; tst_e2e_serve entryOf index | G-U21/G-U21e §7; review §7 | unit:2.1:1 |
+| bug | B-A001 / 1 | — | workflow worker | honest message on a failed webdav-webui capability check (manager + dialog) | G-BA001 §7; review §7 | unit:B-A001:1 |
 | phase-close | P3 / 1 | 3 | agent-1:opus | phase 3 and plan closure | P3 gates + G-FINAL §7; review §7 | unit:P3:1 |
 | sub-phase | 3.4 / 1 | 3 | agent-3:haiku | README: webdav-webui type, Web interface options table, limits | S2 options.go check §7 | unit:3.4:1 |
 | sub-phase | 3.3 / 1 | 3 | agent-2:sonnet | `tst_e2e_serve_webui` (6 functions, fork + upstream), registered only with RB_TEST_RCLONE_WEBUI | G-U33 §7; review §7 | unit:3.3:1 |
@@ -189,6 +190,7 @@ Unit 2.3: S1–S6 done. Pending commit unit:2.3:1. Running resources: none.
 |-----------|---------|--------|--------------------------|---------------------|------|
 | G-U23 | §3 | pass | build 0 warnings; unit 32/32 (snapshot fixture: only the actionServes line removed) | 2.3 diff on `157ef4f` (worker run) | 2026-10-23 |
 | G-U23e | §3 | pass | 2 tests: TestE2eServe 7 PASS, TestE2eServeJobs PASS T_E2E_SERVE_JOBS; full e2e 22/22 (worker); supervisor re-run of G-U23e pass | same | 2026-10-23 |
+| G-BA001 | §3 | pass | clean qt64 build 0 warnings; unit 32/32 (PASS T_WEBUI_CHECK_FAILED, T_WEBUI_DIALOG_CHECK_FAILED); e2e 23/23 (PASS T_E2E_WEBUI_RESTART); before-fix FAIL lines recorded in bugs.md | B-A001 diff on `751779a` | 2026-10-23 |
 | G-BUILD64 (P3) | §3 | pass | clean build-docker-qt64, exit 0, 0 warnings | `8d485f9` | 2026-10-23 |
 | G-UNIT (P3) | §3 | pass | 32/32 (`-V`) | `8d485f9` | 2026-10-23 |
 | G-E2E (P3) | §3 | pass | 23/23 (`-V`; G-BASE 21 + tst_e2e_serve_jobs + tst_e2e_serve_webui), RB_RCLONE_WEBUI set | `8d485f9` | 2026-10-23 |
@@ -224,6 +226,7 @@ Unit 2.3: S1–S6 done. Pending commit unit:2.3:1. Running resources: none.
 | 2.3 site list (before S4) | agent-1:opus | rev 2 / `157ef4f` | `qobject_cast<StreamWidget` sites = 8: main_window.cpp setupJobsTab L1004 (a), quitApp L1455 (b), canClose L2401 (c), sortJobs L3145 (d) and L3206 (e), applyJobsFilter L3235 (f); main_window_tasks.cpp runItem L2045 (g), L2067 (h) — matches plan a–h; canClose/quitApp semantics checked against Stream branches | approved |
 | 2.2 | agent-1:opus | rev 2 / 2.2 diff on `1cfbaf8` | contract API verbatim; transitions and finished() once; isRunning; cancel semantics; Restart visibility/enabled; buttons; I-2 (params in memory, no logging). Worker choices accepted (copy/open enabled only while Serving; no confirmation on Stop; markRunning no-op in Finished/Error). Supervisor fix: a same-id markRunning while Stopping clears Stopping (stop failed ⇒ id still listed in the newest list), with T_SJW_STATE assertions | approved |
 | 2.1 | agent-1:opus | rev 2 / 2.1 working diff on `aba452f` | D5 (token, FIFO one in flight, refresh after each reply, startFailed before error incl. invalid reply), D9 (browser URL host rewrite, opensInBrowser set), I-2 (queue keeps params in memory only, nothing logged), `self` guards after emits; T_SRV_TOKENS assertions | approved |
+| B-A001 | workflow reviewers + agent-1:opus | B-A001 diff on `751779a` | see bugs.md B-A001 Review; I-5 kept (no options/set/serve/start without Yes), secret never in messages | approved |
 | P3 | agent-1:opus | rev 2 / `8d485f9` | I-2 (secret/password only in POST bodies and widget/dialog memory; never in settings, logs, test output), I-3/I-4 (options/set right before its serve/start, no webui key in serve/start), I-5 (upstream ⇒ type listed, OK disabled with reason; start refused without rc call), I-10 (19-key read-back); reference scenario met; Evolutiva01.md items 1 (grid geometry, all layouts/scales), 2 (serves in Jobs, Serves window removed, dialog modal), 3 (webdav-webui with all options + VFS cache mode, remembered except secret, unusable with message on upstream, classic webdav classic on the fork), 4 (Serve button next to Mount/Stream); README accurate | approved |
 | 3.4 | agent-1:opus | rev 2 / README diff on `7a24ad7` | webdav-webui bullet + option table (labels = serve_widget.cpp; flags/defaults verified by worker against `../rclone/webui/options.go`, supervisor spot-checked the same file); type-list sentence; Read only/login/security lists include webdav-webui; Open in browser covers webdav-webui; #faq-limit-serve no longer lists VFS cache mode as unavailable; placeholder wording fixed by supervisor; New-in 2.1.0 bullet and CHANGELOG.md untouched (no unreleased section, per contract) | approved |
 | 3.3 | agent-1:opus | rev 2 / 3.3 diff on `ea9437e` | oracle per contract: UI marker `__webui_` only with Mozilla UA, curl UA never; I-10 read-back of all 19 keys with ns/bytes conversions (Secret by QVERIFY only); I-3 A/B/C and back-to-back D/E; I-5 upstream ⇒ No, flavor refused with kWebuiUnsupported and empty serve/list, classic works; initTestCase fails (never skips) without binaries; registration only `if(RB_TEST_RCLONE_WEBUI)` (D11); no production change | approved |
