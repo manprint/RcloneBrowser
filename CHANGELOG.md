@@ -1,6 +1,6 @@
 # Change Log
 
-## [Unreleased]
+## [2.1.0-beta.2] - 2026-10-23
 Changes since 2.1.0-beta.1.
 
 -   NEW: running serves are listed in the Jobs tab like mounts: each row shows "Starting", "Serving", "Finished" or "Error" with the type and source folder, and has Copy URL, Open in browser (http, webdav and webdav-webui), Stop (then Close), Restart with the same settings and a details panel. Serves count in "Jobs (N)" and follow the Jobs filter, sort and Clean; Stop All does not stop them; a backend restart or stop marks them finished ("Backend stopped")
