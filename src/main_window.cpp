@@ -1896,17 +1896,21 @@ ServeManager *MainWindow::serveManager() {
                     }
                   }
                 }
+                // another rclone may come up: ask it again (D7)
+                manager->resetCapabilities();
                 // the list goes empty or failed after a restart or a quit
                 manager->refresh();
                 if (state == RcloneDaemon::State::Running) {
                   manager->loadTypes();
+                  manager->loadCapabilities();
                 }
               });
     }
     // not without a Running daemon: that would only log a warning, and the
-    // stateChanged(Running) handler above loads the types later
+    // stateChanged(Running) handler above loads the types and capabilities later
     if (daemonRunning()) {
       mServeManager->loadTypes();
+      mServeManager->loadCapabilities();
     }
   }
   return mServeManager;
@@ -1936,8 +1940,7 @@ void MainWindow::startServe(const ServeParams &p) {
 }
 
 QString MainWindow::serveDisplayType(const ServeParams &p) {
-  // 3.1 returns the flavor here when there is one
-  return p.type;
+  return p.flavor.isEmpty() ? p.type : p.flavor;
 }
 
 QList<ServeJobWidget *> MainWindow::serveJobs() const {

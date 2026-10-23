@@ -6,6 +6,10 @@ namespace {
 
 const int kServeTimeoutMs = 30000;
 
+const QLatin1String kWebuiUnsupported(
+    "This rclone does not support webdav-webui: it needs rclone built from the "
+    "webui fork. Choose webdav for a WebDAV serve without the web interface.");
+
 // rclone's own text, "HTTP <status>" or "no reply" only when there is none.
 QString failureText(const RcReply &reply) {
   if (!reply.error.isEmpty()) {
@@ -19,6 +23,55 @@ QString failureText(const RcReply &reply) {
 
 const QLatin1String kWebuiFlavor("webdav-webui");
 
+const QStringList &webuiOptionKeys() {
+  static const QStringList keys = {
+      QStringLiteral("Enabled"),
+      QStringLiteral("AllowDelete"),
+      QStringLiteral("Search"),
+      QStringLiteral("SearchMaxDepth"),
+      QStringLiteral("SearchMaxResults"),
+      QStringLiteral("SearchTimeout"),
+      QStringLiteral("PublinkPaths"),
+      QStringLiteral("Secret"),
+      QStringLiteral("TokenExpiry"),
+      QStringLiteral("Resume"),
+      QStringLiteral("ResumeDir"),
+      QStringLiteral("ResumeRetention"),
+      QStringLiteral("PlayerMaxRetry"),
+      QStringLiteral("PlayerReconnectInterval"),
+      QStringLiteral("DiskStats"),
+      QStringLiteral("UploadSettings"),
+      QStringLiteral("EditMaxSize"),
+      QStringLiteral("DirCount"),
+      QStringLiteral("MultiZipMax")};
+  return keys;
+}
+
+QJsonObject webuiOptionsBlock(const WebuiOptions &o, bool enabled) {
+  const QJsonArray publink = QJsonArray::fromStringList(o.publinkPaths);
+  const QJsonObject block{
+      {QStringLiteral("Enabled"), enabled},
+      {QStringLiteral("AllowDelete"), o.allowDelete},
+      {QStringLiteral("Search"), o.search},
+      {QStringLiteral("SearchMaxDepth"), o.searchMaxDepth},
+      {QStringLiteral("SearchMaxResults"), o.searchMaxResults},
+      {QStringLiteral("SearchTimeout"), o.searchTimeout},
+      {QStringLiteral("PublinkPaths"), publink},
+      {QStringLiteral("Secret"), o.secret},
+      {QStringLiteral("TokenExpiry"), o.tokenExpiry},
+      {QStringLiteral("Resume"), o.resume},
+      {QStringLiteral("ResumeDir"), o.resumeDir},
+      {QStringLiteral("ResumeRetention"), o.resumeRetention},
+      {QStringLiteral("PlayerMaxRetry"), o.playerMaxRetry},
+      {QStringLiteral("PlayerReconnectInterval"), o.playerReconnectInterval},
+      {QStringLiteral("DiskStats"), o.diskStats},
+      {QStringLiteral("UploadSettings"), o.uploadSettings},
+      {QStringLiteral("EditMaxSize"), o.editMaxSize},
+      {QStringLiteral("DirCount"), o.dirCount},
+      {QStringLiteral("MultiZipMax"), o.multiZipMax}};
+  return QJsonObject{{QStringLiteral("webdav_webui"), block}};
+}
+
 QJsonObject serveStartParams(const ServeParams &p) {
   QJsonObject o{{QStringLiteral("type"), p.type},
                 {QStringLiteral("fs"), p.fs},
@@ -31,6 +84,9 @@ QJsonObject serveStartParams(const ServeParams &p) {
   }
   if (p.readOnly) {
     o.insert(QStringLiteral("read_only"), true);
+  }
+  if (!p.vfsCacheMode.isEmpty()) {
+    o.insert(QStringLiteral("vfs_cache_mode"), p.vfsCacheMode);
   }
   if (p.type == QLatin1String("sftp")) {
     // without it rclone 1.75.2 reads ~/.ssh/authorized_keys of the backend's
@@ -155,8 +211,64 @@ void ServeManager::processStartQueue() {
   if (mStartInFlight || mStartQueue.isEmpty()) {
     return;
   }
+  const bool isWebdav =
+      mStartQueue.head().params.type == QLatin1String("webdav");
+  // a webdav start needs to know what the rclone supports: resolve it first;
+  // the reply comes back here (a failed check is tried once per start)
+  if (isWebdav && mWebui == WebuiSupport::Unknown && !mCapsTriedForFront) {
+    loadCapabilities();
+    return;
+  }
   const PendingStart pending = mStartQueue.dequeue();
+  mCapsTriedForFront = false;
   mStartInFlight = true;
+  if (!isWebdav) {
+    sendServeStart(pending);
+    return;
+  }
+  const bool webui = pending.params.flavor == kWebuiFlavor;
+  if (webui && mWebui != WebuiSupport::Yes) {
+    // never start the web UI on an rclone that cannot serve it (I-10)
+    const QString text(kWebuiUnsupported);
+    emit startFailed(pending.token, text);
+    emit error(text);
+    mStartInFlight = false;
+    processStartQueue();
+    return;
+  }
+  if (mWebui != WebuiSupport::Yes) {
+    sendServeStart(pending);
+    return;
+  }
+  // the option block is process-global and read when the server is built:
+  // set it right before this start, which is the only one in flight (I-3)
+  const QPointer<ServeManager> self(this);
+  mCall(QStringLiteral("options/set"),
+        webuiOptionsBlock(pending.params.webui, webui),
+        [self, pending](const RcReply &reply) {
+          if (!self) {
+            return;
+          }
+          if (reply.ok) {
+            self->sendServeStart(pending);
+            return;
+          }
+          const QString text =
+              QStringLiteral("webdav-webui options: ") + failureText(reply);
+          emit self->startFailed(pending.token, text);
+          if (self) {
+            emit self->error(text);
+          }
+          if (self) {
+            self->mStartInFlight = false;
+            self->refresh();
+            self->processStartQueue();
+          }
+        },
+        kServeTimeoutMs);
+}
+
+void ServeManager::sendServeStart(const PendingStart &pending) {
   const QPointer<ServeManager> self(this);
   const quint64 token = pending.token;
   const QString type = pending.params.type;
@@ -195,6 +307,70 @@ void ServeManager::processStartQueue() {
           }
         },
         kServeTimeoutMs);
+}
+
+ServeManager::WebuiSupport ServeManager::webuiSupport() const {
+  return mWebui;
+}
+
+void ServeManager::loadCapabilities() {
+  if (mCapsInFlight) {
+    return;
+  }
+  mCapsInFlight = true;
+  const QPointer<ServeManager> self(this);
+  const quint64 generation = mCapsGeneration;
+  mCall(QStringLiteral("options/blocks"), QJsonObject(),
+        [self, generation](const RcReply &reply) {
+          // a reset (backend restart) came in between: not this reply's answer
+          if (!self || generation != self->mCapsGeneration) {
+            return;
+          }
+          self->mCapsInFlight = false;
+          // counts as the check of a waiting start only when one waits: a
+          // failed check without one leaves the next webdav start to retry
+          self->mCapsTriedForFront = !self->mStartQueue.isEmpty();
+          if (reply.ok) {
+            bool found = false;
+            const QJsonValue blocks =
+                reply.result.value(QStringLiteral("options"));
+            if (blocks.isArray()) {
+              const QJsonArray items = blocks.toArray();
+              for (const QJsonValue &v : items) {
+                if (v.isString() &&
+                    v.toString() == QLatin1String("webdav_webui")) {
+                  found = true;
+                  break;
+                }
+              }
+            }
+            const WebuiSupport support =
+                found ? WebuiSupport::Yes : WebuiSupport::No;
+            if (support != self->mWebui) {
+              self->mWebui = support;
+              emit self->capabilitiesChanged(support);
+            }
+          } else {
+            qWarning().noquote()
+                << "options/blocks failed:" << failureText(reply);
+          }
+          if (self) {
+            self->processStartQueue();
+          }
+        },
+        kServeTimeoutMs);
+}
+
+void ServeManager::resetCapabilities() {
+  ++mCapsGeneration;
+  mCapsInFlight = false;
+  mCapsTriedForFront = false;
+  if (mWebui != WebuiSupport::Unknown) {
+    mWebui = WebuiSupport::Unknown;
+    emit capabilitiesChanged(mWebui);
+  }
+  // a start that waited for an abandoned load must not hang
+  processStartQueue();
 }
 
 void ServeManager::stop(const QString &id) {

@@ -4,16 +4,55 @@
 
 #include "config_flow.h"
 
+// The webdav-webui options (the fork's process-global rc option block
+// "webdav_webui"): field defaults are the fork's. `secret` is a credential: it
+// only ever travels in the options/set POST body (I-2).
+struct WebuiOptions {
+  bool allowDelete = true;
+  bool search = true;
+  int searchMaxDepth = 8;
+  int searchMaxResults = 1000;
+  QString searchTimeout = QStringLiteral("30s");
+  QStringList publinkPaths;
+  QString secret;
+  QString tokenExpiry = QStringLiteral("72h");
+  bool resume = false;
+  QString resumeDir;
+  QString resumeRetention = QStringLiteral("720h");
+  int playerMaxRetry = 30;
+  int playerReconnectInterval = 10;
+  bool diskStats = false;
+  bool uploadSettings = false;
+  QString editMaxSize = QStringLiteral("4Mi");
+  bool dirCount = false;
+  int multiZipMax = 200;
+};
+
 // What `rclone serve` is started with (serve/start). The credentials only ever
 // travel in the rc POST body (I-5).
+// `flavor` is the display flavor of a webdav serve (kWebuiFlavor or empty);
+// `webui` is used only for the webui flavor; a non-empty `vfsCacheMode`
+// (minimal, writes, full) is sent as "vfs_cache_mode".
 struct ServeParams {
   QString type, fs, addr = QStringLiteral("127.0.0.1:0"), user, pass;
   bool readOnly = false;
+  QString flavor;
+  WebuiOptions webui;
+  QString vfsCacheMode;
 };
+
+// The 19 Go field names of the "webdav_webui" block, in the table order
+// (Enabled first).
+const QStringList &webuiOptionKeys();
+
+// {"webdav_webui": {<the 19 keys>}} for options/set; Enabled = `enabled`.
+// Durations and sizes are strings, PublinkPaths an array of strings.
+QJsonObject webuiOptionsBlock(const WebuiOptions &o, bool enabled);
 
 // {type, fs, addr}; "user" when not empty, "pass" when not empty, "read_only"
 // (JSON bool true) when readOnly; for sftp always "authorized_keys": "" (see
-// the .cpp). Nothing is trimmed and no other key is ever added: rclone rejects
+// the .cpp); "vfs_cache_mode" when vfsCacheMode is not empty. Nothing is
+// trimmed and no other key is ever added (never a webui* key): rclone rejects
 // keys a serve type does not know.
 QJsonObject serveStartParams(const ServeParams &p);
 
@@ -72,6 +111,10 @@ class ServeManager : public QObject {
   Q_OBJECT
 
 public:
+  // Whether the rclone behind the rc has the "webdav_webui" option block.
+  enum class WebuiSupport { Unknown, Yes, No };
+  Q_ENUM(WebuiSupport)
+
   explicit ServeManager(RcCallFn call, QObject *parent = nullptr);
 
   // Queues a serve/start and returns its token (1, 2, ...), which started()
@@ -84,6 +127,14 @@ public:
   // The last typesChanged payload; empty before the first success.
   QStringList types() const;
 
+  WebuiSupport webuiSupport() const;
+  // options/blocks: Yes when it lists "webdav_webui", else No; a failure
+  // leaves the value as it was. No-op while a load is in flight.
+  void loadCapabilities();
+  // Back to Unknown (the backend restarted or stopped); a load still in flight
+  // is abandoned: its reply changes nothing.
+  void resetCapabilities();
+
 signals:
   void started(quint64 token, const ServeEntry &entry);
   // A failed start: emitted before error(), which carries the same text.
@@ -93,6 +144,7 @@ signals:
   void error(const QString &message);
   // refresh() failures only; shown inline, never in a message box.
   void listFailed(const QString &message);
+  void capabilitiesChanged(ServeManager::WebuiSupport support);
 
 private:
   struct PendingStart {
@@ -100,6 +152,7 @@ private:
     ServeParams params;
   };
   void processStartQueue();
+  void sendServeStart(const PendingStart &pending);
 
   RcCallFn mCall;
   QStringList mTypes;
@@ -107,4 +160,8 @@ private:
   QQueue<PendingStart> mStartQueue;
   bool mStartInFlight = false;
   quint64 mNextToken = 0;
+  WebuiSupport mWebui = WebuiSupport::Unknown;
+  bool mCapsInFlight = false;
+  bool mCapsTriedForFront = false;
+  quint64 mCapsGeneration = 0;
 };

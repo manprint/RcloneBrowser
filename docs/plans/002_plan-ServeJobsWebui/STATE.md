@@ -67,17 +67,17 @@ this file. Tests never read the host rclone config (temp config only). No push, 
 
 - Active scope: plan 002 (all phases) — `/plan-execute-verify execute 002` (user, 2026-10-23); full-autonomous:true, WIP on (§3)
 - Scope result: RUNNING
-- Type: phase-close
-- ID / attempt: P2 / 1
-- Status: OPEN (closing: commit unit:P2:1)
-- Intent: phase 2 closure: gates and agent-1:opus review
-- Assigned: agent-1:opus
-- File / unit heading: phase_03.md "Phase gates and closure"
+- Type: sub-phase
+- ID / attempt: 3.1 / 1
+- Status: OPEN (closing: commit unit:3.1:1)
+- Intent: webui option block, capability and start sequence in ServeManager (D6, D7)
+- Assigned: agent-2:sonnet (delegated worker); supervisor: agent-1:opus
+- File / unit heading: phase_04.md "3.1 webui option block, capability and start sequence in ServeManager"
 - Current step: commit
-- Next action: commit P2; open 3.1 (agent-2:sonnet).
-- Next eligible plan unit: 3.1 / phase_04.md
-- Unit base: `74d1ba0`; branch: `dev/002-serve-jobs-webui`; owned changes: STATE.md only
-- Repo state: HEAD `74d1ba0` (unit:2.4:1); untracked `.serena/` (unrelated)
+- Next action: commit 3.1; open 3.2 (agent-2:sonnet).
+- Next eligible plan unit: 3.2 / phase_04.md
+- Unit base: `1c97a3d`; branch: `dev/002-serve-jobs-webui`; owned changes: `src/serve_manager.{h,cpp}`, `tests/tst_serve_manager.cpp`, `src/main_window.{h,cpp}`
+- Repo state: HEAD `1c97a3d` (unit:P2:1); untracked `.serena/` (unrelated)
 
 ## 2. Feature context and readiness
 
@@ -152,6 +152,7 @@ Required supervisor reviews cannot be silently replaced by weaker self-review.
 | sub-phase | 2.3 / 1 | 2 | agent-2:sonnet | serves in Jobs (MainWindow), Serves window/actionServes removed, 8 ServeJobWidget branches, `tst_e2e_serve_jobs`, snapshot fixture | G-U23/G-U23e §7; reviews §7 | unit:2.3:1 |
 | sub-phase | 2.2 / 1 | 2 | agent-2:sonnet (+ agent-1:opus fix) | NEW `ServeJobWidget`, `tst_serve_job_widget`; CMake registrations | G-U22 §7; review §7 | unit:2.2:1 |
 | sub-phase | 2.1 / 1 | 2 | agent-2:sonnet | ServeManager tokens/FIFO/startFailed, `kWebuiFlavor`, `serveBrowserUrl`, `serveOpensInBrowser`; main_window lambda; tst_e2e_serve entryOf index | G-U21/G-U21e §7; review §7 | unit:2.1:1 |
+| sub-phase | 3.1 / 1 | 3 | agent-2:sonnet | WebuiOptions/block, capability tri-state, webdav start sequence, serveDisplayType flavor, daemon reset/load | G-U31/G-U31e §7; review §7 | unit:3.1:1 |
 | phase-close | P2 / 1 | 2 | agent-1:opus | phase 2 closure | P2 gates §7; review §7 | unit:P2:1 |
 | phase-close | P1 / 1 | 2 | agent-1:opus | phase 1 closure | P1 gates §7; review §7 | unit:P1:1 |
 | sub-phase | 1.3 / 1 | 2 | agent-3:haiku | README `#faq-serve`: Serve button; S2 no icon-size text to update (recorded) | supervisor check | unit:1.3:1 |
@@ -184,6 +185,8 @@ Unit 2.3: S1–S6 done. Pending commit unit:2.3:1. Running resources: none.
 |-----------|---------|--------|--------------------------|---------------------|------|
 | G-U23 | §3 | pass | build 0 warnings; unit 32/32 (snapshot fixture: only the actionServes line removed) | 2.3 diff on `157ef4f` (worker run) | 2026-10-23 |
 | G-U23e | §3 | pass | 2 tests: TestE2eServe 7 PASS, TestE2eServeJobs PASS T_E2E_SERVE_JOBS; full e2e 22/22 (worker); supervisor re-run of G-U23e pass | same | 2026-10-23 |
+| G-U31 | §3 | pass | build 0 warnings; tst_serve_manager 13 passed 0 failed (PASS T_SRV_PARAMS_WEBUI, T_WEBUI_BLOCK, T_WEBUI_CAPS, T_WEBUI_SEQ + existing); full unit 32/32 | 3.1 diff incl. supervisor fix on `1c97a3d` (supervisor run) | 2026-10-23 |
+| G-U31e | §3 | pass | `^tst_e2e_serve` 2/2 (tst_e2e_serve, tst_e2e_serve_jobs) against host rclone 1.75.2 | same | 2026-10-23 |
 | G-BUILD64 (P2) | §3 | pass | clean build-docker-qt64, exit 0, 0 warnings | `74d1ba0` | 2026-10-23 |
 | G-UNIT (P2) | §3 | pass | 32/32 (G-BASE 30 + tst_remote_list_layout + tst_serve_job_widget) | `74d1ba0` | 2026-10-23 |
 | G-E2E (P2) | §3 | pass | 22/22 (G-BASE 21 + tst_e2e_serve_jobs), RB_RCLONE_WEBUI set | `74d1ba0` | 2026-10-23 |
@@ -208,6 +211,7 @@ Unit 2.3: S1–S6 done. Pending commit unit:2.3:1. Running resources: none.
 | 2.3 site list (before S4) | agent-1:opus | rev 2 / `157ef4f` | `qobject_cast<StreamWidget` sites = 8: main_window.cpp setupJobsTab L1004 (a), quitApp L1455 (b), canClose L2401 (c), sortJobs L3145 (d) and L3206 (e), applyJobsFilter L3235 (f); main_window_tasks.cpp runItem L2045 (g), L2067 (h) — matches plan a–h; canClose/quitApp semantics checked against Stream branches | approved |
 | 2.2 | agent-1:opus | rev 2 / 2.2 diff on `1cfbaf8` | contract API verbatim; transitions and finished() once; isRunning; cancel semantics; Restart visibility/enabled; buttons; I-2 (params in memory, no logging). Worker choices accepted (copy/open enabled only while Serving; no confirmation on Stop; markRunning no-op in Finished/Error). Supervisor fix: a same-id markRunning while Stopping clears Stopping (stop failed ⇒ id still listed in the newest list), with T_SJW_STATE assertions | approved |
 | 2.1 | agent-1:opus | rev 2 / 2.1 working diff on `aba452f` | D5 (token, FIFO one in flight, refresh after each reply, startFailed before error incl. invalid reply), D9 (browser URL host rewrite, opensInBrowser set), I-2 (queue keeps params in memory only, nothing logged), `self` guards after emits; T_SRV_TOKENS assertions | approved |
+| 3.1 | agent-1:opus | rev 2 / 3.1 diff on `1c97a3d` | I-3 options/set immediately before its serve/start with one start in flight; error paths (unsupported ⇒ no rc call; options/set fail ⇒ startFailed+error, no serve/start, queue continues); I-4 no webui key in serve/start; I-2 Secret only in options/set body, qWarning carries rclone text only; D7 reset/generation (§8 deviation); worker deviations accepted (reset also drains the queue; T_SRV_PARAMS_WEBUI separate fn); supervisor fix: tried-flag set only when a start waits (+ test in T_WEBUI_CAPS) | approved |
 | P2 | agent-1:opus | rev 2 / `74d1ba0` | I-6 (daemon non-Running ⇒ markFinished; list-gone ⇒ Stopped), I-7 8/8 casts, D12 counters (+1 add/restart, −1 per run via single `finished` from Starting/Serving→Finished/Error; Clean/sort via cast branches; Stop All transfers only), I-2 (password only in ServeParams in pending map/widget and POST body; no logging), U1 removal complete, README 2.4, gates | approved |
 | P1 | agent-1:opus | rev 2 / `05ec215` | D1 as implemented (formula match), I-1 evidence (legacy repro tiles 7 / longlist 13; 18 rows 0 violations), D2 parity (all 3 styles), README 1.3, gates | approved |
 | 1.2 | agent-1:opus | rev 2 / 1.2 working diff on `ce5068f` | D2 parity (default action, 6 styling statements mirrored, tabstop), test asserts all 3 styles | approved |
@@ -221,6 +225,7 @@ Unit 2.3: S1–S6 done. Pending commit unit:2.3:1. Running resources: none.
 | Revision | Previous decision/step | Approved replacement and reason | Supervisor | Dependents/revalidation |
 |----------|------------------------|---------------------------------|------------|------------------------|
 | 2 (2026-10-23) | I-1 oracle C1–C3; 1.1 S1 legacy repro tiles+list at 800×600 without `.ui` properties | I-1 adds C4 label room; legacy repro applies `.ui` properties (wordWrap true) and covers longlist; asserts tiles (C4) and longlist (overlap), list logged only. Reason: worker S1 found 0 violations — with a grid `visualItemRect` is the cell; supervisor diagnosis with grabs/measurements (longlist 13 violations from wrapped 30 px rects; tiles labels squeezed to 28 px). Requirement (item 1) unchanged; acceptance strengthened, not weakened. | agent-1:opus | phase_02.md 1.1 S1/I-1, overview I-1; only 1.1 affected (not started beyond S1) |
+| deviation (2026-10-23, 3.1) | D7 `resetCapabilities()` sets Unknown + clears tried flag | also clears `mCapsInFlight` and bumps a generation; a stale `options/blocks` reply (sent before the reset) is ignored. Reason: a backend restart during the call would otherwise leave the capability Unknown with loads suppressed. Requirements unchanged | agent-1:opus | T-WEBUI-CAPS gains a stale-reply case; 3.1 only |
 
 ## 9. Blockers
 none.
@@ -249,7 +254,7 @@ none.
 | 2.2 | phase_03.md | 2.1 | DONE | 1 | G-U22 pass; unit:2.2:1 |
 | 2.3 | phase_03.md | 2.1, 2.2 | DONE | 1 | G-U23/G-U23e pass; unit:2.3:1 |
 | 2.4 | phase_03.md | 2.3 | DONE | 1 | README L86, L398, #faq-serve L598/613/615/617, L753; S2 grep clean; unit:2.4:1 |
-| 3.1 | phase_04.md | P2 | TODO | 1 | — |
+| 3.1 | phase_04.md | P2 | DONE | 1 | G-U31/G-U31e pass; unit:3.1:1 |
 | 3.2 | phase_04.md | 3.1 | TODO | 1 | — |
 | 3.3 | phase_04.md | 3.1, 3.2 | TODO | 1 | — |
 | 3.4 | phase_04.md | 3.3 | TODO | 1 | — |
@@ -260,7 +265,7 @@ none.
 | 0 | phase_01.md | P0 | DONE | review §7; unit:P0:1 |
 | 1 | phase_02.md | P1 | DONE | review §7; unit:P1:1 |
 | 2 | phase_03.md | P2 | DONE | review §7; unit:P2:1 |
-| 3 | phase_04.md | P3 | TODO | — |
+| 3 | phase_04.md | P3 | IN_PROGRESS | — |
 
 Statuses: TODO, IN_PROGRESS, IN_REVIEW, DONE, SKIPPED, BLOCKED.
 SKIPPED retains a reason and does not automatically satisfy dependent units.
@@ -282,10 +287,10 @@ SKIPPED retains a reason and does not automatically satisfy dependent units.
 | T-E2E-SERVE-JOBS (`tst_e2e_serve_jobs`, I-6, I-7) | 2.3 | G-U23e | pass | G-U23e §7 |
 | T_SRV_WINDOW (removed with ServesWindow) | 2.3 | G-U23 | DONE (removed) | removal recorded |
 | mainwindow snapshot fixture (`actionServes` line removed) | 2.3 | G-U23 | pass | only diff was that line |
-| T-WEBUI-BLOCK (`tst_serve_manager`) | 3.1 | G-U31 | TODO | — |
-| T-SRV-PARAMS (extended, I-2, I-4) | 3.1 | G-U31 | TODO | — |
-| T-WEBUI-CAPS | 3.1 | G-U31 | TODO | — |
-| T-WEBUI-SEQ (I-3, I-5) | 3.1 | G-U31 | TODO | — |
+| T-WEBUI-BLOCK (`tst_serve_manager`) | 3.1 | G-U31 | pass | G-U31 §7 |
+| T-SRV-PARAMS (extended, I-2, I-4) | 3.1 | G-U31 | pass | extension is the function `T_SRV_PARAMS_WEBUI`; G-U31 §7 |
+| T-WEBUI-CAPS | 3.1 | G-U31 | pass | incl. stale reply after reset and retry after a failed check without a waiting start; G-U31 §7 |
+| T-WEBUI-SEQ (I-3, I-5) | 3.1 | G-U31 | pass | G-U31 §7 |
 | T-WEBUI-DIALOG (`tst_serve_widget`, I-5) | 3.2 | G-U32 | TODO | — |
 | T-WEBUI-REMEMBER (I-2) | 3.2 | G-U32 | TODO | — |
 | T-E2E-WEBUI-CAPS (`tst_e2e_serve_webui`) | 3.3 | G-U33 | TODO | — |

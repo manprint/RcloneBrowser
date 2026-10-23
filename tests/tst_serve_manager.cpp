@@ -32,6 +32,9 @@ RcReply errReply(int status, const QString &error) {
 struct Fake {
   QVector<Call> calls;
   QMap<QString, RcReply> script;
+  // paths whose reply is kept back until releaseHeld()
+  QSet<QString> hold;
+  QVector<std::function<void()>> held;
 
   RcCallFn fn() {
     return [this](const QString &path, const QJsonObject &params,
@@ -39,8 +42,20 @@ struct Fake {
       calls.append(Call{path, params, timeoutMs});
       const RcReply reply = script.contains(path) ? script.value(path)
                                                   : okReply();
+      if (hold.contains(path)) {
+        held.append([done, reply]() { done(reply); });
+        return;
+      }
       QTimer::singleShot(0, [done, reply]() { done(reply); });
     };
+  }
+
+  void releaseHeld() {
+    const QVector<std::function<void()>> now = held;
+    held.clear();
+    for (const std::function<void()> &f : now) {
+      QTimer::singleShot(0, f);
+    }
   }
 
   QStringList paths() const {
@@ -140,6 +155,399 @@ private slots:
                                                {"user", "u"},
                                                {"pass", "p"},
                                                {"authorized_keys", ""}}));
+  }
+
+  // T-SRV-PARAMS (webui flavor, vfs cache mode)
+  void T_SRV_PARAMS_WEBUI() {
+    ServeParams p;
+    p.type = "webdav";
+    p.flavor = kWebuiFlavor;
+    p.fs = "r:";
+    p.vfsCacheMode = "writes";
+    p.webui.secret = "s3cret";
+    p.webui.searchMaxDepth = 3;
+    const QJsonObject o = serveStartParams(p);
+    QCOMPARE(o.value("type").toString(), QString("webdav"));
+    QCOMPARE(o.value("vfs_cache_mode").toString(), QString("writes"));
+    for (const QString &key : o.keys()) {
+      QVERIFY2(!key.startsWith("webui"), "no webui* key in serve/start");
+    }
+    QCOMPARE(o.size(), 4);
+
+    p.vfsCacheMode.clear();
+    const QJsonObject plain = serveStartParams(p);
+    QVERIFY(!plain.contains("vfs_cache_mode"));
+    QCOMPARE(plain.size(), 3);
+  }
+
+  // T-WEBUI-BLOCK
+  void T_WEBUI_BLOCK() {
+    const QStringList expected = {
+        "Enabled",          "AllowDelete",     "Search",
+        "SearchMaxDepth",   "SearchMaxResults", "SearchTimeout",
+        "PublinkPaths",     "Secret",          "TokenExpiry",
+        "Resume",           "ResumeDir",       "ResumeRetention",
+        "PlayerMaxRetry",   "PlayerReconnectInterval",
+        "DiskStats",        "UploadSettings",  "EditMaxSize",
+        "DirCount",         "MultiZipMax"};
+    QCOMPARE(webuiOptionKeys(), expected);
+    QCOMPARE(webuiOptionKeys().size(), 19);
+
+    const QJsonObject top = webuiOptionsBlock(WebuiOptions(), true);
+    QCOMPARE(top.keys(), QStringList{"webdav_webui"});
+    const QJsonObject b = top.value("webdav_webui").toObject();
+    QStringList keys = b.keys();
+    QStringList sortedExpected = expected;
+    keys.sort();
+    sortedExpected.sort();
+    QCOMPARE(keys, sortedExpected);
+
+    QVERIFY(b.value("Enabled").isBool() && b.value("Enabled").toBool());
+    const char *bools[] = {"AllowDelete", "Search",      "Resume",
+                           "DiskStats",   "UploadSettings", "DirCount"};
+    const bool boolDefaults[] = {true, true, false, false, false, false};
+    for (int i = 0; i < 6; ++i) {
+      QVERIFY2(b.value(bools[i]).isBool(), bools[i]);
+      QVERIFY2(b.value(bools[i]).toBool() == boolDefaults[i], bools[i]);
+    }
+    const char *numbers[] = {"SearchMaxDepth", "SearchMaxResults",
+                             "PlayerMaxRetry", "PlayerReconnectInterval",
+                             "MultiZipMax"};
+    const double numberDefaults[] = {8, 1000, 30, 10, 200};
+    for (int i = 0; i < 5; ++i) {
+      QVERIFY2(b.value(numbers[i]).isDouble(), numbers[i]);
+      QVERIFY2(b.value(numbers[i]).toDouble() == numberDefaults[i], numbers[i]);
+    }
+    const char *strings[] = {"SearchTimeout", "TokenExpiry", "ResumeRetention",
+                             "EditMaxSize",   "Secret",      "ResumeDir"};
+    const char *stringDefaults[] = {"30s", "72h", "720h", "4Mi", "", ""};
+    for (int i = 0; i < 6; ++i) {
+      QVERIFY2(b.value(strings[i]).isString(), strings[i]);
+      QVERIFY2(b.value(strings[i]).toString() == QLatin1String(stringDefaults[i]),
+               strings[i]);
+    }
+    QVERIFY(b.value("PublinkPaths").isArray());
+    QVERIFY(b.value("PublinkPaths").toArray().isEmpty());
+
+    WebuiOptions o;
+    o.publinkPaths = {"/a", "/b"};
+    const QJsonArray paths = webuiOptionsBlock(o, false)
+                                 .value("webdav_webui")
+                                 .toObject()
+                                 .value("PublinkPaths")
+                                 .toArray();
+    QCOMPARE(paths, (QJsonArray{"/a", "/b"}));
+    const QJsonObject off =
+        webuiOptionsBlock(o, false).value("webdav_webui").toObject();
+    QVERIFY(off.value("Enabled").isBool());
+    QVERIFY(!off.value("Enabled").toBool());
+  }
+
+  // T-WEBUI-CAPS
+  void T_WEBUI_CAPS() {
+    using Support = ServeManager::WebuiSupport;
+    qRegisterMetaType<ServeManager::WebuiSupport>();
+
+    // Yes: one signal
+    {
+      Fake fake;
+      fake.script["options/blocks"] =
+          okReply(jsonOf(R"({"options":["main","webdav_webui"]})"));
+      ServeManager manager(fake.fn());
+      QCOMPARE(manager.webuiSupport(), Support::Unknown);
+      QSignalSpy spy(&manager, &ServeManager::capabilitiesChanged);
+      manager.loadCapabilities();
+      manager.loadCapabilities(); // in flight: no second call
+      QTRY_COMPARE_WITH_TIMEOUT(spy.count(), 1, 2000);
+      QCOMPARE(manager.webuiSupport(), Support::Yes);
+      QCOMPARE(spy.at(0).at(0).value<Support>(), Support::Yes);
+      QCOMPARE(fake.paths(), QStringList{"options/blocks"});
+
+      // same value again: no signal
+      manager.loadCapabilities();
+      QTRY_COMPARE_WITH_TIMEOUT(fake.calls.size(), 2, 2000);
+      QTest::qWait(50);
+      QCOMPARE(spy.count(), 1);
+
+      // reset from Yes: Unknown + signal
+      manager.resetCapabilities();
+      QCOMPARE(manager.webuiSupport(), Support::Unknown);
+      QCOMPARE(spy.count(), 2);
+      QCOMPARE(spy.at(1).at(0).value<Support>(), Support::Unknown);
+      // reset when already Unknown: no signal
+      manager.resetCapabilities();
+      QCOMPARE(spy.count(), 2);
+    }
+
+    // No
+    {
+      Fake fake;
+      fake.script["options/blocks"] = okReply(jsonOf(R"({"options":["main"]})"));
+      ServeManager manager(fake.fn());
+      QSignalSpy spy(&manager, &ServeManager::capabilitiesChanged);
+      manager.loadCapabilities();
+      QTRY_COMPARE_WITH_TIMEOUT(spy.count(), 1, 2000);
+      QCOMPARE(manager.webuiSupport(), Support::No);
+      QCOMPARE(spy.at(0).at(0).value<Support>(), Support::No);
+
+      // a reply without an options array is No as well, never Yes
+      fake.script["options/blocks"] = okReply(jsonOf(R"({"options":"webdav_webui"})"));
+      manager.resetCapabilities();
+      manager.loadCapabilities();
+      QTRY_COMPARE_WITH_TIMEOUT(manager.webuiSupport(), Support::No, 2000);
+    }
+
+    // a failure: still Unknown, rclone's text is logged, no signal
+    {
+      Fake fake;
+      fake.script["options/blocks"] = errReply(500, "x");
+      ServeManager manager(fake.fn());
+      QSignalSpy spy(&manager, &ServeManager::capabilitiesChanged);
+      QTest::ignoreMessage(QtWarningMsg, "options/blocks failed: x");
+      manager.loadCapabilities();
+      QTRY_COMPARE_WITH_TIMEOUT(fake.calls.size(), 1, 2000);
+      QTest::qWait(50);
+      QCOMPARE(manager.webuiSupport(), Support::Unknown);
+      QCOMPARE(spy.count(), 0);
+
+      // that check had no start waiting: the next webdav start asks again
+      fake.script["options/blocks"] =
+          okReply(jsonOf(R"({"options":["main","webdav_webui"]})"));
+      fake.script["serve/start"] =
+          okReply(QJsonObject{{"addr", "127.0.0.1:1"}, {"id", "webdav-1"}});
+      QSignalSpy startedSpy(&manager, &ServeManager::started);
+      ServeParams p;
+      p.type = "webdav";
+      p.fs = "r:";
+      manager.start(p);
+      QTRY_COMPARE_WITH_TIMEOUT(startedSpy.count(), 1, 2000);
+      QCOMPARE(manager.webuiSupport(), Support::Yes);
+      QCOMPARE(fake.paths().mid(0, 4),
+               (QStringList{"options/blocks", "options/blocks", "options/set",
+                            "serve/start"}));
+    }
+
+    // a reset while a load is in flight: the stale reply changes nothing
+    {
+      Fake fake;
+      fake.hold.insert("options/blocks");
+      fake.script["options/blocks"] =
+          okReply(jsonOf(R"({"options":["main","webdav_webui"]})"));
+      ServeManager manager(fake.fn());
+      QSignalSpy spy(&manager, &ServeManager::capabilitiesChanged);
+      manager.loadCapabilities();
+      QCOMPARE(fake.held.size(), 1);
+      manager.resetCapabilities();
+      QCOMPARE(spy.count(), 0); // was Unknown already
+      fake.releaseHeld();
+      QTest::qWait(50);
+      QCOMPARE(manager.webuiSupport(), Support::Unknown);
+      QCOMPARE(spy.count(), 0);
+
+      // the load is possible again after the reset, and counts
+      fake.hold.clear();
+      manager.loadCapabilities();
+      QTRY_COMPARE_WITH_TIMEOUT(spy.count(), 1, 2000);
+      QCOMPARE(manager.webuiSupport(), Support::Yes);
+      QCOMPARE(fake.paths(),
+               (QStringList{"options/blocks", "options/blocks"}));
+    }
+
+    // a start waiting for an abandoned load is not left hanging by a reset
+    {
+      Fake fake;
+      fake.hold.insert("options/blocks");
+      fake.script["options/blocks"] =
+          okReply(jsonOf(R"({"options":["main","webdav_webui"]})"));
+      ServeManager manager(fake.fn());
+      ServeParams p;
+      p.type = "webdav";
+      p.fs = "r:";
+      QSignalSpy startedSpy(&manager, &ServeManager::started);
+      fake.script["serve/start"] =
+          okReply(QJsonObject{{"addr", "127.0.0.1:1"}, {"id", "webdav-1"}});
+      manager.start(p);
+      QCOMPARE(fake.paths(), QStringList{"options/blocks"});
+      fake.hold.clear();
+      manager.resetCapabilities(); // starts a fresh load, not held
+      fake.releaseHeld();          // the stale reply: ignored
+      QTRY_COMPARE_WITH_TIMEOUT(startedSpy.count(), 1, 2000);
+      QCOMPARE(fake.paths().mid(0, 4),
+               (QStringList{"options/blocks", "options/blocks", "options/set",
+                            "serve/start"}));
+      QCOMPARE(fake.paths().count("serve/start"), 1);
+    }
+  }
+
+  // T-WEBUI-SEQ
+  void T_WEBUI_SEQ() {
+    const QJsonObject startOk{{"addr", "127.0.0.1:40855"},
+                              {"id", "webdav-8ae93585"}};
+
+    // (a) a capable rclone: blocks once, options/set before each webdav start
+    {
+      Fake fake;
+      fake.script["options/blocks"] =
+          okReply(jsonOf(R"({"options":["main","webdav_webui"]})"));
+      fake.script["serve/start"] = okReply(startOk);
+      ServeManager manager(fake.fn());
+      QVector<quint64> tokens;
+      connect(&manager, &ServeManager::started, &manager,
+              [&](quint64 token, const ServeEntry &) { tokens << token; });
+      ServeParams p1;
+      p1.type = "webdav";
+      p1.flavor = kWebuiFlavor;
+      p1.fs = "r:a";
+      p1.webui.searchMaxDepth = 5;
+      p1.webui.secret = "s3cret";
+      ServeParams p2;
+      p2.type = "webdav";
+      p2.fs = "r:b";
+      ServeParams p3;
+      p3.type = "http";
+      p3.fs = "r:c";
+      QCOMPARE(manager.start(p1), quint64(1));
+      QCOMPARE(manager.start(p2), quint64(2));
+      QCOMPARE(manager.start(p3), quint64(3));
+      QTRY_COMPARE_WITH_TIMEOUT(fake.paths().size(), 9, 3000);
+      QTest::qWait(50);
+      QCOMPARE(fake.paths(),
+               (QStringList{"options/blocks", "options/set", "serve/start",
+                            "serve/list", "options/set", "serve/start",
+                            "serve/list", "serve/start", "serve/list"}));
+      QCOMPARE(tokens, (QVector<quint64>{1, 2, 3}));
+      const QJsonObject set1 =
+          fake.calls.at(1).params.value("webdav_webui").toObject();
+      QVERIFY(set1.value("Enabled").toBool());
+      QCOMPARE(set1.value("SearchMaxDepth").toInt(), 5);
+      QVERIFY(set1.value("Secret").toString() == QLatin1String("s3cret"));
+      const QJsonObject set2 =
+          fake.calls.at(4).params.value("webdav_webui").toObject();
+      QVERIFY(!set2.value("Enabled").toBool());
+      QCOMPARE(set2.value("SearchMaxDepth").toInt(), 8);
+      // the serve/start bodies never carry a webui key or the secret
+      for (int i : {2, 5, 7}) {
+        const QJsonObject body = fake.calls.at(i).params;
+        for (const QString &key : body.keys()) {
+          QVERIFY2(!key.startsWith("webui"), "no webui* key");
+        }
+        QVERIFY(!body.contains("Secret") && !body.contains("secret"));
+      }
+    }
+
+    // (b) an rclone without the block: webui is refused, classic goes on
+    {
+      Fake fake;
+      fake.script["options/blocks"] = okReply(jsonOf(R"({"options":["main"]})"));
+      fake.script["serve/start"] = okReply(startOk);
+      ServeManager manager(fake.fn());
+      QVector<quint64> failedTokens, startedTokens;
+      QStringList failedTexts, errorTexts;
+      connect(&manager, &ServeManager::startFailed, &manager,
+              [&](quint64 t, const QString &m) {
+                failedTokens << t;
+                failedTexts << m;
+              });
+      connect(&manager, &ServeManager::error, &manager,
+              [&](const QString &m) { errorTexts << m; });
+      connect(&manager, &ServeManager::started, &manager,
+              [&](quint64 t, const ServeEntry &) { startedTokens << t; });
+      ServeParams webui;
+      webui.type = "webdav";
+      webui.flavor = kWebuiFlavor;
+      webui.fs = "r:a";
+      QCOMPARE(manager.start(webui), quint64(1));
+      QTRY_COMPARE_WITH_TIMEOUT(failedTokens.size(), 1, 2000);
+      QCOMPARE(failedTokens, QVector<quint64>{1});
+      QVERIFY(failedTexts.at(0).startsWith("This rclone does not support webdav-webui"));
+      QVERIFY(failedTexts.at(0).endsWith(
+          "Choose webdav for a WebDAV serve without the web interface."));
+      QCOMPARE(errorTexts, failedTexts);
+      QTest::qWait(50);
+      QVERIFY(!fake.paths().contains("options/set"));
+      QVERIFY(!fake.paths().contains("serve/start"));
+
+      ServeParams classic;
+      classic.type = "webdav";
+      classic.fs = "r:b";
+      QCOMPARE(manager.start(classic), quint64(2));
+      QTRY_COMPARE_WITH_TIMEOUT(startedTokens.size(), 1, 2000);
+      QCOMPARE(startedTokens, QVector<quint64>{2});
+      QVERIFY(!fake.paths().contains("options/set"));
+      QCOMPARE(fake.paths().count("serve/start"), 1);
+      QCOMPARE(fake.paths().count("options/blocks"), 1);
+    }
+
+    // a failed capability check: classic webdav still starts, webui is refused
+    {
+      Fake fake;
+      fake.script["options/blocks"] = errReply(500, "no rc");
+      fake.script["serve/start"] = okReply(startOk);
+      ServeManager manager(fake.fn());
+      QVector<quint64> failedTokens, startedTokens;
+      connect(&manager, &ServeManager::startFailed, &manager,
+              [&](quint64 t, const QString &) { failedTokens << t; });
+      connect(&manager, &ServeManager::started, &manager,
+              [&](quint64 t, const ServeEntry &) { startedTokens << t; });
+      ServeParams classic;
+      classic.type = "webdav";
+      classic.fs = "r:b";
+      ServeParams webui = classic;
+      webui.flavor = kWebuiFlavor;
+      QTest::ignoreMessage(QtWarningMsg, "options/blocks failed: no rc");
+      QTest::ignoreMessage(QtWarningMsg, "options/blocks failed: no rc");
+      manager.start(classic);
+      manager.start(webui);
+      QTRY_COMPARE_WITH_TIMEOUT(failedTokens.size(), 1, 3000);
+      QCOMPARE(startedTokens, QVector<quint64>{1});
+      QCOMPARE(failedTokens, QVector<quint64>{2});
+      QVERIFY(!fake.paths().contains("options/set"));
+    }
+
+    // (c) options/set fails: that start fails, no serve/start, the next runs
+    {
+      Fake fake;
+      fake.script["options/blocks"] =
+          okReply(jsonOf(R"({"options":["main","webdav_webui"]})"));
+      fake.script["options/set"] = errReply(500, "bad suffix");
+      fake.script["serve/start"] = okReply(startOk);
+      ServeManager manager(fake.fn());
+      QStringList order, failedTexts, errorTexts;
+      QVector<quint64> failedTokens, startedTokens;
+      connect(&manager, &ServeManager::startFailed, &manager,
+              [&](quint64 t, const QString &m) {
+                order << "startFailed";
+                failedTokens << t;
+                failedTexts << m;
+              });
+      connect(&manager, &ServeManager::error, &manager,
+              [&](const QString &m) {
+                order << "error";
+                errorTexts << m;
+              });
+      connect(&manager, &ServeManager::started, &manager,
+              [&](quint64 t, const ServeEntry &) { startedTokens << t; });
+      ServeParams webui;
+      webui.type = "webdav";
+      webui.flavor = kWebuiFlavor;
+      webui.fs = "r:a";
+      ServeParams http;
+      http.type = "http";
+      http.fs = "r:b";
+      manager.start(webui);
+      manager.start(http);
+      QTRY_COMPARE_WITH_TIMEOUT(startedTokens.size(), 1, 3000);
+      QCOMPARE(failedTokens, QVector<quint64>{1});
+      QVERIFY(failedTexts.at(0).startsWith("webdav-webui options: "));
+      QVERIFY(failedTexts.at(0).contains("bad suffix"));
+      QCOMPARE(errorTexts, failedTexts);
+      QCOMPARE(order, (QStringList{"startFailed", "error"}));
+      QCOMPARE(startedTokens, QVector<quint64>{2});
+      QTest::qWait(50);
+      QCOMPARE(fake.paths(),
+               (QStringList{"options/blocks", "options/set", "serve/list",
+                            "serve/start", "serve/list"}));
+    }
   }
 
   // T-SRV-LIST
