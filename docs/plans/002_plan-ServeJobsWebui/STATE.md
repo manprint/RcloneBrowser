@@ -9,7 +9,7 @@ Plan baseline: `19e93fa54a260a3e3318a74ade157d9e66bb226e` (HEAD of `dev/001-mode
 Sibling repository `../rclone` (the rclone webui fork, HEAD `a527815ae` at planning): read-only for this plan.
 Roster: agent-1:opus (supervisor), agent-2:sonnet, agent-3:haiku. Active execution style: delegated
 (coordinator agent-1:opus dispatches workers); fallback handoff (successive sessions) when the host cannot dispatch.
-State writer: agent-1:opus execute session (2026-10-23); ownership: released (B-A001 complete at unit:B-A001:1).
+State writer: agent-1:opus execute session (2026-10-23); ownership: released.
 
 ## 0. Resume and completion protocol
 
@@ -65,20 +65,18 @@ this file. Tests never read the host rclone config (temp config only). No push, 
 
 ## 1. Current unit and scope
 
-- Active scope: release REL-210b2, user 2026-10-23: "mergia il branch su dev/001-modernization e crea la pre release 2.1.0-beta.2". Plan 002, B-A001, T-A001: COMPLETE.
-- Scope result: COMPLETE (REL-210b2)
+- Active scope: release REL-220, user 2026-10-23: "fai una release finale 2.2.0 con tutto quello fatto". Plan 002, B-A001, T-A001, REL-210b2: COMPLETE.
+- Scope result: COMPLETE (REL-220)
 - Type: release
-- ID / attempt: REL-210b2 / 1
+- ID / attempt: REL-220 / 1
 - Status: DONE
-- Intent: merge plan 002 into `dev/001-modernization` and publish the prerelease `v2.1.0-beta.2` the way v2.1.0-beta.1 was (CI candidate run, annotated tag push, CI creates the prerelease with the build assets)
-- Assigned: agent-1:opus
-- File / unit heading: n/a (release procedure of plan 001 REL-210b1)
-- Current step: done — prerelease https://github.com/manprint/RcloneBrowser/releases/tag/v2.1.0-beta.2 (2026-10-23T06:10:37Z), assets: freebsd.zip, rclone-browser-2.1.0-ad19a8e-linux-x86_64.AppImage, rclone-browser-2.1.0-ad19a8e-macos-arm64.dmg, windows-arm64.zip, windows.zip; G-CI candidate run 39906565026 (7 build jobs success, release skipped) on `ad19a8e`; tag `v2.1.0-beta.2` (annotated, pushed by the user) → run 39908349388 success incl. Create GitHub Release
-- Done so far: `ddc6623` merge (--no-ff) of `dev/002-serve-jobs-webui` into `dev/001-modernization`; `ad19a8e` docs (CHANGELOG `## [2.1.0-beta.2] - 2026-10-23`, README Fork changes bullet); `dev/001-modernization` pushed to origin at `ad19a8e`. No tag created or pushed.
-- Next action: when the user says Actions works again: `gh workflow run build.yml --ref dev/001-modernization` on `ad19a8e`, `gh run watch --exit-status`; then `git tag -a v2.1.0-beta.2 ad19a8e -m "Rclone Browser 2.1.0-beta.2"` and `git push origin v2.1.0-beta.2`; watch the tag run (Create GitHub Release, prerelease because of the `-` suffix; VERSION 2.1.0 accepts it); record evidence here.
+- Intent: final release 2.2.0 of everything in 2.1.0-beta.1 and 2.1.0-beta.2 (no final 2.1.0)
+- Assigned: agent-1:opus; review: workflow (2 lens reviewers + skeptic per finding)
+- Evidence: `3dcb49e` release commit (VERSION 2.2.0; CHANGELOG `## [2.2.0] - 2026-10-23`; README Fork changes renamed to 2.2.0 with the beta of first release). Review: 6 confirmed doc findings fixed before the commit (README beta.1 serves wording, "first released as" on two bullets, bare 2.1.0 in the tasks.bin note, CHANGELOG wording); not done: Windows VERSIONINFO resource (pre-existing gap, optional). Local gates on the release tree: qt64 build 0 warnings, unit 32/32, e2e 23/23 (RB_RCLONE_WEBUI set), smoke alive. CI candidate run 39944254428 (7 builds success). Tag `v2.2.0` (annotated) → run 39947339525 success incl. Create GitHub Release; release https://github.com/manprint/RcloneBrowser/releases/tag/v2.2.0 (not prerelease, latest; 2026-10-23T11:53:31Z) with freebsd.zip, rclone-browser-2.2.0-3dcb49e-linux-x86_64.AppImage, rclone-browser-2.2.0-3dcb49e-macos-arm64.dmg, windows-arm64.zip, windows.zip. `master` fast-forwarded to `3dcb49e`: build run 39947350797 success; CodeQL run 39947353071 success, 0 open alerts.
+- Next action: none.
 - Next eligible plan unit: none
-- Unit base: `ad19a8e`; branch: `dev/001-modernization`
-- Repo state: HEAD `ad19a8e` on `dev/001-modernization` (= origin); untracked `.serena/` (unrelated)
+- Unit base: `3dcb49e`; branch: `dev/001-modernization`
+- Repo state: HEAD `3dcb49e` = origin/dev/001-modernization = origin/master; untracked `.serena/` (unrelated)
 
 ## 2. Feature context and readiness
 
