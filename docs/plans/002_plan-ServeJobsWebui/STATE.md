@@ -67,17 +67,17 @@ this file. Tests never read the host rclone config (temp config only). No push, 
 
 - Active scope: plan 002 (all phases) — `/plan-execute-verify execute 002` (user, 2026-10-23); full-autonomous:true, WIP on (§3)
 - Scope result: RUNNING
-- Type: sub-phase
-- ID / attempt: 2.4 / 1
-- Status: OPEN (closing: commit unit:2.4:1)
-- Intent: README: serves in Jobs, Serves window references removed
-- Assigned: agent-3:haiku (delegated worker); supervisor: agent-1:opus
-- File / unit heading: phase_03.md "2.4 Update README.md"
+- Type: phase-close
+- ID / attempt: P2 / 1
+- Status: OPEN (closing: commit unit:P2:1)
+- Intent: phase 2 closure: gates and agent-1:opus review
+- Assigned: agent-1:opus
+- File / unit heading: phase_03.md "Phase gates and closure"
 - Current step: commit
-- Next action: commit 2.4; open P2 (G-BUILD64 clean, G-UNIT 32, G-E2E 22).
-- Next eligible plan unit: P2 / phase_03.md
-- Unit base: `c1ae27b`; branch: `dev/002-serve-jobs-webui`; owned changes: `README.md`
-- Repo state: HEAD `c1ae27b` (unit:2.3:1); untracked `.serena/` (unrelated)
+- Next action: commit P2; open 3.1 (agent-2:sonnet).
+- Next eligible plan unit: 3.1 / phase_04.md
+- Unit base: `74d1ba0`; branch: `dev/002-serve-jobs-webui`; owned changes: STATE.md only
+- Repo state: HEAD `74d1ba0` (unit:2.4:1); untracked `.serena/` (unrelated)
 
 ## 2. Feature context and readiness
 
@@ -152,6 +152,7 @@ Required supervisor reviews cannot be silently replaced by weaker self-review.
 | sub-phase | 2.3 / 1 | 2 | agent-2:sonnet | serves in Jobs (MainWindow), Serves window/actionServes removed, 8 ServeJobWidget branches, `tst_e2e_serve_jobs`, snapshot fixture | G-U23/G-U23e §7; reviews §7 | unit:2.3:1 |
 | sub-phase | 2.2 / 1 | 2 | agent-2:sonnet (+ agent-1:opus fix) | NEW `ServeJobWidget`, `tst_serve_job_widget`; CMake registrations | G-U22 §7; review §7 | unit:2.2:1 |
 | sub-phase | 2.1 / 1 | 2 | agent-2:sonnet | ServeManager tokens/FIFO/startFailed, `kWebuiFlavor`, `serveBrowserUrl`, `serveOpensInBrowser`; main_window lambda; tst_e2e_serve entryOf index | G-U21/G-U21e §7; review §7 | unit:2.1:1 |
+| phase-close | P2 / 1 | 2 | agent-1:opus | phase 2 closure | P2 gates §7; review §7 | unit:P2:1 |
 | phase-close | P1 / 1 | 2 | agent-1:opus | phase 1 closure | P1 gates §7; review §7 | unit:P1:1 |
 | sub-phase | 1.3 / 1 | 2 | agent-3:haiku | README `#faq-serve`: Serve button; S2 no icon-size text to update (recorded) | supervisor check | unit:1.3:1 |
 | sub-phase | 1.2 / 1 | 2 | agent-3:haiku | `buttonServe` in `remote_widget.ui`/`.cpp`; `T_SC_SERVE_BUTTON` | G-U12 §7; review §7 | unit:1.2:1 |
@@ -183,6 +184,9 @@ Unit 2.3: S1–S6 done. Pending commit unit:2.3:1. Running resources: none.
 |-----------|---------|--------|--------------------------|---------------------|------|
 | G-U23 | §3 | pass | build 0 warnings; unit 32/32 (snapshot fixture: only the actionServes line removed) | 2.3 diff on `157ef4f` (worker run) | 2026-10-23 |
 | G-U23e | §3 | pass | 2 tests: TestE2eServe 7 PASS, TestE2eServeJobs PASS T_E2E_SERVE_JOBS; full e2e 22/22 (worker); supervisor re-run of G-U23e pass | same | 2026-10-23 |
+| G-BUILD64 (P2) | §3 | pass | clean build-docker-qt64, exit 0, 0 warnings | `74d1ba0` | 2026-10-23 |
+| G-UNIT (P2) | §3 | pass | 32/32 (G-BASE 30 + tst_remote_list_layout + tst_serve_job_widget) | `74d1ba0` | 2026-10-23 |
+| G-E2E (P2) | §3 | pass | 22/22 (G-BASE 21 + tst_e2e_serve_jobs), RB_RCLONE_WEBUI set | `74d1ba0` | 2026-10-23 |
 | G-U22 | §3 | pass | build 0 warnings; tst_serve_job_widget Totals 6 passed 0 failed (PASS T_SJW_STATE/RESTART/ADOPTED/BUTTONS); full unit 32/32 | 2.2 diff incl. supervisor fix on `1cfbaf8` (supervisor run) | 2026-10-23 |
 | G-U21 | §3 | pass | build 0 warnings; tst_serve_manager 9 passed 0 failed (PASS T_SRV_TOKENS, T_SRV_BROWSER_URL, T_SRV_FLOW); full unit 31/31 | 2.1 working diff on `aba452f` (worker run) | 2026-10-23 |
 | G-U21e | §3 | pass | tst_e2e_serve 7 passed 0 failed; full e2e 21/21 | same | 2026-10-23 |
@@ -204,6 +208,7 @@ Unit 2.3: S1–S6 done. Pending commit unit:2.3:1. Running resources: none.
 | 2.3 site list (before S4) | agent-1:opus | rev 2 / `157ef4f` | `qobject_cast<StreamWidget` sites = 8: main_window.cpp setupJobsTab L1004 (a), quitApp L1455 (b), canClose L2401 (c), sortJobs L3145 (d) and L3206 (e), applyJobsFilter L3235 (f); main_window_tasks.cpp runItem L2045 (g), L2067 (h) — matches plan a–h; canClose/quitApp semantics checked against Stream branches | approved |
 | 2.2 | agent-1:opus | rev 2 / 2.2 diff on `1cfbaf8` | contract API verbatim; transitions and finished() once; isRunning; cancel semantics; Restart visibility/enabled; buttons; I-2 (params in memory, no logging). Worker choices accepted (copy/open enabled only while Serving; no confirmation on Stop; markRunning no-op in Finished/Error). Supervisor fix: a same-id markRunning while Stopping clears Stopping (stop failed ⇒ id still listed in the newest list), with T_SJW_STATE assertions | approved |
 | 2.1 | agent-1:opus | rev 2 / 2.1 working diff on `aba452f` | D5 (token, FIFO one in flight, refresh after each reply, startFailed before error incl. invalid reply), D9 (browser URL host rewrite, opensInBrowser set), I-2 (queue keeps params in memory only, nothing logged), `self` guards after emits; T_SRV_TOKENS assertions | approved |
+| P2 | agent-1:opus | rev 2 / `74d1ba0` | I-6 (daemon non-Running ⇒ markFinished; list-gone ⇒ Stopped), I-7 8/8 casts, D12 counters (+1 add/restart, −1 per run via single `finished` from Starting/Serving→Finished/Error; Clean/sort via cast branches; Stop All transfers only), I-2 (password only in ServeParams in pending map/widget and POST body; no logging), U1 removal complete, README 2.4, gates | approved |
 | P1 | agent-1:opus | rev 2 / `05ec215` | D1 as implemented (formula match), I-1 evidence (legacy repro tiles 7 / longlist 13; 18 rows 0 violations), D2 parity (all 3 styles), README 1.3, gates | approved |
 | 1.2 | agent-1:opus | rev 2 / 1.2 working diff on `ce5068f` | D2 parity (default action, 6 styling statements mirrored, tabstop), test asserts all 3 styles | approved |
 | 1.1 | agent-1:opus | rev 2 / 1.1 working diff on `a809b8b` | D1 formula line-by-line (kPad 6, label bounds, tiles/list/longlist sizes, grid, spacing, elide, wordWrap false, uniform sizes, per-item SizeHint); rcloneListRemotes keeps order/icons/tooltips/`_inv`/macOS 1.5×; hoisted size block; oracle C1–C4 per revision 2 with `.ui` properties; S1 legacy evidence | approved (note: `kPad` is a header-level constexpr, no clash in src/) |
@@ -254,7 +259,7 @@ none.
 |----|------|--------------|--------|---------------------------|
 | 0 | phase_01.md | P0 | DONE | review §7; unit:P0:1 |
 | 1 | phase_02.md | P1 | DONE | review §7; unit:P1:1 |
-| 2 | phase_03.md | P2 | IN_PROGRESS | — |
+| 2 | phase_03.md | P2 | DONE | review §7; unit:P2:1 |
 | 3 | phase_04.md | P3 | TODO | — |
 
 Statuses: TODO, IN_PROGRESS, IN_REVIEW, DONE, SKIPPED, BLOCKED.
