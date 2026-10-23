@@ -66,14 +66,14 @@ this file. Tests never read the host rclone config (temp config only). No push, 
 ## 1. Current unit and scope
 
 - Active scope: release REL-210b2, user 2026-10-23: "mergia il branch su dev/001-modernization e crea la pre release 2.1.0-beta.2". Plan 002, B-A001, T-A001: COMPLETE.
-- Scope result: BLOCKED (GitHub Actions)
+- Scope result: COMPLETE (REL-210b2)
 - Type: release
 - ID / attempt: REL-210b2 / 1
-- Status: BLOCKED
+- Status: DONE
 - Intent: merge plan 002 into `dev/001-modernization` and publish the prerelease `v2.1.0-beta.2` the way v2.1.0-beta.1 was (CI candidate run, annotated tag push, CI creates the prerelease with the build assets)
 - Assigned: agent-1:opus
 - File / unit heading: n/a (release procedure of plan 001 REL-210b1)
-- Current step: CI candidate run
+- Current step: done — prerelease https://github.com/manprint/RcloneBrowser/releases/tag/v2.1.0-beta.2 (2026-10-23T06:10:37Z), assets: freebsd.zip, rclone-browser-2.1.0-ad19a8e-linux-x86_64.AppImage, rclone-browser-2.1.0-ad19a8e-macos-arm64.dmg, windows-arm64.zip, windows.zip; G-CI candidate run 39906565026 (7 build jobs success, release skipped) on `ad19a8e`; tag `v2.1.0-beta.2` (annotated, pushed by the user) → run 39908349388 success incl. Create GitHub Release
 - Done so far: `ddc6623` merge (--no-ff) of `dev/002-serve-jobs-webui` into `dev/001-modernization`; `ad19a8e` docs (CHANGELOG `## [2.1.0-beta.2] - 2026-10-23`, README Fork changes bullet); `dev/001-modernization` pushed to origin at `ad19a8e`. No tag created or pushed.
 - Next action: when the user says Actions works again: `gh workflow run build.yml --ref dev/001-modernization` on `ad19a8e`, `gh run watch --exit-status`; then `git tag -a v2.1.0-beta.2 ad19a8e -m "Rclone Browser 2.1.0-beta.2"` and `git push origin v2.1.0-beta.2`; watch the tag run (Create GitHub Release, prerelease because of the `-` suffix; VERSION 2.1.0 accepts it); record evidence here.
 - Next eligible plan unit: none
@@ -251,7 +251,7 @@ Unit 2.3: S1–S6 done. Pending commit unit:2.3:1. Running resources: none.
 
 ## 9. Blockers
 
-- REL-210b2 (2026-10-23): `gh workflow run build.yml --ref dev/001-modernization` ⇒ `HTTP 422: Actions has been disabled for this repository.` (retried, also via the REST dispatch endpoint) although `actions/permissions` reports `enabled: true` and both workflows are `active`: an account/billing/GitHub-side block. User decision: wait for Actions to be re-enabled; no tag pushed meanwhile.
+- REL-210b2 (2026-10-23): `gh workflow run build.yml --ref dev/001-modernization` ⇒ `HTTP 422: Actions has been disabled for this repository.` (retried, also via the REST dispatch endpoint) although `actions/permissions` reports `enabled: true` and both workflows are `active`: an account/billing/GitHub-side block. User decision: wait for Actions to be re-enabled; no tag pushed meanwhile. RESOLVED 2026-10-23: user re-enabled Actions; release published.
 none.
 
 ## 10. Do-not-repeat
