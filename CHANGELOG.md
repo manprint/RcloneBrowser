@@ -1,5 +1,8 @@
 # Change Log
 
+## [2.2.0] - 2026-10-23
+The final release of everything in 2.1.0-beta.1 and 2.1.0-beta.2 below; there is no final 2.1.0, so these are the changes since 2.0.0. No program code changed since 2.1.0-beta.2; only the version number and the documentation did.
+
 ## [2.1.0-beta.2] - 2026-10-23
 Changes since 2.1.0-beta.1.
 
