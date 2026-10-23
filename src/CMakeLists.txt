@@ -68,6 +68,7 @@ set(MOC
   url_upload_dialog.h
   serve_manager.h
   serve_widget.h
+  serve_job_widget.h
 )
 
 set(OTHER
@@ -152,6 +153,7 @@ set(SOURCE
   url_upload_dialog.cpp
   serve_manager.cpp
   serve_widget.cpp
+  serve_job_widget.cpp
 )
 
 if(APPLE)
