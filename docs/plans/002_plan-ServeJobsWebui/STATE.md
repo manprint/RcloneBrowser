@@ -65,19 +65,20 @@ this file. Tests never read the host rclone config (temp config only). No push, 
 
 ## 1. Current unit and scope
 
-- Active scope: task T-A001 (`tasks.md`), user "continua" 2026-10-23; full-autonomous:true. Plan 002: COMPLETE at unit:P3:1; B-A001 COMPLETE.
-- Scope result: COMPLETE (T-A001)
-- Type: task
-- ID / attempt: T-A001 / 1
-- Status: OPEN (closing: commit unit:T-A001:1)
-- Intent: CHANGELOG `## [Unreleased]` entries for plan 002
+- Active scope: release REL-210b2, user 2026-10-23: "mergia il branch su dev/001-modernization e crea la pre release 2.1.0-beta.2". Plan 002, B-A001, T-A001: COMPLETE.
+- Scope result: BLOCKED (GitHub Actions)
+- Type: release
+- ID / attempt: REL-210b2 / 1
+- Status: BLOCKED
+- Intent: merge plan 002 into `dev/001-modernization` and publish the prerelease `v2.1.0-beta.2` the way v2.1.0-beta.1 was (CI candidate run, annotated tag push, CI creates the prerelease with the build assets)
 - Assigned: agent-1:opus
-- File / unit heading: tasks.md "T-A001"
-- Current step: commit
-- Next action: commit T-A001; nothing else in scope. No push/tag/release.
+- File / unit heading: n/a (release procedure of plan 001 REL-210b1)
+- Current step: CI candidate run
+- Done so far: `ddc6623` merge (--no-ff) of `dev/002-serve-jobs-webui` into `dev/001-modernization`; `ad19a8e` docs (CHANGELOG `## [2.1.0-beta.2] - 2026-10-23`, README Fork changes bullet); `dev/001-modernization` pushed to origin at `ad19a8e`. No tag created or pushed.
+- Next action: when the user says Actions works again: `gh workflow run build.yml --ref dev/001-modernization` on `ad19a8e`, `gh run watch --exit-status`; then `git tag -a v2.1.0-beta.2 ad19a8e -m "Rclone Browser 2.1.0-beta.2"` and `git push origin v2.1.0-beta.2`; watch the tag run (Create GitHub Release, prerelease because of the `-` suffix; VERSION 2.1.0 accepts it); record evidence here.
 - Next eligible plan unit: none
-- Unit base: `55b67bd`; branch: `dev/002-serve-jobs-webui`; owned changes: `CHANGELOG.md`, `tasks.md`
-- Repo state: HEAD `55b67bd` (unit:B-A001:1); untracked `.serena/` (unrelated)
+- Unit base: `ad19a8e`; branch: `dev/001-modernization`
+- Repo state: HEAD `ad19a8e` on `dev/001-modernization` (= origin); untracked `.serena/` (unrelated)
 
 ## 2. Feature context and readiness
 
@@ -249,6 +250,8 @@ Unit 2.3: S1–S6 done. Pending commit unit:2.3:1. Running resources: none.
 | deviation (2026-10-23, 3.1) | D7 `resetCapabilities()` sets Unknown + clears tried flag | also clears `mCapsInFlight` and bumps a generation; a stale `options/blocks` reply (sent before the reset) is ignored. Reason: a backend restart during the call would otherwise leave the capability Unknown with loads suppressed. Requirements unchanged | agent-1:opus | T-WEBUI-CAPS gains a stale-reply case; 3.1 only |
 
 ## 9. Blockers
+
+- REL-210b2 (2026-10-23): `gh workflow run build.yml --ref dev/001-modernization` ⇒ `HTTP 422: Actions has been disabled for this repository.` (retried, also via the REST dispatch endpoint) although `actions/permissions` reports `enabled: true` and both workflows are `active`: an account/billing/GitHub-side block. User decision: wait for Actions to be re-enabled; no tag pushed meanwhile.
 none.
 
 ## 10. Do-not-repeat
