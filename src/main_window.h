@@ -2,6 +2,7 @@
 #include "icon_cache.h"
 #include "job_options.h"
 #include "pch.h"
+#include "serve_manager.h"
 #include "ui_main_window.h"
 #ifdef Q_OS_MACOS
 #include "mac_os_power_saving.h"
@@ -9,8 +10,8 @@
 
 class JobWidget;
 class RcloneDaemon;
+class ServeJobWidget;
 class ServeManager;
-class ServesWindow;
 class UpdateChecker;
 struct RcloneVersion;
 
@@ -26,6 +27,10 @@ public slots:
   // daemon; reloads the open remote views once the config is readable
   void ensureRcUnlocked();
 
+  // starts `rclone serve` through the rc daemon; the serve appears in the Jobs
+  // tab when it is up. Without a running daemon only a status bar message.
+  void startServe(const ServeParams &p);
+
 private slots:
   void rcloneGetVersion();
   void rcloneConfig();
@@ -35,8 +40,6 @@ private slots:
   void editRemote(const QString &name);
   // context menu of the remotes list: Edit remote and Advanced (terminal)
   void showRemotesMenu(const QPoint &pos);
-  // the window of the running serves
-  void showServes();
   // asks how to serve `fs` ("remote:path") and starts it
   void openServeDialog(const QString &fs);
   void rcloneListRemotes();
@@ -87,7 +90,22 @@ private:
   void promptRcUnlock(bool wrongPassword);
   // both are created on first use, as children of this window
   ServeManager *serveManager();
-  ServesWindow *servesWindow();
+
+  // a serve start waiting for its reply; `widget` is set for a Restart (the
+  // widget that goes back to Starting), null for a new serve
+  struct PendingServe {
+    ServeParams params;
+    QPointer<ServeJobWidget> widget;
+  };
+  ServeJobWidget *addServeJob(const ServeEntry &e, const QString &displayType,
+                              const ServeParams &p);
+  ServeJobWidget *serveJobById(const QString &id) const;
+  QList<ServeJobWidget *> serveJobs() const;
+  void onServeStarted(quint64 token, const ServeEntry &e);
+  void onServeStartFailed(quint64 token, const QString &message);
+  void onServeListChanged(const QVector<ServeEntry> &list);
+  // what the widget shows as type: the flavor when there is one, else the type
+  static QString serveDisplayType(const ServeParams &p);
 
   // the constructor body, split in contiguous blocks that run in this order
   void setupPowerSavingAndTitle();
@@ -130,7 +148,7 @@ private:
   // ensureRcUnlocked() prompt loop is active
   bool mRcUnlockBusy = false;
   ServeManager *mServeManager = nullptr;
-  ServesWindow *mServesWindow = nullptr;
+  QHash<quint64, PendingServe> mPendingServes;
 
   bool mAlwaysShowInTray;
   bool mCloseToTray;

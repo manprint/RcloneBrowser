@@ -19,6 +19,7 @@
 #include "remote_config_dialog.h"
 #include "remote_widget.h"
 #include "scheduler_widget.h"
+#include "serve_job_widget.h"
 #include "serve_manager.h"
 #include "serve_widget.h"
 #include "stream_widget.h"
@@ -879,8 +880,6 @@ void MainWindow::setupMenuActions() {
   });
   QObject::connect(ui.aboutQt, &QAction::triggered, qApp,
                    &QApplication::aboutQt);
-  QObject::connect(ui.actionServes, &QAction::triggered, this,
-                   &MainWindow::showServes);
 }
 
 void MainWindow::setupRemotesTab() {
@@ -1004,6 +1003,10 @@ void MainWindow::setupJobsTab() {
         } else if (auto stream = qobject_cast<StreamWidget *>(widget)) {
           if (!(stream->isRunning)) {
             emit stream->closed();
+          }
+        } else if (auto serve = qobject_cast<ServeJobWidget *>(widget)) {
+          if (!(serve->isRunning)) {
+            emit serve->closed();
           }
         }
       }
@@ -1458,6 +1461,12 @@ void MainWindow::quitApp(void) {
       } else {
         emit stream->closed();
       }
+    } else if (auto serve = qobject_cast<ServeJobWidget *>(widget)) {
+      // the backend quits with the app: no rc call, nothing to wait for
+      if (serve->isRunning) {
+        serve->markFinished(tr("Rclone Browser quit"));
+      }
+      emit serve->closed();
     }
   };
 
@@ -1855,7 +1864,11 @@ ServeManager *MainWindow::serveManager() {
         daemonRcCall(QPointer<RcloneDaemon>(global.daemon), ctx), this);
     *ctx = mServeManager;
     connect(mServeManager, &ServeManager::started, this,
-            [this](quint64, const ServeEntry &) { showServes(); });
+            &MainWindow::onServeStarted);
+    connect(mServeManager, &ServeManager::startFailed, this,
+            &MainWindow::onServeStartFailed);
+    connect(mServeManager, &ServeManager::listChanged, this,
+            &MainWindow::onServeListChanged);
     connect(mServeManager, &ServeManager::error, this,
             [this](const QString &message) {
               // a call cut short by a quit or a backend restart: the serves
@@ -1874,7 +1887,15 @@ ServeManager *MainWindow::serveManager() {
     if (global.daemon) {
       ServeManager *manager = mServeManager;
       connect(global.daemon, &RcloneDaemon::stateChanged, manager,
-              [manager](RcloneDaemon::State state) {
+              [this, manager](RcloneDaemon::State state) {
+                // the serves end with the daemon (D4)
+                if (state != RcloneDaemon::State::Running) {
+                  for (ServeJobWidget *w : serveJobs()) {
+                    if (w->isRunning) {
+                      w->markFinished(tr("Backend stopped"));
+                    }
+                  }
+                }
                 // the list goes empty or failed after a restart or a quit
                 manager->refresh();
                 if (state == RcloneDaemon::State::Running) {
@@ -1891,20 +1912,6 @@ ServeManager *MainWindow::serveManager() {
   return mServeManager;
 }
 
-ServesWindow *MainWindow::servesWindow() {
-  if (!mServesWindow) {
-    mServesWindow = new ServesWindow(serveManager(), this);
-  }
-  return mServesWindow;
-}
-
-void MainWindow::showServes() {
-  ServesWindow *window = servesWindow();
-  window->show();
-  window->raise();
-  window->activateWindow();
-}
-
 void MainWindow::openServeDialog(const QString &fs) {
   if (!daemonRunning()) {
     statusBar()->showMessage(tr("Serve requires the rclone backend"));
@@ -1915,8 +1922,175 @@ void MainWindow::openServeDialog(const QString &fs) {
           &ServeDialog::setTypes);
   serveManager()->loadTypes();
   if (dlg.exec() == QDialog::Accepted) {
-    serveManager()->start(dlg.params());
+    startServe(dlg.params());
   }
+}
+
+void MainWindow::startServe(const ServeParams &p) {
+  if (!daemonRunning()) {
+    statusBar()->showMessage(tr("Serve requires the rclone backend"));
+    return;
+  }
+  const quint64 token = serveManager()->start(p);
+  mPendingServes.insert(token, PendingServe{p, nullptr});
+}
+
+QString MainWindow::serveDisplayType(const ServeParams &p) {
+  // 3.1 returns the flavor here when there is one
+  return p.type;
+}
+
+QList<ServeJobWidget *> MainWindow::serveJobs() const {
+  // only the widgets still in the Jobs layout: a closed one waits for its
+  // deleteLater() as a child
+  QList<ServeJobWidget *> out;
+  for (ServeJobWidget *w : findChildren<ServeJobWidget *>()) {
+    if (ui.jobs->indexOf(w) >= 0) {
+      out << w;
+    }
+  }
+  return out;
+}
+
+ServeJobWidget *MainWindow::serveJobById(const QString &id) const {
+  if (id.isEmpty()) {
+    return nullptr;
+  }
+  for (ServeJobWidget *w : serveJobs()) {
+    if (w->serveId() == id) {
+      return w;
+    }
+  }
+  return nullptr;
+}
+
+void MainWindow::onServeStarted(quint64 token, const ServeEntry &e) {
+  const PendingServe ps = mPendingServes.take(token);
+  if (ps.widget) {
+    ps.widget->markRunning(e);
+  } else if (ServeJobWidget *known = serveJobById(e.id)) {
+    // adopted from a list before this reply: it gets the params now (Restart)
+    known->adoptParams(ps.params, serveDisplayType(ps.params));
+    known->markRunning(e);
+  } else {
+    addServeJob(e, serveDisplayType(ps.params), ps.params);
+  }
+  statusBar()->showMessage(tr("Serve started: %1").arg(serveUrl(e)), 10000);
+}
+
+void MainWindow::onServeStartFailed(quint64 token, const QString &message) {
+  const PendingServe ps = mPendingServes.take(token);
+  if (ps.widget) {
+    ps.widget->markStartFailed(message);
+  }
+}
+
+void MainWindow::onServeListChanged(const QVector<ServeEntry> &list) {
+  QSet<QString> ids;
+  for (const ServeEntry &e : list) {
+    ids.insert(e.id);
+  }
+  // the daemon is the source of truth: a serve no longer listed has ended
+  for (ServeJobWidget *w : serveJobs()) {
+    if (w->state() == ServeJobWidget::State::Serving &&
+        !ids.contains(w->serveId())) {
+      w->markFinished(tr("Stopped"));
+    }
+  }
+  // serves of another rc client; not while a start is pending, whose reply
+  // may still be on its way (it would show the serve twice)
+  if (mPendingServes.isEmpty()) {
+    for (const ServeEntry &e : list) {
+      if (!serveJobById(e.id)) {
+        addServeJob(e, e.type, ServeParams());
+      }
+    }
+  }
+}
+
+ServeJobWidget *MainWindow::addServeJob(const ServeEntry &e,
+                                        const QString &displayType,
+                                        const ServeParams &p) {
+  auto widget = new ServeJobWidget(e, displayType, p);
+
+  if (ui.jobs->count() == 2) {
+    ui.noJobsAvailable->hide();
+  }
+
+  ui.tabs->setTabText(1, QString("Jobs (%1)").arg(++mJobCount));
+
+  auto line = new QFrame();
+  line->setFrameShape(QFrame::HLine);
+  line->setFrameShadow(QFrame::Sunken);
+
+  ui.jobs->insertWidget(0, widget);
+  ui.jobs->insertWidget(1, line);
+  applyJobsFilter();
+
+  int _jobsCount = (ui.jobs->count() - 2) / 2;
+  ui.buttonSortByTime->setEnabled(_jobsCount > 1);
+  ui.buttonSortByStatus->setEnabled(_jobsCount > 1);
+
+  QObject::connect(widget, &ServeJobWidget::finished, this, [=]() {
+    if (--mJobCount == 0) {
+      ui.tabs->setTabText(1, "Jobs");
+    } else {
+      ui.tabs->setTabText(1, QString("Jobs (%1)").arg(mJobCount));
+    }
+
+    ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);
+    ui.buttonCleanNotRunning->setEnabled(mJobCount !=
+                                         (ui.jobs->count() - 2) / 2);
+    sortJobs();
+  });
+
+  QObject::connect(widget, &ServeJobWidget::closed, this, [=]() {
+    ui.jobs->removeWidget(widget);
+    ui.jobs->removeWidget(line);
+    widget->deleteLater();
+    delete line;
+    if (ui.jobs->count() == 2) {
+      ui.noJobsAvailable->show();
+    }
+
+    int _jobsCount = (ui.jobs->count() - 2) / 2;
+    ui.buttonSortByTime->setEnabled(_jobsCount > 1);
+    ui.buttonSortByStatus->setEnabled(_jobsCount > 1);
+
+    ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);
+    ui.buttonCleanNotRunning->setEnabled(mJobCount !=
+                                         (ui.jobs->count() - 2) / 2);
+  });
+
+  QObject::connect(widget, &ServeJobWidget::stopRequested, this,
+                   [this](const QString &id) { serveManager()->stop(id); });
+
+  QObject::connect(widget, &ServeJobWidget::restartRequested, this, [=]() {
+    if (widget->isRunning || !widget->canRestart()) {
+      return;
+    }
+    if (!daemonRunning()) {
+      statusBar()->showMessage(tr("Serve requires the rclone backend"));
+      return;
+    }
+    // the widget goes back to Starting; it counts as a job again
+    widget->markStarting();
+    ui.tabs->setTabText(1, QString("Jobs (%1)").arg(++mJobCount));
+    const ServeParams params = widget->params();
+    mPendingServes.insert(serveManager()->start(params),
+                          PendingServe{params, widget});
+    ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);
+    ui.buttonCleanNotRunning->setEnabled(mJobCount !=
+                                         (ui.jobs->count() - 2) / 2);
+  });
+
+  QObject::connect(widget, &ServeJobWidget::openUrlRequested, this,
+                   [](const QUrl &url) { QDesktopServices::openUrl(url); });
+
+  ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);
+  ui.buttonCleanNotRunning->setEnabled(mJobCount != (ui.jobs->count() - 2) / 2);
+  sortJobs();
+  return widget;
 }
 
 void MainWindow::showRemotesMenu(const QPoint &pos) {
@@ -2403,6 +2577,12 @@ bool MainWindow::canClose() {
           emit stream->cancel();
         } else {
           emit stream->closed();
+        }
+      } else if (auto serve = qobject_cast<ServeJobWidget *>(widget)) {
+        if (serve->isRunning) {
+          serve->markFinished(tr("Rclone Browser quit"));
+        } else {
+          emit serve->closed();
         }
       }
     }
@@ -3145,6 +3325,10 @@ void MainWindow::sortJobs() {
       } else if (auto stream = qobject_cast<StreamWidget *>(widget)) {
         widgetStartDateTime = stream->getStartDateTime();
         widgetStatus = stream->getStatus();
+
+      } else if (auto serve = qobject_cast<ServeJobWidget *>(widget)) {
+        widgetStartDateTime = serve->getStartDateTime();
+        widgetStatus = serve->getStatus();
       }
 
       if (mJobsSort == "byDate") {
@@ -3208,6 +3392,11 @@ void MainWindow::sortJobs() {
       ui.jobs->removeWidget(line);
       ui.jobs->insertWidget(i * 2, stream);
       ui.jobs->insertWidget(i * 2 + 1, line);
+    } else if (auto serve = qobject_cast<ServeJobWidget *>(widget)) {
+      ui.jobs->removeWidget(serve);
+      ui.jobs->removeWidget(line);
+      ui.jobs->insertWidget(i * 2, serve);
+      ui.jobs->insertWidget(i * 2 + 1, line);
     } else {
       //
       break;
@@ -3234,6 +3423,8 @@ void MainWindow::applyJobsFilter() {
       fields = mount->filterFields();
     } else if (auto stream = qobject_cast<StreamWidget *>(widget)) {
       fields = stream->filterFields();
+    } else if (auto serve = qobject_cast<ServeJobWidget *>(widget)) {
+      fields = serve->filterFields();
     } else {
       continue;
     }

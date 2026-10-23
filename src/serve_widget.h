@@ -40,30 +40,3 @@ private:
   QLabel *mProblem;
   QDialogButtonBox *mButtons;
 };
-
-// The running serves, as a modeless window of the main window. It refreshes
-// whenever it is shown; a failed refresh is shown inline. Closing only hides
-// it. The table never shows the serve credentials.
-class ServesWindow : public QWidget {
-  Q_OBJECT
-
-public:
-  explicit ServesWindow(ServeManager *manager, QWidget *parent = nullptr);
-
-protected:
-  void showEvent(QShowEvent *event) override;
-
-private:
-  void setEntries(const QVector<ServeEntry> &entries);
-  void showFailure(const QString &message);
-  QString selectedId() const;
-  void updateButtons();
-
-  // both are children of the main window, which deletes the manager first
-  QPointer<ServeManager> mManager;
-  QTableWidget *mTable;
-  QPushButton *mCopyUrl;
-  QPushButton *mStop;
-  QPushButton *mRefresh;
-  QLabel *mStatus;
-};

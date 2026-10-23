@@ -18,6 +18,7 @@
 #include "remote_config_dialog.h"
 #include "remote_widget.h"
 #include "scheduler_widget.h"
+#include "serve_job_widget.h"
 #include "stream_widget.h"
 #include "transfer_dialog.h"
 #include "lsjson_parser.h"
@@ -2047,6 +2048,11 @@ void MainWindow::runItem(JobOptionsListWidgetItem *item,
           widgetStartDateTime = stream->getStartDateTime();
           foundOldest = true;
         }
+      } else if (auto serve = qobject_cast<ServeJobWidget *>(widget)) {
+        if (!(serve->isRunning)) {
+          widgetStartDateTime = serve->getStartDateTime();
+          foundOldest = true;
+        }
       }
 
       if (dt > widgetStartDateTime) {
@@ -2066,6 +2072,8 @@ void MainWindow::runItem(JobOptionsListWidgetItem *item,
         emit mount->closed();
       } else if (auto stream = qobject_cast<StreamWidget *>(widget)) {
         emit stream->closed();
+      } else if (auto serve = qobject_cast<ServeJobWidget *>(widget)) {
+        emit serve->closed();
       } else {
       }
     }

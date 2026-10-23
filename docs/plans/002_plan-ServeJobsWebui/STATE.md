@@ -68,16 +68,16 @@ this file. Tests never read the host rclone config (temp config only). No push, 
 - Active scope: plan 002 (all phases) — `/plan-execute-verify execute 002` (user, 2026-10-23); full-autonomous:true, WIP on (§3)
 - Scope result: RUNNING
 - Type: sub-phase
-- ID / attempt: 2.2 / 1
-- Status: OPEN (closing: commit unit:2.2:1)
-- Intent: NEW ServeJobWidget (D3, contract in phase_03.md)
+- ID / attempt: 2.3 / 1
+- Status: OPEN (closing: commit unit:2.3:1)
+- Intent: MainWindow integration of serves in Jobs; remove the Serves window (U1, U2, D4, D12)
 - Assigned: agent-2:sonnet (delegated worker); supervisor: agent-1:opus
-- File / unit heading: phase_03.md "2.2 ServeJobWidget"
+- File / unit heading: phase_03.md "2.3 MainWindow integration; remove the Serves window"
 - Current step: commit
-- Next action: commit 2.2; open 2.3 (agent-2:sonnet) with the approved site list.
-- Next eligible plan unit: 2.3 / phase_03.md
-- Unit base: `1cfbaf8`; branch: `dev/002-serve-jobs-webui`; owned changes: NEW `src/serve_job_widget.{h,cpp}`, NEW `tests/tst_serve_job_widget.cpp`, `src/CMakeLists.txt`, `tests/CMakeLists.txt`
-- Repo state: HEAD `1cfbaf8` (unit:2.1:1); untracked `.serena/` (unrelated)
+- Next action: commit 2.3; open 2.4 (agent-3:haiku).
+- Next eligible plan unit: 2.4 / phase_03.md
+- Unit base: `157ef4f`; branch: `dev/002-serve-jobs-webui`; owned changes: `src/main_window.{h,cpp,ui}`, `src/main_window_tasks.cpp`, `src/serve_widget.{h,cpp}`, `tests/tst_serve_widget.cpp`, `tests/fixtures/synthetic/mainwindow_snapshot.txt`, `tests/CMakeLists.txt`, NEW `tests/tst_e2e_serve_jobs.cpp`
+- Repo state: HEAD `157ef4f` (unit:2.2:1); untracked `.serena/` (unrelated)
 
 ## 2. Feature context and readiness
 
@@ -148,6 +148,7 @@ Required supervisor reviews cannot be silently replaced by weaker self-review.
 | Type | ID / attempt | Plan revision | Agent | Changes | Evidence/review | Commit |
 |------|--------------|---------------|-------|---------|-----------------|--------|
 | plan | 002 / 1 | 1 | agent-1:opus | plan folder created (overview, phase_01–04, STATE) | user answers U1–U4; probes R2–R4 | uncommitted (committed with 0.2) |
+| sub-phase | 2.3 / 1 | 2 | agent-2:sonnet | serves in Jobs (MainWindow), Serves window/actionServes removed, 8 ServeJobWidget branches, `tst_e2e_serve_jobs`, snapshot fixture | G-U23/G-U23e §7; reviews §7 | unit:2.3:1 |
 | sub-phase | 2.2 / 1 | 2 | agent-2:sonnet (+ agent-1:opus fix) | NEW `ServeJobWidget`, `tst_serve_job_widget`; CMake registrations | G-U22 §7; review §7 | unit:2.2:1 |
 | sub-phase | 2.1 / 1 | 2 | agent-2:sonnet | ServeManager tokens/FIFO/startFailed, `kWebuiFlavor`, `serveBrowserUrl`, `serveOpensInBrowser`; main_window lambda; tst_e2e_serve entryOf index | G-U21/G-U21e §7; review §7 | unit:2.1:1 |
 | phase-close | P1 / 1 | 2 | agent-1:opus | phase 1 closure | P1 gates §7; review §7 | unit:P1:1 |
@@ -173,12 +174,14 @@ reconcile. A SHA recorded by a later update is optional.
 
 ## 6. In-flight checkpoint
 
-Unit 2.2: S1–S3 done (+ supervisor fix: stop-failure re-enable). Pending commit unit:2.2:1. Running resources: none.
+Unit 2.3: S1–S6 done. Pending commit unit:2.3:1. Running resources: none.
 
 ## 7. Verification and reviews
 
 | Gate/test | Command | Result | Test count/named evidence | Tested revision/diff | When |
 |-----------|---------|--------|--------------------------|---------------------|------|
+| G-U23 | §3 | pass | build 0 warnings; unit 32/32 (snapshot fixture: only the actionServes line removed) | 2.3 diff on `157ef4f` (worker run) | 2026-10-23 |
+| G-U23e | §3 | pass | 2 tests: TestE2eServe 7 PASS, TestE2eServeJobs PASS T_E2E_SERVE_JOBS; full e2e 22/22 (worker); supervisor re-run of G-U23e pass | same | 2026-10-23 |
 | G-U22 | §3 | pass | build 0 warnings; tst_serve_job_widget Totals 6 passed 0 failed (PASS T_SJW_STATE/RESTART/ADOPTED/BUTTONS); full unit 32/32 | 2.2 diff incl. supervisor fix on `1cfbaf8` (supervisor run) | 2026-10-23 |
 | G-U21 | §3 | pass | build 0 warnings; tst_serve_manager 9 passed 0 failed (PASS T_SRV_TOKENS, T_SRV_BROWSER_URL, T_SRV_FLOW); full unit 31/31 | 2.1 working diff on `aba452f` (worker run) | 2026-10-23 |
 | G-U21e | §3 | pass | tst_e2e_serve 7 passed 0 failed; full e2e 21/21 | same | 2026-10-23 |
@@ -195,6 +198,8 @@ Unit 2.2: S1–S3 done (+ supervisor fix: stop-failure re-enable). Pending commi
 
 | Review | Reviewer | Plan revision / reviewed change | Invariants/assertions checked | Verdict |
 |--------|----------|---------------------------------|------------------------------|---------|
+| 2.3 | agent-1:opus | rev 2 / 2.3 diff on `157ef4f` | U1 removal (0 hits except the e2e negative check); D4 incl. adoption guard; D5 token map; D12 counts/sort/filter/clean/oldest removal, Stop all untouched; I-6 daemon non-Running ⇒ markFinished; I-7 8/8 casts; I-2 no logging, params only in pending map/widget; restart guard; e2e ModalWatch; worker deviations accepted (serveJobs via findChildren; restart guard; tst_serve_widget initTestCase removed). Known accepted edge: a restart whose `started` arrives after the widget finished is adopted by a later list without Restart (D4) | approved |
+| 2.3 site list (before S4) | agent-1:opus | rev 2 / `157ef4f` | `qobject_cast<StreamWidget` sites = 8: main_window.cpp setupJobsTab L1004 (a), quitApp L1455 (b), canClose L2401 (c), sortJobs L3145 (d) and L3206 (e), applyJobsFilter L3235 (f); main_window_tasks.cpp runItem L2045 (g), L2067 (h) — matches plan a–h; canClose/quitApp semantics checked against Stream branches | approved |
 | 2.2 | agent-1:opus | rev 2 / 2.2 diff on `1cfbaf8` | contract API verbatim; transitions and finished() once; isRunning; cancel semantics; Restart visibility/enabled; buttons; I-2 (params in memory, no logging). Worker choices accepted (copy/open enabled only while Serving; no confirmation on Stop; markRunning no-op in Finished/Error). Supervisor fix: a same-id markRunning while Stopping clears Stopping (stop failed ⇒ id still listed in the newest list), with T_SJW_STATE assertions | approved |
 | 2.1 | agent-1:opus | rev 2 / 2.1 working diff on `aba452f` | D5 (token, FIFO one in flight, refresh after each reply, startFailed before error incl. invalid reply), D9 (browser URL host rewrite, opensInBrowser set), I-2 (queue keeps params in memory only, nothing logged), `self` guards after emits; T_SRV_TOKENS assertions | approved |
 | P1 | agent-1:opus | rev 2 / `05ec215` | D1 as implemented (formula match), I-1 evidence (legacy repro tiles 7 / longlist 13; 18 rows 0 violations), D2 parity (all 3 styles), README 1.3, gates | approved |
@@ -235,7 +240,7 @@ none.
 | 1.3 | phase_02.md | 1.1, 1.2 | DONE | 1 | README L598; no icon-size section exists; unit:1.3:1 |
 | 2.1 | phase_03.md | P1 | DONE | 1 | G-U21/G-U21e pass; unit:2.1:1 |
 | 2.2 | phase_03.md | 2.1 | DONE | 1 | G-U22 pass; unit:2.2:1 |
-| 2.3 | phase_03.md | 2.1, 2.2 | TODO | 1 | — |
+| 2.3 | phase_03.md | 2.1, 2.2 | DONE | 1 | G-U23/G-U23e pass; unit:2.3:1 |
 | 2.4 | phase_03.md | 2.3 | TODO | 1 | — |
 | 3.1 | phase_04.md | P2 | TODO | 1 | — |
 | 3.2 | phase_04.md | 3.1 | TODO | 1 | — |
@@ -267,9 +272,9 @@ SKIPPED retains a reason and does not automatically satisfy dependent units.
 | T-SJW-RESTART | 2.2 | G-U22 | pass | G-U22 §7 |
 | T-SJW-ADOPTED | 2.2 | G-U22 | pass | G-U22 §7 |
 | T-SJW-BUTTONS | 2.2 | G-U22 | pass | G-U22 §7 |
-| T-E2E-SERVE-JOBS (`tst_e2e_serve_jobs`, I-6, I-7) | 2.3 | G-U23e | TODO | — |
-| T_SRV_WINDOW (removed with ServesWindow) | 2.3 | G-U23 | TODO | removal recorded |
-| mainwindow snapshot fixture (`actionServes` line removed) | 2.3 | G-U23 | TODO | — |
+| T-E2E-SERVE-JOBS (`tst_e2e_serve_jobs`, I-6, I-7) | 2.3 | G-U23e | pass | G-U23e §7 |
+| T_SRV_WINDOW (removed with ServesWindow) | 2.3 | G-U23 | DONE (removed) | removal recorded |
+| mainwindow snapshot fixture (`actionServes` line removed) | 2.3 | G-U23 | pass | only diff was that line |
 | T-WEBUI-BLOCK (`tst_serve_manager`) | 3.1 | G-U31 | TODO | — |
 | T-SRV-PARAMS (extended, I-2, I-4) | 3.1 | G-U31 | TODO | — |
 | T-WEBUI-CAPS | 3.1 | G-U31 | TODO | — |
