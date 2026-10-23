@@ -73,7 +73,6 @@ A|actionQueueScriptRun|queueScriptRun|1|0|0|
 A|actionRefresh|Refresh|1|0|0|
 A|actionRemoveFromQueue|Remove|0|0|0|
 A|actionRun|Run|1|0|0|Ctrl+Return
-A|actionServes|Serves…|1|0|0|
 A|actionSortByStatus|Sort|1|0|0|
 A|actionSortByTime|Sort|1|0|0|
 A|actionSortTask|Sort|1|0|0|

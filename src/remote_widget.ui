@@ -167,6 +167,16 @@
            </widget>
           </item>
           <item>
+           <widget class="QToolButton" name="buttonServe">
+            <property name="text">
+             <string>Serve</string>
+            </property>
+            <property name="toolButtonStyle">
+             <enum>Qt::ToolButtonTextUnderIcon</enum>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QToolButton" name="buttonUpload">
             <property name="text">
              <string>Upload</string>
@@ -778,6 +788,7 @@ rclone about</string>
   <tabstop>buttonPurge</tabstop>
   <tabstop>buttonMount</tabstop>
   <tabstop>buttonStream</tabstop>
+  <tabstop>buttonServe</tabstop>
   <tabstop>buttonUpload</tabstop>
   <tabstop>buttonDownload</tabstop>
   <tabstop>path</tabstop>

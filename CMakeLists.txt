@@ -12,6 +12,7 @@ project(rclone-browser)
 
 option(RB_BUILD_TESTS "Build tests" ON)
 set(RB_TEST_RCLONE "" CACHE FILEPATH "rclone used by e2e tests")
+set(RB_TEST_RCLONE_WEBUI "" CACHE FILEPATH "rclone webui fork used by e2e tests")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

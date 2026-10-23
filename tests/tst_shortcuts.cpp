@@ -2,6 +2,7 @@
 #include <QtWidgets>
 
 #include <map>
+#include <memory>
 
 #include "global.h"
 #include "icon_cache.h"
@@ -358,6 +359,68 @@ private slots:
     tabs->setTabVisible(3, true);
     tab[3]->trigger();
     QCOMPARE(tabs->currentIndex(), 3);
+  }
+
+  // T-SC-SERVE-BUTTON
+  void T_SC_SERVE_BUTTON() {
+    // the Serve button sits next to Stream in the button row and follows the
+    // actionServe default action, in every button style
+    struct RestoreStyle {
+      QVariant value;
+      ~RestoreStyle() {
+        auto s = GetSettings();
+        if (value.isValid()) {
+          s->setValue(QStringLiteral("Settings/buttonStyle"), value);
+        } else {
+          s->remove(QStringLiteral("Settings/buttonStyle"));
+        }
+      }
+    } restore{GetSettings()->value(QStringLiteral("Settings/buttonStyle"))};
+
+    const QStringList styles = {QStringLiteral("textandicon"),
+                                QStringLiteral("textonly"),
+                                QStringLiteral("icononly")};
+    for (const QString &style : styles) {
+      const QString tag = QStringLiteral("buttonStyle=") + style;
+      GetSettings()->setValue(QStringLiteral("Settings/buttonStyle"), style);
+
+      IconCache icons;
+      std::unique_ptr<RemoteWidget> rw(new RemoteWidget(
+          &icons, QStringLiteral("ia"), QStringLiteral("internetarchive"),
+          nullptr));
+      auto *serve = rw->findChild<QToolButton *>(QStringLiteral("buttonServe"));
+      auto *stream =
+          rw->findChild<QToolButton *>(QStringLiteral("buttonStream"));
+      QVERIFY2(serve != nullptr && stream != nullptr, qPrintable(tag));
+      QAction *actionServe = rw->findChild<QAction *>(QStringLiteral("actionServe"));
+      QVERIFY2(actionServe != nullptr, qPrintable(tag));
+
+      QVERIFY2(serve->defaultAction() == actionServe, qPrintable(tag));
+      QVERIFY2(serve->parentWidget() == stream->parentWidget(), qPrintable(tag));
+
+      // same layout, Serve right after Stream
+      QLayout *lay = stream->parentWidget()->layout();
+      QVERIFY2(lay != nullptr, qPrintable(tag));
+      auto indexIn = [lay](QWidget *w) {
+        for (int i = 0; i < lay->count(); ++i) {
+          if (lay->itemAt(i)->widget() == w) {
+            return i;
+          }
+        }
+        return -1;
+      };
+      QVERIFY2(indexIn(stream) >= 0 && indexIn(serve) >= 0, qPrintable(tag));
+      QVERIFY2(indexIn(serve) == indexIn(stream) + 1, qPrintable(tag));
+
+      // same look as Stream
+      QVERIFY2(serve->toolButtonStyle() == stream->toolButtonStyle(),
+               qPrintable(tag));
+      QCOMPARE(serve->iconSize(), stream->iconSize());
+      QCOMPARE(serve->minimumWidth(), stream->minimumWidth());
+
+      // no daemon in the test: the action, and the button with it, is disabled
+      QVERIFY2(!serve->isEnabled(), qPrintable(tag));
+    }
   }
 };
 

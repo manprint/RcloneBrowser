@@ -20,6 +20,7 @@ Commands:
 
 Flavors: qt64 (default, image rb-build:24.04), qt610 (image rb-build:qt610).
 Environment: RB_RCLONE = host rclone binary (default: command -v rclone), >= 1.75.
+Environment: RB_RCLONE_WEBUI = rclone webui fork binary for the webui e2e tests (optional)
 USAGE
 }
 
@@ -86,6 +87,25 @@ if ! [[ $VLINE =~ ^rclone\ v1\.(7[5-9]|[89][0-9])\. ]]; then
   exit 2
 fi
 
+# Optional webui fork: mounted read-only next to the host rclone; only `version` is run on the host.
+RB_RCLONE_WEBUI=${RB_RCLONE_WEBUI:-}
+WEBUI_MOUNT=()
+WEBUI_DEF=-DRB_TEST_RCLONE_WEBUI=
+if [ -n "$RB_RCLONE_WEBUI" ]; then
+  if [ ! -e "$RB_RCLONE_WEBUI" ]; then
+    echo "dev.sh: RB_RCLONE_WEBUI not found: $RB_RCLONE_WEBUI" >&2
+    exit 2
+  fi
+  RB_RCLONE_WEBUI=$(readlink -f "$RB_RCLONE_WEBUI")
+  WVLINE=$("$RB_RCLONE_WEBUI" version 2>/dev/null | head -n1 || true)
+  if ! [[ $WVLINE =~ ^rclone\ v1\. ]]; then
+    echo "dev.sh: RB_RCLONE_WEBUI is not an rclone binary, found: $WVLINE" >&2
+    exit 2
+  fi
+  WEBUI_MOUNT=(-v "$RB_RCLONE_WEBUI:/opt/rclone/rclone-webui:ro")
+  WEBUI_DEF=-DRB_TEST_RCLONE_WEBUI=/opt/rclone/rclone-webui
+fi
+
 if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
   echo "dev.sh: image $IMAGE missing; build it with: scripts/dev.sh image $FLAVOR (needs network)" >&2
   exit 3
@@ -107,10 +127,15 @@ if [ ${#EXTRA[@]} -gt 0 ]; then printf -v QEXTRA ' %q' "${EXTRA[@]}"; fi
 TTY_ARGS=()
 case "$CMD" in
   build)
-    INNER="cmake -S /src -B $BDIR -G Ninja -DCMAKE_BUILD_TYPE=Release -DRB_BUILD_TESTS=ON -DRB_TEST_RCLONE=/opt/rclone/rclone $PREFIX_ARG && cmake --build $BDIR -j\"\$(nproc)\""
+    INNER="cmake -S /src -B $BDIR -G Ninja -DCMAKE_BUILD_TYPE=Release -DRB_BUILD_TESTS=ON -DRB_TEST_RCLONE=/opt/rclone/rclone $WEBUI_DEF $PREFIX_ARG && cmake --build $BDIR -j\"\$(nproc)\""
     ;;
   test) INNER="ctest --test-dir $BDIR -L unit --output-on-failure$QEXTRA" ;;
-  e2e)  INNER="ctest --test-dir $BDIR -L e2e --output-on-failure$QEXTRA" ;;
+  e2e)
+    if [ -z "$RB_RCLONE_WEBUI" ]; then
+      echo "dev.sh: RB_RCLONE_WEBUI not set: the webdav-webui e2e test is not registered" >&2
+    fi
+    INNER="ctest --test-dir $BDIR -L e2e --output-on-failure$QEXTRA"
+    ;;
   servers) INNER="ctest --test-dir $BDIR -L servers --output-on-failure$QEXTRA" ;;
   smoke)
     INNER="export XDG_CONFIG_HOME=\$(mktemp -d); QT_QPA_PLATFORM=offscreen $BDIR/build/rclone-browser > /tmp/smoke.log 2>&1 & pid=\$!; sleep 10; if kill -0 \$pid 2>/dev/null; then echo 'smoke: alive after 10s'; kill \$pid; exit 0; else cat /tmp/smoke.log; exit 1; fi"
@@ -181,7 +206,8 @@ if [ "$CMD" = servers ]; then
   docker run --rm --name "$NET-client" --network "$NET" -e RB_SRV=1 \
     --user "$(id -u):$(id -g)" \
     -e HOME=/tmp/home -e RCLONE_CONFIG=/tmp/home/rclone-empty.conf \
-    -v "$ROOT:/src" -v "$RB_RCLONE:/opt/rclone/rclone:ro" -w /src \
+    -v "$ROOT:/src" -v "$RB_RCLONE:/opt/rclone/rclone:ro" \
+    ${WEBUI_MOUNT[@]+"${WEBUI_MOUNT[@]}"} -w /src \
     "$IMAGE" bash -c "mkdir -p /tmp/home && : > /tmp/home/rclone-empty.conf && $INNER" &
   cpid=$!
   wait "$cpid" || rc=$?
@@ -192,5 +218,6 @@ fi
 exec docker run --rm ${TTY_ARGS[@]+"${TTY_ARGS[@]}"} --network none \
   --user "$(id -u):$(id -g)" \
   -e HOME=/tmp/home -e RCLONE_CONFIG=/tmp/home/rclone-empty.conf \
-  -v "$ROOT:/src" -v "$RB_RCLONE:/opt/rclone/rclone:ro" -w /src \
+  -v "$ROOT:/src" -v "$RB_RCLONE:/opt/rclone/rclone:ro" \
+  ${WEBUI_MOUNT[@]+"${WEBUI_MOUNT[@]}"} -w /src \
   "$IMAGE" bash -c "mkdir -p /tmp/home && : > /tmp/home/rclone-empty.conf && $INNER"

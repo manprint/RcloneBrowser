@@ -68,6 +68,7 @@ set(MOC
   url_upload_dialog.h
   serve_manager.h
   serve_widget.h
+  serve_job_widget.h
 )
 
 set(OTHER
@@ -87,6 +88,7 @@ set(OTHER
   list_filter.h
   upload_headers.h
   remote_icons.h
+  remote_list_layout.h
   rclone_process.h
   mount_launch.h
   job_options.h
@@ -147,9 +149,11 @@ set(SOURCE
   list_filter.cpp
   upload_headers.cpp
   remote_icons.cpp
+  remote_list_layout.cpp
   url_upload_dialog.cpp
   serve_manager.cpp
   serve_widget.cpp
+  serve_job_widget.cpp
 )
 
 if(APPLE)

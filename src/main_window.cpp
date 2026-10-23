@@ -15,9 +15,11 @@
 #include "rclone_daemon.h"
 #include "rclone_version.h"
 #include "remote_icons.h"
+#include "remote_list_layout.h"
 #include "remote_config_dialog.h"
 #include "remote_widget.h"
 #include "scheduler_widget.h"
+#include "serve_job_widget.h"
 #include "serve_manager.h"
 #include "serve_widget.h"
 #include "stream_widget.h"
@@ -878,8 +880,6 @@ void MainWindow::setupMenuActions() {
   });
   QObject::connect(ui.aboutQt, &QAction::triggered, qApp,
                    &QApplication::aboutQt);
-  QObject::connect(ui.actionServes, &QAction::triggered, this,
-                   &MainWindow::showServes);
 }
 
 void MainWindow::setupRemotesTab() {
@@ -1003,6 +1003,10 @@ void MainWindow::setupJobsTab() {
         } else if (auto stream = qobject_cast<StreamWidget *>(widget)) {
           if (!(stream->isRunning)) {
             emit stream->closed();
+          }
+        } else if (auto serve = qobject_cast<ServeJobWidget *>(widget)) {
+          if (!(serve->isRunning)) {
+            emit serve->closed();
           }
         }
       }
@@ -1457,6 +1461,12 @@ void MainWindow::quitApp(void) {
       } else {
         emit stream->closed();
       }
+    } else if (auto serve = qobject_cast<ServeJobWidget *>(widget)) {
+      // the backend quits with the app: no rc call, nothing to wait for
+      if (serve->isRunning) {
+        serve->markFinished(tr("Rclone Browser quit"));
+      }
+      emit serve->closed();
     }
   };
 
@@ -1854,7 +1864,11 @@ ServeManager *MainWindow::serveManager() {
         daemonRcCall(QPointer<RcloneDaemon>(global.daemon), ctx), this);
     *ctx = mServeManager;
     connect(mServeManager, &ServeManager::started, this,
-            [this]() { showServes(); });
+            &MainWindow::onServeStarted);
+    connect(mServeManager, &ServeManager::startFailed, this,
+            &MainWindow::onServeStartFailed);
+    connect(mServeManager, &ServeManager::listChanged, this,
+            &MainWindow::onServeListChanged);
     connect(mServeManager, &ServeManager::error, this,
             [this](const QString &message) {
               // a call cut short by a quit or a backend restart: the serves
@@ -1873,35 +1887,33 @@ ServeManager *MainWindow::serveManager() {
     if (global.daemon) {
       ServeManager *manager = mServeManager;
       connect(global.daemon, &RcloneDaemon::stateChanged, manager,
-              [manager](RcloneDaemon::State state) {
+              [this, manager](RcloneDaemon::State state) {
+                // the serves end with the daemon (D4)
+                if (state != RcloneDaemon::State::Running) {
+                  for (ServeJobWidget *w : serveJobs()) {
+                    if (w->isRunning) {
+                      w->markFinished(tr("Backend stopped"));
+                    }
+                  }
+                }
+                // another rclone may come up: ask it again (D7)
+                manager->resetCapabilities();
                 // the list goes empty or failed after a restart or a quit
                 manager->refresh();
                 if (state == RcloneDaemon::State::Running) {
                   manager->loadTypes();
+                  manager->loadCapabilities();
                 }
               });
     }
     // not without a Running daemon: that would only log a warning, and the
-    // stateChanged(Running) handler above loads the types later
+    // stateChanged(Running) handler above loads the types and capabilities later
     if (daemonRunning()) {
       mServeManager->loadTypes();
+      mServeManager->loadCapabilities();
     }
   }
   return mServeManager;
-}
-
-ServesWindow *MainWindow::servesWindow() {
-  if (!mServesWindow) {
-    mServesWindow = new ServesWindow(serveManager(), this);
-  }
-  return mServesWindow;
-}
-
-void MainWindow::showServes() {
-  ServesWindow *window = servesWindow();
-  window->show();
-  window->raise();
-  window->activateWindow();
 }
 
 void MainWindow::openServeDialog(const QString &fs) {
@@ -1912,10 +1924,187 @@ void MainWindow::openServeDialog(const QString &fs) {
   ServeDialog dlg(fs, serveManager()->types(), this);
   connect(serveManager(), &ServeManager::typesChanged, &dlg,
           &ServeDialog::setTypes);
-  serveManager()->loadTypes();
-  if (dlg.exec() == QDialog::Accepted) {
-    serveManager()->start(dlg.params());
+  dlg.setWebuiSupport(serveManager()->webuiSupport());
+  // a check that failed before the dialog opened is still the answer
+  if (serveManager()->webuiSupport() == ServeManager::WebuiSupport::Unknown &&
+      !serveManager()->webuiCheckError().isEmpty()) {
+    dlg.setWebuiCheckFailed(serveManager()->webuiCheckError());
   }
+  connect(serveManager(), &ServeManager::capabilitiesChanged, &dlg,
+          &ServeDialog::setWebuiSupport);
+  connect(serveManager(), &ServeManager::capabilitiesCheckFailed, &dlg,
+          &ServeDialog::setWebuiCheckFailed);
+  serveManager()->loadTypes();
+  serveManager()->loadCapabilities();
+  if (dlg.exec() == QDialog::Accepted) {
+    startServe(dlg.params());
+  }
+}
+
+void MainWindow::startServe(const ServeParams &p) {
+  if (!daemonRunning()) {
+    statusBar()->showMessage(tr("Serve requires the rclone backend"));
+    return;
+  }
+  const quint64 token = serveManager()->start(p);
+  mPendingServes.insert(token, PendingServe{p, nullptr});
+}
+
+QString MainWindow::serveDisplayType(const ServeParams &p) {
+  return p.flavor.isEmpty() ? p.type : p.flavor;
+}
+
+QList<ServeJobWidget *> MainWindow::serveJobs() const {
+  // only the widgets still in the Jobs layout: a closed one waits for its
+  // deleteLater() as a child
+  QList<ServeJobWidget *> out;
+  for (ServeJobWidget *w : findChildren<ServeJobWidget *>()) {
+    if (ui.jobs->indexOf(w) >= 0) {
+      out << w;
+    }
+  }
+  return out;
+}
+
+ServeJobWidget *MainWindow::serveJobById(const QString &id) const {
+  if (id.isEmpty()) {
+    return nullptr;
+  }
+  for (ServeJobWidget *w : serveJobs()) {
+    if (w->serveId() == id) {
+      return w;
+    }
+  }
+  return nullptr;
+}
+
+void MainWindow::onServeStarted(quint64 token, const ServeEntry &e) {
+  const PendingServe ps = mPendingServes.take(token);
+  if (ps.widget) {
+    ps.widget->markRunning(e);
+  } else if (ServeJobWidget *known = serveJobById(e.id)) {
+    // adopted from a list before this reply: it gets the params now (Restart)
+    known->adoptParams(ps.params, serveDisplayType(ps.params));
+    known->markRunning(e);
+  } else {
+    addServeJob(e, serveDisplayType(ps.params), ps.params);
+  }
+  statusBar()->showMessage(tr("Serve started: %1").arg(serveUrl(e)), 10000);
+}
+
+void MainWindow::onServeStartFailed(quint64 token, const QString &message) {
+  const PendingServe ps = mPendingServes.take(token);
+  if (ps.widget) {
+    ps.widget->markStartFailed(message);
+  }
+}
+
+void MainWindow::onServeListChanged(const QVector<ServeEntry> &list) {
+  QSet<QString> ids;
+  for (const ServeEntry &e : list) {
+    ids.insert(e.id);
+  }
+  // the daemon is the source of truth: a serve no longer listed has ended
+  for (ServeJobWidget *w : serveJobs()) {
+    if (w->state() == ServeJobWidget::State::Serving &&
+        !ids.contains(w->serveId())) {
+      w->markFinished(tr("Stopped"));
+    }
+  }
+  // serves of another rc client; not while a start is pending, whose reply
+  // may still be on its way (it would show the serve twice)
+  if (mPendingServes.isEmpty()) {
+    for (const ServeEntry &e : list) {
+      if (!serveJobById(e.id)) {
+        addServeJob(e, e.type, ServeParams());
+      }
+    }
+  }
+}
+
+ServeJobWidget *MainWindow::addServeJob(const ServeEntry &e,
+                                        const QString &displayType,
+                                        const ServeParams &p) {
+  auto widget = new ServeJobWidget(e, displayType, p);
+
+  if (ui.jobs->count() == 2) {
+    ui.noJobsAvailable->hide();
+  }
+
+  ui.tabs->setTabText(1, QString("Jobs (%1)").arg(++mJobCount));
+
+  auto line = new QFrame();
+  line->setFrameShape(QFrame::HLine);
+  line->setFrameShadow(QFrame::Sunken);
+
+  ui.jobs->insertWidget(0, widget);
+  ui.jobs->insertWidget(1, line);
+  applyJobsFilter();
+
+  int _jobsCount = (ui.jobs->count() - 2) / 2;
+  ui.buttonSortByTime->setEnabled(_jobsCount > 1);
+  ui.buttonSortByStatus->setEnabled(_jobsCount > 1);
+
+  QObject::connect(widget, &ServeJobWidget::finished, this, [=]() {
+    if (--mJobCount == 0) {
+      ui.tabs->setTabText(1, "Jobs");
+    } else {
+      ui.tabs->setTabText(1, QString("Jobs (%1)").arg(mJobCount));
+    }
+
+    ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);
+    ui.buttonCleanNotRunning->setEnabled(mJobCount !=
+                                         (ui.jobs->count() - 2) / 2);
+    sortJobs();
+  });
+
+  QObject::connect(widget, &ServeJobWidget::closed, this, [=]() {
+    ui.jobs->removeWidget(widget);
+    ui.jobs->removeWidget(line);
+    widget->deleteLater();
+    delete line;
+    if (ui.jobs->count() == 2) {
+      ui.noJobsAvailable->show();
+    }
+
+    int _jobsCount = (ui.jobs->count() - 2) / 2;
+    ui.buttonSortByTime->setEnabled(_jobsCount > 1);
+    ui.buttonSortByStatus->setEnabled(_jobsCount > 1);
+
+    ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);
+    ui.buttonCleanNotRunning->setEnabled(mJobCount !=
+                                         (ui.jobs->count() - 2) / 2);
+  });
+
+  QObject::connect(widget, &ServeJobWidget::stopRequested, this,
+                   [this](const QString &id) { serveManager()->stop(id); });
+
+  QObject::connect(widget, &ServeJobWidget::restartRequested, this, [=]() {
+    if (widget->isRunning || !widget->canRestart()) {
+      return;
+    }
+    if (!daemonRunning()) {
+      statusBar()->showMessage(tr("Serve requires the rclone backend"));
+      return;
+    }
+    // the widget goes back to Starting; it counts as a job again
+    widget->markStarting();
+    ui.tabs->setTabText(1, QString("Jobs (%1)").arg(++mJobCount));
+    const ServeParams params = widget->params();
+    mPendingServes.insert(serveManager()->start(params),
+                          PendingServe{params, widget});
+    ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);
+    ui.buttonCleanNotRunning->setEnabled(mJobCount !=
+                                         (ui.jobs->count() - 2) / 2);
+  });
+
+  QObject::connect(widget, &ServeJobWidget::openUrlRequested, this,
+                   [](const QUrl &url) { QDesktopServices::openUrl(url); });
+
+  ui.buttonStopAllJobs->setEnabled(mTransferJobCount != 0);
+  ui.buttonCleanNotRunning->setEnabled(mJobCount != (ui.jobs->count() - 2) / 2);
+  sortJobs();
+  return widget;
 }
 
 void MainWindow::showRemotesMenu(const QPoint &pos) {
@@ -2061,115 +2250,91 @@ void MainWindow::rcloneListRemotes() {
           QString iconsColour =
               settings->value("Settings/iconsColour").toString();
 
+          QString img_add = "";
+          int size;
+
+          // medium scale by default
+          double darkModeIconScale = 1.333;
+          double lightModeiconScale = 2;
+          // to avoid "variable not used" compiler error
+          if (darkModeIconScale == lightModeiconScale) {
+          };
+
+          // icons scale from preferences (number, or old letter values)
+          lightModeiconScale = RemotesIconScaleFromSetting(iconSize);
+          darkModeIconScale = lightModeiconScale;
+
+          // disable scaling - all is fusion now
+          // let's leave scaling logic for now
+          darkModeIconScale = lightModeiconScale;
+
+#if !defined(Q_OS_MACOS)
+          // _inv only for dark mode
+          // we use darkModeIni to apply mode active at startup
+          if (darkModeIni) {
+            if (iconsColour == "white") {
+              img_add = "_inv";
+            } else {
+              img_add = "";
+            }
+          } else {
+            img_add = "";
+          }
+#if defined(Q_OS_WIN)
+          // on Windows dark theme changes PM_ListViewIconSize size
+          // so we have to adjust
+          if (darkModeIni) {
+            size = darkModeIconScale *
+                   style->pixelMetric(QStyle::PM_ListViewIconSize);
+          } else {
+            size = lightModeiconScale *
+                   style->pixelMetric(QStyle::PM_ListViewIconSize);
+          }
+#else
+           // for Linux/BSD PM_ListViewIconSize stays the same
+           size = lightModeiconScale * style->pixelMetric(QStyle::PM_ListViewIconSize);
+#endif
+#else
+           QString sysInfo = QSysInfo::productVersion();
+           // dark mode on older macOS
+           if (sysInfo == "10.9" ||
+               sysInfo == "10.10" ||
+               sysInfo == "10.11" ||
+               sysInfo == "10.12" ||
+               sysInfo == "10.13") {
+
+             // on older macOS we also have to adjust icon size per mode
+             if (darkModeIni) {
+               size = darkModeIconScale * style->pixelMetric(QStyle::PM_ListViewIconSize);
+               if (iconsColour == "white") {
+                 img_add = "_inv";
+               } else {
+                 img_add = "";
+               }
+             } else {
+               size = lightModeiconScale * style->pixelMetric(QStyle::PM_ListViewIconSize);
+               img_add = "";
+             }
+
+           } else {
+             // for macOS > 10.13 native dark mode does not change IconSize base
+             size = 1.5 * lightModeiconScale * style->pixelMetric(QStyle::PM_ListViewIconSize);
+             if (iconsColour == "white") {
+                img_add = "_inv";
+             } else {
+                 img_add = "";
+             }
+           }
+#endif
+
+          QStringList names;
           for (const RemoteInfo &ri : *remotes) {
             QString name = ri.name;
+            names << name;
             const QString type = ri.type;
             QString tooltip = "type: " + type + "\n\nname: " + name;
             if (!ri.description.isEmpty()) {
               tooltip += "\n\ndescription: " + ri.description;
-            }
-
-            QString img_add = "";
-            int size;
-
-            // medium scale by default
-            double darkModeIconScale = 1.333;
-            double lightModeiconScale = 2;
-            // to avoid "variable not used" compiler error
-            if (darkModeIconScale == lightModeiconScale) {
-            };
-
-            // icons scale from preferences (number, or old letter values)
-            lightModeiconScale = RemotesIconScaleFromSetting(iconSize);
-            darkModeIconScale = lightModeiconScale;
-
-            // disable scaling - all is fusion now
-            // let's leave scaling logic for now
-            darkModeIconScale = lightModeiconScale;
-
-#if !defined(Q_OS_MACOS)
-            // _inv only for dark mode
-            // we use darkModeIni to apply mode active at startup
-            if (darkModeIni) {
-              if (iconsColour == "white") {
-                img_add = "_inv";
-              } else {
-                img_add = "";
-              }
-            } else {
-              img_add = "";
-            }
-#if defined(Q_OS_WIN)
-            // on Windows dark theme changes PM_ListViewIconSize size
-            // so we have to adjust
-            if (darkModeIni) {
-              size = darkModeIconScale *
-                     style->pixelMetric(QStyle::PM_ListViewIconSize);
-            } else {
-              size = lightModeiconScale *
-                     style->pixelMetric(QStyle::PM_ListViewIconSize);
-            }
-#else
-             // for Linux/BSD PM_ListViewIconSize stays the same
-             size = lightModeiconScale * style->pixelMetric(QStyle::PM_ListViewIconSize);
-#endif
-#else
-             QString sysInfo = QSysInfo::productVersion();
-             // dark mode on older macOS
-             if (sysInfo == "10.9" ||
-                 sysInfo == "10.10" ||
-                 sysInfo == "10.11" ||
-                 sysInfo == "10.12" ||
-                 sysInfo == "10.13") {
-
-               // on older macOS we also have to adjust icon size per mode
-               if (darkModeIni) {
-                 size = darkModeIconScale * style->pixelMetric(QStyle::PM_ListViewIconSize);
-                 if (iconsColour == "white") {
-                   img_add = "_inv";
-                 } else {
-                   img_add = "";
-                 }
-               } else {
-                 size = lightModeiconScale * style->pixelMetric(QStyle::PM_ListViewIconSize);
-                 img_add = "";
-               }
-
-             } else {
-               // for macOS > 10.13 native dark mode does not change IconSize base
-               size = 1.5 * lightModeiconScale * style->pixelMetric(QStyle::PM_ListViewIconSize);
-               if (iconsColour == "white") {
-                  img_add = "_inv";
-               } else {
-                   img_add = "";
-               }
-             }
-#endif
-            ui.remotes->setIconSize(QSize(size, size));
-
-            if (mIconsLayout == "tiles") {
-              ui.remotes->setViewMode(QListWidget::IconMode);
-              // disable drag and drop
-              ui.remotes->setMovement(QListView::Static);
-              // always adjust icons after the window is resized
-              ui.remotes->setResizeMode(QListView::Adjust);
-              ui.remotes->setWrapping(true);
-              ui.remotes->setGridSize(QSize(size + 20, size + 40));
-              ui.remotes->setSpacing(10);
-              ui.remotes->setTextElideMode(Qt::ElideMiddle);
-            }
-            if (mIconsLayout == "longlist") {
-              ui.remotes->setViewMode(QListWidget::ListMode);
-              ui.remotes->setResizeMode(QListView::Adjust);
-              ui.remotes->setWrapping(false);
-              ui.remotes->setGridSize(QSize(size + 8, size + 8));
-            }
-            if (mIconsLayout == "list") {
-              ui.remotes->setViewMode(QListWidget::ListMode);
-              ui.remotes->setResizeMode(QListView::Adjust);
-              ui.remotes->setWrapping(true);
-              ui.remotes->setGridSize(QSize(size + 100, size + 20));
-              ui.remotes->setSpacing(10);
             }
 
             const QString base = remoteIconBaseName(type);
@@ -2185,6 +2350,11 @@ void MainWindow::rcloneListRemotes() {
             item->setToolTip(tooltip);
             ui.remotes->addItem(item);
           }
+
+          applyRemotesListGeometry(
+              ui.remotes,
+              remotesListGeometry(mIconsLayout, size,
+                                  ui.remotes->fontMetrics(), names));
         } else {
           if (p->error() != QProcess::FailedToStart) {
             if (getConfigPassword(code, p->readAllStandardError()) ==
@@ -2421,6 +2591,12 @@ bool MainWindow::canClose() {
           emit stream->cancel();
         } else {
           emit stream->closed();
+        }
+      } else if (auto serve = qobject_cast<ServeJobWidget *>(widget)) {
+        if (serve->isRunning) {
+          serve->markFinished(tr("Rclone Browser quit"));
+        } else {
+          emit serve->closed();
         }
       }
     }
@@ -3163,6 +3339,10 @@ void MainWindow::sortJobs() {
       } else if (auto stream = qobject_cast<StreamWidget *>(widget)) {
         widgetStartDateTime = stream->getStartDateTime();
         widgetStatus = stream->getStatus();
+
+      } else if (auto serve = qobject_cast<ServeJobWidget *>(widget)) {
+        widgetStartDateTime = serve->getStartDateTime();
+        widgetStatus = serve->getStatus();
       }
 
       if (mJobsSort == "byDate") {
@@ -3226,6 +3406,11 @@ void MainWindow::sortJobs() {
       ui.jobs->removeWidget(line);
       ui.jobs->insertWidget(i * 2, stream);
       ui.jobs->insertWidget(i * 2 + 1, line);
+    } else if (auto serve = qobject_cast<ServeJobWidget *>(widget)) {
+      ui.jobs->removeWidget(serve);
+      ui.jobs->removeWidget(line);
+      ui.jobs->insertWidget(i * 2, serve);
+      ui.jobs->insertWidget(i * 2 + 1, line);
     } else {
       //
       break;
@@ -3252,6 +3437,8 @@ void MainWindow::applyJobsFilter() {
       fields = mount->filterFields();
     } else if (auto stream = qobject_cast<StreamWidget *>(widget)) {
       fields = stream->filterFields();
+    } else if (auto serve = qobject_cast<ServeJobWidget *>(widget)) {
+      fields = serve->filterFields();
     } else {
       continue;
     }

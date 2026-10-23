@@ -90,7 +90,7 @@ class TestE2eServe : public QObject {
   }
 
   static ServeEntry entryOf(const QSignalSpy &started) {
-    return qvariant_cast<ServeEntry>(started.at(0).at(0));
+    return qvariant_cast<ServeEntry>(started.at(0).at(1));
   }
 
 private slots:

@@ -234,6 +234,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
   ui.buttonPurge->setDefaultAction(ui.purge);
   ui.buttonMount->setDefaultAction(ui.actionNewMount);
   ui.buttonStream->setDefaultAction(ui.stream);
+  ui.buttonServe->setDefaultAction(ui.actionServe);
   ui.buttonUpload->setDefaultAction(ui.upload);
   ui.buttonDownload->setDefaultAction(ui.download);
   ui.buttonCheck->setDefaultAction(ui.actionCheck);
@@ -272,6 +273,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
     ui.buttonPurge->setIconSize(QSize(icon_w, icon_h));
     ui.buttonMount->setIconSize(QSize(icon_w, icon_h));
     ui.buttonStream->setIconSize(QSize(icon_w, icon_h));
+    ui.buttonServe->setIconSize(QSize(icon_w, icon_h));
     ui.buttonUpload->setIconSize(QSize(icon_w, icon_h));
     ui.buttonDownload->setIconSize(QSize(icon_w, icon_h));
     ui.buttonSize->setIconSize(QSize(icon_w, icon_h));
@@ -287,6 +289,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
     ui.buttonPurge->setMinimumWidth(button_width);
     ui.buttonMount->setMinimumWidth(button_width);
     ui.buttonStream->setMinimumWidth(button_width);
+    ui.buttonServe->setMinimumWidth(button_width);
     ui.buttonUpload->setMinimumWidth(button_width * 1.4);
     ui.buttonDownload->setMinimumWidth(button_width * 1.4);
     ui.buttonSize->setMinimumWidth(button_width);
@@ -314,6 +317,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
       ui.buttonPurge->setToolButtonStyle(Qt::ToolButtonTextOnly);
       ui.buttonMount->setToolButtonStyle(Qt::ToolButtonTextOnly);
       ui.buttonStream->setToolButtonStyle(Qt::ToolButtonTextOnly);
+      ui.buttonServe->setToolButtonStyle(Qt::ToolButtonTextOnly);
       ui.buttonUpload->setToolButtonStyle(Qt::ToolButtonTextOnly);
       ui.buttonDownload->setToolButtonStyle(Qt::ToolButtonTextOnly);
       ui.buttonSize->setToolButtonStyle(Qt::ToolButtonTextOnly);
@@ -329,6 +333,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
       ui.buttonPurge->setMinimumWidth(button_width);
       ui.buttonMount->setMinimumWidth(button_width);
       ui.buttonStream->setMinimumWidth(button_width);
+      ui.buttonServe->setMinimumWidth(button_width);
       ui.buttonUpload->setMinimumWidth(button_width * 1.4);
       ui.buttonDownload->setMinimumWidth(button_width * 1.4);
       ui.buttonSize->setMinimumWidth(button_width);
@@ -361,7 +366,9 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
       ui.buttonMount->setToolButtonStyle(Qt::ToolButtonIconOnly);
       ui.buttonMount->setIconSize(QSize(icon_w, icon_h));
       ui.buttonStream->setToolButtonStyle(Qt::ToolButtonIconOnly);
+      ui.buttonServe->setToolButtonStyle(Qt::ToolButtonIconOnly);
       ui.buttonStream->setIconSize(QSize(icon_w, icon_h));
+      ui.buttonServe->setIconSize(QSize(icon_w, icon_h));
       ui.buttonUpload->setToolButtonStyle(Qt::ToolButtonIconOnly);
       ui.buttonUpload->setIconSize(QSize(icon_w, icon_h));
       ui.buttonDownload->setToolButtonStyle(Qt::ToolButtonIconOnly);
