@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 env:
-  QT_VERSION: '6.10.3'
+  QT_VERSION: '6.11.3'
 
 jobs:
   build_windows:
@@ -20,7 +20,7 @@ jobs:
     runs-on: windows-latest
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
@@ -44,7 +44,7 @@ jobs:
           $env:PATH = "$env:QT_ROOT_DIR\bin;$env:PATH"
           ctest --test-dir build -L unit --output-on-failure -C Release
           if ($LASTEXITCODE -ne 0) { & ./scripts/ci-rerun-failed.ps1 -BuildDir build; exit 1 }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows
           path: build\build\Release\*
@@ -57,7 +57,7 @@ jobs:
     runs-on: windows-11-arm
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Qt (ARM64)
         uses: jurplel/install-qt-action@v4
         with:
@@ -82,7 +82,7 @@ jobs:
           $env:PATH = "$env:QT_ROOT_DIR\bin;$env:PATH"
           ctest --test-dir build -L unit --output-on-failure -C Release
           if ($LASTEXITCODE -ne 0) { & ./scripts/ci-rerun-failed.ps1 -BuildDir build; exit 1 }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows-arm64
           path: build\build\Release\*
@@ -96,7 +96,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -185,7 +185,7 @@ jobs:
           mkdir -p build/build
           mv ./*.AppImage "build/build/rclone-browser-${VERSION}-linux-x86_64.AppImage"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
          name: linux
          path: build/build/*.AppImage
@@ -196,7 +196,7 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
@@ -263,7 +263,7 @@ jobs:
             exit 1
           fi
           hdiutil detach "$MNT"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: macos-arm64
           path: build/build/*.dmg
@@ -273,7 +273,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Development Tools and Build Rclone Browser
         uses: vmactions/freebsd-vm@v1
         with:
@@ -290,7 +290,7 @@ jobs:
             cd ..
             ctest --test-dir build -L unit --output-on-failure -C Release
             
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: freebsd
           path: build/build/*
@@ -302,7 +302,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Development Tools, Build and Test Rclone Browser
         uses: vmactions/openbsd-vm@v1
         with:
@@ -326,7 +326,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Development Tools, Build and Test Rclone Browser
         uses: vmactions/netbsd-vm@v1
         with:
@@ -363,7 +363,7 @@ jobs:
 
     steps:
       # VERSION is read from the tagged commit, so the repository is needed.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           sparse-checkout: VERSION
       - name: Check the tag matches VERSION
@@ -375,7 +375,7 @@ jobs:
           }
       - name: Create artifact directory
         run: rm -rf /tmp/artifacts /tmp/release && mkdir /tmp/artifacts /tmp/release
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: /tmp/artifacts
       - name: Prepare release assets
