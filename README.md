@@ -14,7 +14,7 @@ Requirements
 ------------
 **rclone 1.75.0 or newer.** At startup Rclone Browser runs `rclone version`; with an older rclone (or output it cannot recognize) it shows a dialog that leads to Preferences, the rclone downloads page or Quit, and does not continue. See [rclone version, updates and config password](#rclone-version-updates-and-config-password).
 
-Building from source needs Qt 6.4 or newer, CMake and a C++17 compiler. The Windows, Linux AppImage and macOS release binaries bundle Qt 6.11.3; the FreeBSD build uses the Qt 6 packages installed with `pkg`. OpenBSD and NetBSD are built from source (see [Compatibility](#compatibility)).
+Building from source needs Qt 6.4 or newer, CMake and a C++17 compiler. The Windows, Linux AppImage and macOS release binaries bundle Qt 6.10.3; the FreeBSD build uses the Qt 6 packages installed with `pkg`. OpenBSD and NetBSD are built from source (see [Compatibility](#compatibility)).
 
 <img src="https://github.com/kapitainsky/RcloneBrowser/wiki/images/readme/osLogos.png" width="50%" />
 
@@ -142,9 +142,9 @@ Compatibility
 --------------
 Release binaries are built by GitHub Actions for these targets:
 
-*   **Windows x64 and ARM64**: built with Qt 6.11.3, which needs Windows 10 or newer; the ARM64 build is for Windows on ARM devices.
+*   **Windows x64 and ARM64**: built with Qt 6.10.3, which needs Windows 10 or newer; the ARM64 build is for Windows on ARM devices.
 *   **Linux x86_64**: an [AppImage](https://appimage.org/) built on Ubuntu 22.04 (glibc 2.35). Systems with an older glibc may not run it.
-*   **macOS**: Apple Silicon (arm64) only, built with Qt 6.11.3. The lowest macOS release it runs on is the one Qt 6.11.3 supports.
+*   **macOS**: Apple Silicon (arm64) only, built with Qt 6.10.3. The lowest macOS release it runs on is the one Qt 6.10.3 supports.
 *   **FreeBSD**: built on FreeBSD with the Qt 6 packages from `pkg`.
 *   **OpenBSD and NetBSD**: no release binaries. CI builds both from source with their Qt 6 packages (`pkg_add qt6`, `pkgin install qt6-qtbase`) and runs the unit tests; Mount is disabled on both (see [Build instructions](#build-instructions)).
 
@@ -261,7 +261,7 @@ The `cmake ..` steps below build the app and its unit tests (`RB_BUILD_TESTS`, o
 ### Windows
 1.  Install [Visual Studio 2022](https://learn.microsoft.com/en-us/visualstudio/releases/2022/release-notes) or Visual Studio 2026 - you only need the **Desktop development with C++** workload. For a native Windows on ARM build also add the **ARM64 build tools** component.
 2.  Install [CMake][9] 3.16 or newer (CMake 4.x is supported); the Visual Studio 2026 generator needs a CMake release that lists it in `cmake --help`
-3.  Install Qt 6.4 or newer (the releases use Qt 6.11.3) from the [Qt website][10]. Select the **MSVC 2022 64-bit** prebuilt component (`msvc2022_64`), and optionally **Qt Multimedia** (only needed for the finished-transfer notification sound). For native Windows on ARM also install the **MSVC 2022 ARM64** kit (`msvc2022_arm64`). The steps below assume Qt 6.11.1 installed in `c:\Qt\6.11.1`
+3.  Install Qt 6.4 or newer (the releases use Qt 6.10.3) from the [Qt website][10]. Select the **MSVC 2022 64-bit** prebuilt component (`msvc2022_64`), and optionally **Qt Multimedia** (only needed for the finished-transfer notification sound). For native Windows on ARM also install the **MSVC 2022 ARM64** kit (`msvc2022_arm64`). The steps below assume Qt 6.11.1 installed in `c:\Qt\6.11.1`
 4.  Get Rclone Browser source code - clone this repo with git or download a zip from [releases][3]
 5.  Open a **Developer Command Prompt for VS** (or any shell where `cmake` and the MSVC compiler are on `PATH`), then go to the source folder: `cd RcloneBrowser`
 6.  Create a build folder: `mkdir build` and `cd build`
@@ -311,7 +311,7 @@ scripts/dev.sh servers [qt64|qt610] [-- <ctest args>]  # protocol tests against 
 scripts/dev.sh server-images                       # pull and build the server images (needs network)
 ```
 
-Flavors: `qt64` (default) uses the image `rb-build:24.04` (Ubuntu 24.04, distro Qt 6.4); `qt610` uses `rb-build:qt610` (Ubuntu 22.04, Qt 6.11.3, as in CI). Example: `scripts/dev.sh test qt64 -- -R 'tst_rclone_(log|format)'`.
+Flavors: `qt64` (default) uses the image `rb-build:24.04` (Ubuntu 24.04, distro Qt 6.4); `qt610` uses `rb-build:qt610` (Ubuntu 22.04, Qt 6.11.3). Example: `scripts/dev.sh test qt64 -- -R 'tst_rclone_(log|format)'`.
 
 Building the images is the only step that needs network access: run `scripts/dev.sh image qt64` or `scripts/dev.sh image qt610` once, and `scripts/dev.sh server-images` for the protocol tests. All other commands work offline; they stop with exit code 2 when the host rclone is missing or older than 1.75, and with exit code 3 when the image is missing.
 
