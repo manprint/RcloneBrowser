@@ -311,7 +311,7 @@ scripts/dev.sh servers [qt64|qt610] [-- <ctest args>]  # protocol tests against 
 scripts/dev.sh server-images                       # pull and build the server images (needs network)
 ```
 
-Flavors: `qt64` (default) uses the image `rb-build:24.04` (Ubuntu 24.04, distro Qt 6.4); `qt610` uses `rb-build:qt610` (Ubuntu 22.04, Qt 6.11.3). Example: `scripts/dev.sh test qt64 -- -R 'tst_rclone_(log|format)'`.
+Flavors: `qt64` (default) uses the image `rb-build:24.04` (Ubuntu 24.04, distro Qt 6.4); `qt610` uses `rb-build:qt610` (Ubuntu 22.04, Qt 6.10.3, as in CI). Example: `scripts/dev.sh test qt64 -- -R 'tst_rclone_(log|format)'`.
 
 Building the images is the only step that needs network access: run `scripts/dev.sh image qt64` or `scripts/dev.sh image qt610` once, and `scripts/dev.sh server-images` for the protocol tests. All other commands work offline; they stop with exit code 2 when the host rclone is missing or older than 1.75, and with exit code 3 when the image is missing.
 
