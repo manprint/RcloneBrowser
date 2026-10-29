@@ -48,7 +48,7 @@ fi
 PREFIX_ARG=""
 case "$FLAVOR" in
   qt64)  IMAGE=rb-build:24.04 ;;
-  qt610) IMAGE=rb-build:qt610; PREFIX_ARG="-DCMAKE_PREFIX_PATH=/opt/Qt/6.10.3/gcc_64" ;;
+  qt610) IMAGE=rb-build:qt610; PREFIX_ARG="-DCMAKE_PREFIX_PATH=/opt/Qt/6.11.3/gcc_64" ;;
   *) echo "dev.sh: unknown flavor: $FLAVOR" >&2; usage >&2; exit 64 ;;
 esac
 
