@@ -1,6 +1,7 @@
 # Change Log
 
-## [Unreleased]
+## [2.3.0] - 2026-11-07
+Changes since 2.2.0: bug fixes of the scheduler, of the tasks file and of Unmount on Linux, found in a review with rclone 1.76.0. A cron list with a range or a step (`30,1-10/2`, `1,*/20`) now runs at the times it names, so a schedule saved with one runs at other times than before.
 
 -   FIXED: scheduler: a cron step of 0 (`*/0` in the minutes or hours) crashed Rclone Browser, and a step with nothing to step through (`/5`) or an empty list element (`1,,2`) crashed it too; they are now reported as not valid
 -   FIXED: scheduler: Validate or Save of a cron definition that matches no date (`0 0 30 2 *`, `0 0 31 4 *`, `1/5 * * * *`) froze Rclone Browser; such a definition is now reported as not valid ("It matches no date.")
