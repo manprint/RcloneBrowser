@@ -8,6 +8,7 @@
 -   FIXED: scheduler: a Debug build aborted on every cron definition (the parser read past the end of each field)
 -   FIXED: a tasks file that could not be read in full (written by a newer Rclone Browser, or truncated) lost every task after the unreadable one at the next save, which replaced it; it is now kept as `tasks.bin.unreadable-<hash>` next to it first, and a truncated last task is no longer loaded with broken values
 -   FIXED: scheduler: during the 59th minute of every hour the schedules were checked every second instead of once at the start of the next minute
+-   FIXED: Linux: on a system with only fuse3 (no `fusermount`, only `fusermount3`) Unmount did nothing and the mount stayed "Unmounting" with its button disabled, and quitting with that mount waited forever; `fusermount3` is now used when `fusermount` is missing, and an unmount program that cannot be started is reported as a failed unmount
 
 ## [2.2.0] - 2026-10-23
 The final release of everything in 2.1.0-beta.1 and 2.1.0-beta.2 below; there is no final 2.1.0, so these are the changes since 2.0.0. No program code changed since 2.1.0-beta.2; only the version number and the documentation did.

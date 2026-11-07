@@ -1,5 +1,6 @@
 #pragma once
 #include <QtCore>
+#include <functional>
 
 #include "rc_client.h"
 
@@ -19,3 +20,13 @@ struct MountLaunch {
 MountLaunch buildMountLaunch(const QStringList &args,
                              const QProcessEnvironment &base,
                              const RcCredentials &creds);
+
+// The program and arguments which unmount the FUSE mount at `mountPoint`:
+// fusermount, or fusermount3 when only fuse3 is installed. `findExecutable`
+// returns the path of a program in PATH, or an empty string.
+QStringList fuseUnmountCommand(
+    const QString &mountPoint,
+    const std::function<QString(const QString &)> &findExecutable =
+        [](const QString &program) {
+          return QStandardPaths::findExecutable(program);
+        });
