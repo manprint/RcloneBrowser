@@ -1,4 +1,5 @@
 #include "list_of_job_options.h"
+#include <QCryptographicHash>
 #include <QDataStream>
 #include <qdir.h>
 #include <qlogging.h>
@@ -107,6 +108,32 @@ QFile *ListOfJobOptions::GetPersistenceFile(QIODevice::OpenModeFlag mode) {
   return file;
 }
 
+// Saving the tasks replaces the file with the tasks read before the one that
+// could not be read: keep a copy of the whole file, one per content.
+static void keepUnreadableTasksFile(const QString &path) {
+  QFile in(path);
+  if (!in.open(QIODevice::ReadOnly)) {
+    qWarning() << "Could not read the tasks file to keep a copy:" << path;
+    return;
+  }
+  const QByteArray hash =
+      QCryptographicHash::hash(in.readAll(), QCryptographicHash::Sha256);
+  in.close();
+  const QString copy = path + QStringLiteral(".unreadable-") +
+                       QString::fromLatin1(hash.toHex().left(12));
+  if (QFile::exists(copy)) {
+    return;
+  }
+  if (QFile::copy(path, copy)) {
+    qWarning() << "The tasks file could not be read in full; it is kept as"
+               << copy;
+  } else {
+    qWarning() << "The tasks file could not be read in full and could not be"
+                  " copied to"
+               << copy;
+  }
+}
+
 bool ListOfJobOptions::RestoreFromUserData(ListOfJobOptions &dataIn) {
   QFile *file = GetPersistenceFile(QIODevice::ReadOnly);
   if (file == nullptr)
@@ -114,24 +141,31 @@ bool ListOfJobOptions::RestoreFromUserData(ListOfJobOptions &dataIn) {
   QDataStream instream(file);
   instream.setVersion(QDataStream::Qt_5_2);
 
-  while (!instream.atEnd()) {
+  bool ok = true;
+  while (ok && !instream.atEnd()) {
     JobOptions *jo = new JobOptions();
     try {
       instream >> *jo;
-      dataIn.tasks.append(jo);
+      // a truncated file reads past its end without an exception
+      ok = instream.status() == QDataStream::Ok;
     } catch (SerializationException &) {
+      ok = false;
+    }
+    if (ok) {
+      dataIn.tasks.append(jo);
+    } else {
       // avoid leaking the partially-read object that failed to deserialize
       delete jo;
-      file->close();
-      delete file;
-      return false;
     }
   }
 
   file->close();
+  if (!ok) {
+    keepUnreadableTasksFile(file->fileName());
+  }
   delete file;
 
-  return true;
+  return ok;
 }
 
 bool ListOfJobOptions::PersistToUserData() {

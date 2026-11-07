@@ -1,6 +1,7 @@
 #include "mount_widget.h"
 #include "command_line.h"
 #include "global.h"
+#include "mount_launch.h"
 #include "rclone_process.h"
 #include "utils.h"
 
@@ -386,6 +387,7 @@ void MountWidget::cancel() {
       static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
           &QProcess::finished),
       this, [=](int status, QProcess::ExitStatus) {
+        pUnmount->deleteLater();
         if (status != 0) {
           // unmounting failed
           showUnmountFailed(QString::number(status));
@@ -393,11 +395,24 @@ void MountWidget::cancel() {
           mUnmountingError = "0";
         }
       });
+  // a missing program emits no finished(): without this the mount stays
+  // "Unmounting" with the cancel button disabled
+  QObject::connect(pUnmount, &QProcess::errorOccurred, this,
+                   [=](QProcess::ProcessError error) {
+                     if (error != QProcess::FailedToStart) {
+                       return;
+                     }
+                     ui.output->appendPlainText("Unmount error: " +
+                                                pUnmount->errorString());
+                     pUnmount->deleteLater();
+                     showUnmountFailed("-1");
+                   });
 
 #if defined(Q_OS_MACOS) || defined(Q_OS_FREEBSD)
   pUnmount->start("umount", QStringList() << ui.folder->text());
 #else
-  pUnmount->start("fusermount", QStringList() << "-u" << ui.folder->text());
+  const QStringList unmount = fuseUnmountCommand(ui.folder->text());
+  pUnmount->start(unmount.first(), unmount.mid(1));
 #endif
 #endif
 

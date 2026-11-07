@@ -5,6 +5,15 @@
 #include "pch.h"
 #include "ui_scheduler_widget.h"
 
+// The next run after `now` of the 5-field cron expression of a scheduler, as
+// the user types it (names of days and months allowed). Invalid if the
+// expression is not valid or matches no date; *error then says why.
+QDateTime cronNextRun(const QString &cron, const QDateTime &now,
+                      QString *error = nullptr);
+
+// Milliseconds from now to the start of the next minute.
+qint64 msecsToNextMinute(const QDateTime &now);
+
 class SchedulerWidget : public QWidget {
   Q_OBJECT
 
@@ -51,7 +60,8 @@ private:
   void applyScreenToSettings();
   void updateInfoFields();
 
-  QString enhanceCron(QString cron);
+  static QString enhanceCron(QString cron);
+  friend QDateTime cronNextRun(const QString &, const QDateTime &, QString *);
 
   QDateTime nextRun();
 

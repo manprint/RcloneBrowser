@@ -27,3 +27,17 @@ MountLaunch buildMountLaunch(const QStringList &args,
   }
   return ml;
 }
+
+QStringList fuseUnmountCommand(
+    const QString &mountPoint,
+    const std::function<QString(const QString &)> &findExecutable) {
+  QString program = findExecutable("fusermount");
+  if (program.isEmpty()) {
+    program = findExecutable("fusermount3");
+  }
+  if (program.isEmpty()) {
+    // the start fails with an error which names the program
+    program = "fusermount";
+  }
+  return {program, "-u", mountPoint};
+}

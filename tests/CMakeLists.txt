@@ -44,6 +44,10 @@ rb_add_test(tst_serve_job_widget unit)
 rb_add_test(tst_path_entry unit)
 rb_add_test(tst_list_filter unit)
 rb_add_test(tst_upload_headers unit)
+# qcron is compiled into the test with asserts on, as in a Debug build.
+rb_add_test(tst_qcron unit ${CMAKE_SOURCE_DIR}/src/qcron.cpp
+  ${CMAKE_SOURCE_DIR}/src/qcronfield.cpp ${CMAKE_SOURCE_DIR}/src/qcronnode.cpp)
+target_compile_definitions(tst_qcron PRIVATE QT_FORCE_ASSERTS)
 # tst_remote_icons needs the remote icons, and Qt resources are compiled only
 # into the executables (D10): give this test its own copy of resources.qrc.
 qt6_add_resources(RB_ICONS_QRC_OUT ${CMAKE_SOURCE_DIR}/src/resources.qrc OPTIONS "-no-compress")

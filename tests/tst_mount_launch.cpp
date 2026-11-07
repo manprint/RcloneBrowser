@@ -66,6 +66,35 @@ private slots:
     QCOMPARE(ml.env.value("KEEP"), QString("1"));
     QCOMPARE(ml.creds.user, creds.user);
   }
+
+  // A FUSE mount is unmounted with fusermount, or with fusermount3 on a
+  // system which has only fuse3.
+  void T_MOUNT_UNMOUNT_COMMAND_data() {
+    QTest::addColumn<QStringList>("installed");
+    QTest::addColumn<QStringList>("command");
+
+    QTest::newRow("fuse2 and fuse3")
+        << QStringList({"fusermount", "fusermount3"})
+        << QStringList({"/usr/bin/fusermount", "-u", "/m n"});
+    QTest::newRow("fuse2 only") << QStringList({"fusermount"})
+                                << QStringList({"/usr/bin/fusermount", "-u",
+                                                "/m n"});
+    QTest::newRow("fuse3 only") << QStringList({"fusermount3"})
+                                << QStringList({"/usr/bin/fusermount3", "-u",
+                                                "/m n"});
+    // the start fails and reports that fusermount is missing
+    QTest::newRow("neither")
+        << QStringList() << QStringList({"fusermount", "-u", "/m n"});
+  }
+
+  void T_MOUNT_UNMOUNT_COMMAND() {
+    QFETCH(QStringList, installed);
+    QFETCH(QStringList, command);
+    const auto find = [&installed](const QString &program) {
+      return installed.contains(program) ? "/usr/bin/" + program : QString();
+    };
+    QCOMPARE(fuseUnmountCommand("/m n", find), command);
+  }
 };
 
 QTEST_GUILESS_MAIN(TestMountLaunch)
