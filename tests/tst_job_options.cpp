@@ -370,6 +370,66 @@ private slots:
                        QStringLiteral("--down"));
   }
 
+  // A tasks file that cannot be read in full (written by a newer version, or
+  // truncated) is kept as a copy before saving the tasks replaces it.
+  void T_JO_UNREADABLE_KEPT_data() {
+    QTest::addColumn<bool>("truncated");
+    QTest::newRow("newer version") << false;
+    QTest::newRow("truncated") << true;
+  }
+
+  void T_JO_UNREADABLE_KEPT() {
+    QFETCH(bool, truncated);
+    const QDir dir = QFileInfo(tasksFile()).absoluteDir();
+    const QStringList pattern{QStringLiteral("tasks.bin.unreadable-*")};
+    for (const QString &old : dir.entryList(pattern, QDir::Files)) {
+      QVERIFY(QFile::remove(dir.filePath(old)));
+    }
+
+    QByteArray bytes;
+    {
+      QDataStream out(&bytes, QIODevice::WriteOnly);
+      out.setVersion(QDataStream::Qt_5_2);
+      JobOptions first = makeV8();
+      out << first;
+      if (!truncated) {
+        out << first.myName() << qint32(JobOptions::classVersion + 1);
+      }
+    }
+    if (truncated) {
+      JobOptions second = makeV8();
+      QByteArray more;
+      QDataStream out(&more, QIODevice::WriteOnly);
+      out.setVersion(QDataStream::Qt_5_2);
+      out << second;
+      bytes += more.left(more.size() - 5);
+    }
+    QFile::remove(tasksFile());
+    {
+      QFile f(tasksFile());
+      QVERIFY(f.open(QIODevice::WriteOnly));
+      QCOMPARE(f.write(bytes), qint64(bytes.size()));
+    }
+
+    for (int i = 0; i < 2; ++i) {
+      Probe probe;
+      QVERIFY(!ListOfJobOptions::RestoreFromUserData(probe));
+      // the tasks before the unreadable one are loaded, nothing after
+      QCOMPARE(probe.getTasks().size(), 1);
+      QCOMPARE(probe.getTasks().first()->description,
+               makeV8().description);
+      qDeleteAll(probe.getTasks());
+    }
+    const QStringList kept = dir.entryList(pattern, QDir::Files);
+    QCOMPARE(kept.size(), 1);
+    QFile copy(dir.filePath(kept.first()));
+    QVERIFY(copy.open(QIODevice::ReadOnly));
+    QCOMPARE(copy.readAll(), bytes);
+    copy.close();
+    QVERIFY(QFile::remove(dir.filePath(kept.first())));
+    QFile::remove(tasksFile());
+  }
+
   // T-JO-COMPAT (I-7): a tasks file written by classVersion 8 loads with the
   // same value in every field, and the version 9 and 10 fields have their
   // defaults.
