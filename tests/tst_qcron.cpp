@@ -155,6 +155,23 @@ private slots:
     QVERIFY(!cronNextRun("0 0 * * * *", start(), &error).isValid());
     QVERIFY2(error.contains("Wrong number of fields"), qPrintable(error));
   }
+
+  // The scheduler checks at the start of each minute, the 59th included.
+  void T_SCHEDULER_NEXT_MINUTE_data() {
+    QTest::addColumn<QTime>("now");
+    QTest::addColumn<qint64>("msecs");
+    QTest::newRow("start of a minute") << QTime(12, 0) << qint64(60000);
+    QTest::newRow("mid minute") << QTime(13, 20, 30) << qint64(30000);
+    QTest::newRow("minute 59") << QTime(13, 59, 30) << qint64(30000);
+    QTest::newRow("end of the day")
+        << QTime(23, 59, 59, 500) << qint64(500);
+  }
+
+  void T_SCHEDULER_NEXT_MINUTE() {
+    QFETCH(QTime, now);
+    QFETCH(qint64, msecs);
+    QCOMPARE(msecsToNextMinute(QDateTime(QDate(2026, 11, 7), now)), msecs);
+  }
 };
 
 QTEST_GUILESS_MAIN(TestQCron)

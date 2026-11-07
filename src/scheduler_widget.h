@@ -11,6 +11,9 @@
 QDateTime cronNextRun(const QString &cron, const QDateTime &now,
                       QString *error = nullptr);
 
+// Milliseconds from now to the start of the next minute.
+qint64 msecsToNextMinute(const QDateTime &now);
+
 class SchedulerWidget : public QWidget {
   Q_OBJECT
 

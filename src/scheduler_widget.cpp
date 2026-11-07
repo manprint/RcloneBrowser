@@ -19,6 +19,13 @@ QDateTime cronNextRun(const QString &cron, const QDateTime &now,
   return next;
 }
 
+qint64 msecsToNextMinute(const QDateTime &now) {
+  const QTime time = now.time();
+  QDateTime minute = now;
+  minute.setTime(QTime(time.hour(), time.minute()));
+  return now.msecsTo(minute.addSecs(60));
+}
+
 namespace {
 
 // The next run of a scheduler which never runs.
@@ -521,13 +528,7 @@ void SchedulerWidget::checkSchedule(void) {
   }
 
   // set next check at full minute
-  QDateTime dt_start = QDateTime::currentDateTime();
-  QTime time = dt_start.time();
-
-  time.setHMS(time.hour(), time.minute() + 1, 0, 0);
-  dt_start.setTime(time);
-
-  diff = QDateTime::currentDateTime().msecsTo(dt_start);
+  diff = msecsToNextMinute(QDateTime::currentDateTime());
 
   if (diff < 0) {
     diff = 0;
