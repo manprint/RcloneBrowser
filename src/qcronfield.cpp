@@ -40,10 +40,12 @@ QCronField::QCronField() : _is_valid(false) {}
 QCronIntNode *QCronField::_parseInt(QString &str) {
   int value = 0;
   int char_idx = 0;
-  QChar c = str[char_idx];
-  while (c.isDigit()) {
-    value = value * 10 + c.digitValue();
-    c = str[++char_idx];
+  while (char_idx < str.size() && str.at(char_idx).isDigit()) {
+    // a value past _max is rejected below: stop growing it before it overflows
+    if (value <= _max) {
+      value = value * 10 + str.at(char_idx).digitValue();
+    }
+    ++char_idx;
   }
   if (char_idx == 0) {
     throw QCronFieldException(
@@ -87,8 +89,19 @@ QCronRangeNode *QCronField::_parseRange(QString &str) {
 /******************************************************************************/
 
 QCronEveryNode *QCronField::_parseEvery(QString &str) {
+  if (_last_node == NULL) {
+    throw QCronFieldException(
+        QString("Syntax error at %1: step has nothing to step through")
+            .arg(str));
+  }
   str.remove(0, 1);
-  return new QCronEveryNode(_last_node, _parseInt(str));
+  QCronIntNode *step = _parseInt(str);
+  // the step divides the time unit when matching
+  if (step->value() < 1) {
+    throw QCronFieldException(
+        QString("Invalid step %1: must be at least 1").arg(step->value()));
+  }
+  return new QCronEveryNode(_last_node, step);
 }
 
 /******************************************************************************/
@@ -98,11 +111,21 @@ QCronListNode *QCronField::_parseList(QString &str) {
   list->nodes() << _last_node;
   _last_node = list;
   while (!str.isEmpty()) {
+    // a range or a step is built on the element before it, which it replaces
+    const bool extends = str[0] == '-' || str[0] == '/';
     if (str[0] == ',') {
       str.remove(0, 1);
+      if (str.isEmpty() || str[0] == ',' || str[0] == '-' || str[0] == '/') {
+        throw QCronFieldException(
+            QString("Syntax error: empty list element before %1").arg(str));
+      }
     }
     QCronNode *node = _parseNode(str);
-    list->nodes() << node;
+    if (extends) {
+      list->nodes().last() = node;
+    } else {
+      list->nodes() << node;
+    }
     _last_node = node;
   }
   return list;
@@ -111,6 +134,9 @@ QCronListNode *QCronField::_parseList(QString &str) {
 /******************************************************************************/
 
 QCronNode *QCronField::_parseNode(QString &str) {
+  if (str.isEmpty()) {
+    throw QCronFieldException(QString("Syntax error: unexpected end of field"));
+  }
   QCronNode *node = NULL;
   QChar c = str[0];
   if (c.isDigit()) {

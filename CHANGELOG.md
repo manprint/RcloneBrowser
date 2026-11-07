@@ -1,5 +1,12 @@
 # Change Log
 
+## [Unreleased]
+
+-   FIXED: scheduler: a cron step of 0 (`*/0` in the minutes or hours) crashed Rclone Browser, and a step with nothing to step through (`/5`) or an empty list element (`1,,2`) crashed it too; they are now reported as not valid
+-   FIXED: scheduler: Validate or Save of a cron definition that matches no date (`0 0 30 2 *`, `0 0 31 4 *`, `1/5 * * * *`) froze Rclone Browser; such a definition is now reported as not valid ("It matches no date.")
+-   FIXED: scheduler: in a cron list a range or step after a comma also kept its start as an item, so `30,1-10/2` ran at every minute from 1 to 10 and `1,*/20` ran every minute
+-   FIXED: scheduler: a Debug build aborted on every cron definition (the parser read past the end of each field)
+
 ## [2.2.0] - 2026-10-23
 The final release of everything in 2.1.0-beta.1 and 2.1.0-beta.2 below; there is no final 2.1.0, so these are the changes since 2.0.0. No program code changed since 2.1.0-beta.2; only the version number and the documentation did.
 

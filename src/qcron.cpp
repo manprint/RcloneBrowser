@@ -212,8 +212,20 @@ void QCron::chiche(QDateTime &dt, EField field) {
 /******************************************************************************/
 
 QDateTime QCron::next(QDateTime dt) {
+  if (!_is_valid || !dt.isValid()) {
+    return QDateTime();
+  }
+  // A pattern can match no date at all (30 February, a step which skips its
+  // only value): there is no next run once the search passes the last year a
+  // pattern can name, or a field finds none of its values in more steps than
+  // its unit has.
+  const int last_year = _fields[YEAR].getMax();
+  const int max_field_steps = 1000;
   dt = dt.addSecs(60);
   while (!match(dt)) {
+    if (dt.date().year() > last_year) {
+      return QDateTime();
+    }
     // qDebug() << dt << "doesn't match";
     for (int i = YEAR; i >= 0; --i) {
       chiche(dt, (EField)i);
@@ -221,7 +233,11 @@ QDateTime QCron::next(QDateTime dt) {
       if (!dt.isValid()) {
         return dt;
       }
+      int steps = 0;
       while (!_fields[(EField)i].match(dt)) {
+        if (++steps > max_field_steps || dt.date().year() > last_year) {
+          return QDateTime();
+        }
         // qDebug() << dt << (EField)i << "doesn't match";
         int dummy = 1;
         _fields[(EField)i].applyOffset(dt, dummy);

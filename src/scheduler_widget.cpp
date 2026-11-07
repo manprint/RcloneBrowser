@@ -2,6 +2,33 @@
 #include "qcron.h"
 #include "utils.h"
 
+QDateTime cronNextRun(const QString &cron, const QDateTime &now,
+                      QString *error) {
+  QString cronExp = SchedulerWidget::enhanceCron(cron.trimmed()) + " *";
+  QCron qcron(cronExp);
+  if (!qcron.isValid()) {
+    if (error) {
+      *error = qcron.error();
+    }
+    return QDateTime();
+  }
+  const QDateTime next = qcron.next(now);
+  if (!next.isValid() && error) {
+    *error = "It matches no date.";
+  }
+  return next;
+}
+
+namespace {
+
+// The next run of a scheduler which never runs.
+QDateTime neverRun() {
+  return QDateTime::fromString("Fri, 01/Jan/2100 17:00:00 GMT",
+                               "ddd, dd/MMM/yyyy HH:mm:ss t");
+}
+
+} // namespace
+
 SchedulerWidget::SchedulerWidget(const QString &taskId, const QString &taskName,
                                  const QStringList &args, QWidget *parent)
     : QWidget(parent) {
@@ -115,13 +142,16 @@ SchedulerWidget::SchedulerWidget(const QString &taskId, const QString &taskName,
     QString cronExp = enhanceCron(ui.cron->text().trimmed()) + " *";
 
     QCron cron(cronExp);
+    QString cronError;
 
-    if (!cron.isValid()) {
+    if (!cronNextRun(ui.cron->text(), QDateTime::currentDateTime(),
+                     &cronError)
+             .isValid()) {
 
       QMessageBox::warning(this, "Cron validation",
                            QString("Your cron definition:\n\n" +
                                    ui.cron->text().trimmed() +
-                                   "\n\nis not valid."),
+                                   "\n\nis not valid.\n\n" + cronError),
                            QMessageBox::Ok);
     } else {
       QDateTime nowDateTime = QDateTime::currentDateTime();
@@ -423,15 +453,15 @@ SchedulerWidget::SchedulerWidget(const QString &taskId, const QString &taskName,
 
     if (ui.cronState->isChecked()) {
 
-      QString cronExp = enhanceCron(ui.cron->text().trimmed()) + " *";
+      QString cronError;
 
-      QCron cron(cronExp);
-
-      if (!cron.isValid()) {
+      if (!cronNextRun(ui.cron->text(), QDateTime::currentDateTime(),
+                       &cronError)
+               .isValid()) {
         QMessageBox::warning(this, "Cron validation",
                              QString("Your cron definition:\n\n" +
                                      ui.cron->text().trimmed() +
-                                     "\n\nis not valid."),
+                                     "\n\nis not valid.\n\n" + cronError),
                              QMessageBox::Ok);
         ui.tabWidget->setCurrentIndex(1);
         ui.cron->setFocus(Qt::FocusReason::OtherFocusReason);
@@ -901,10 +931,11 @@ QDateTime SchedulerWidget::nextRun() {
   QDateTime nowDateTime = QDateTime::currentDateTime();
 
   if (mCronState) {
-    QString cronExp = enhanceCron(mCron.trimmed()) + " *";
-    QCron cron(cronExp);
-
-    QDateTime next = cron.next(nowDateTime);
+    QDateTime next = cronNextRun(mCron, nowDateTime);
+    // an invalid date is due at once (secsTo is 0): never run instead
+    if (!next.isValid()) {
+      return neverRun();
+    }
     QTime time = next.time();
 
     time.setHMS(time.hour(), time.minute(), 0, 0);
@@ -967,8 +998,7 @@ QDateTime SchedulerWidget::nextRun() {
     }
   }
 
-  return (QDateTime::fromString("Fri, 01/Jan/2100 17:00:00 GMT",
-                                "ddd, dd/MMM/yyyy HH:mm:ss t"));
+  return neverRun();
 }
 
 void SchedulerWidget::updateInfoFields(void) {
