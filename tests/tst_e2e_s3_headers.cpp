@@ -171,6 +171,20 @@ class TestE2eS3Headers : public QObject {
     return names;
   }
 
+  // Whether the `rclone serve s3` under test shows a directory marker as a
+  // folder. With rclone 1.75.2 (the rclone of the CI) lsf lists the marker
+  // that `mkdir --s3-directory-markers` makes through it as a file ("new f"
+  // instead of "new f/"); with 1.76.0 it is the folder. The probe is removed,
+  // so the bucket is left as it was.
+  bool serverKeepsDirMarkers(const QString &bucket) const {
+    if (!run(RemoteOps::mkdirArgs("s3t", bucket, "probe", {}))) {
+      return false;
+    }
+    const bool kept = entries("s3t:" + bucket) == QStringList{"probe/"};
+    run(RemoteOps::deleteArgs("s3t", bucket + "/probe", kept, {}));
+    return kept;
+  }
+
 private slots:
   void initTestCase() {
     rbInitTestEnvironment();
@@ -255,6 +269,15 @@ private slots:
             .arg(port)
             .toUtf8()));
     QVERIFY(QDir().mkpath(mDir.path() + "/store/bkt3"));
+    if (!serverKeepsDirMarkers(QStringLiteral("bkt3"))) {
+      stopServer();
+      // QSKIP with one argument is a C++20 extension for clang -Werror
+      // (macOS, FreeBSD, OpenBSD); this is what the macro expands to
+      QTest::qSkip("rclone serve s3 of this rclone lists a directory marker "
+                   "as a file",
+                   __FILE__, __LINE__);
+      return;
+    }
 
     // negative control: without the marker flags nothing is created
     QVERIFY(run({"mkdir", "s3t:bkt3/plain"}));
@@ -300,6 +323,15 @@ private slots:
             .toUtf8()));
     QVERIFY(QDir().mkpath(mDir.path() + "/store/bkt4"));
     QVERIFY(QDir().mkpath(mDir.path() + "/store/bkt5"));
+    if (!serverKeepsDirMarkers(QStringLiteral("bkt4"))) {
+      stopServer();
+      // QSKIP with one argument is a C++20 extension for clang -Werror
+      // (macOS, FreeBSD, OpenBSD); this is what the macro expands to
+      QTest::qSkip("rclone serve s3 of this rclone lists a directory marker "
+                   "as a file",
+                   __FILE__, __LINE__);
+      return;
+    }
     QVERIFY(writeFile(mDir.path() + "/src-empty/f.txt", "x"));
     QVERIFY(QDir().mkpath(mDir.path() + "/src-empty/empty sub"));
 

@@ -180,7 +180,10 @@ private slots:
       QVERIFY2(f.open(QIODevice::WriteOnly | QIODevice::Truncate),
                qPrintable(fixturePath));
       f.write(actual.toUtf8());
-      QSKIP("recorded");
+      // QSKIP with one argument is a C++20 extension for clang -Werror
+      // (macOS, FreeBSD, OpenBSD); this is what the macro expands to
+      QTest::qSkip("recorded", __FILE__, __LINE__);
+      return;
     }
     QFile fx(fixturePath);
     if (!fx.exists()) {

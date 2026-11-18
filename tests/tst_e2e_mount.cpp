@@ -70,7 +70,11 @@ private slots:
   // behind the mount, and the unmount ends the job as finished.
   void T_E2E_MOUNT_FAKE() {
     if (qEnvironmentVariable("RB_TEST_FUSE") != QStringLiteral("1")) {
-      QSKIP("RB_TEST_FUSE=1 not set (needs /dev/fuse and fusermount)");
+      // QSKIP with one argument is a C++20 extension for clang -Werror
+      // (macOS, FreeBSD, OpenBSD); this is what the macro expands to
+      QTest::qSkip("RB_TEST_FUSE=1 not set (needs /dev/fuse and fusermount)",
+                   __FILE__, __LINE__);
+      return;
     }
     QTemporaryDir src, mnt, work;
     QVERIFY(src.isValid() && mnt.isValid() && work.isValid());

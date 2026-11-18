@@ -65,7 +65,11 @@ private slots:
     qputenv("XDG_CONFIG_HOME", (dir.path() + QStringLiteral("/rel")).toUtf8());
     QVERIFY(IsPortableMode());
 #else
-    QSKIP("the XDG portable ini is Linux only");
+    // QSKIP with one argument is a C++20 extension for clang -Werror
+    // (macOS, FreeBSD, OpenBSD); this is what the macro expands to
+    QTest::qSkip("the XDG portable ini is Linux only",
+                 __FILE__, __LINE__);
+    return;
 #endif
   }
 
@@ -89,12 +93,15 @@ private slots:
   void T_UTIL_RCLONE_CMD() {
     SetRclone("/opt/rclone");
     SetRcloneConf(QString());
-    QCOMPARE(GetRcloneCmd({}), (QStringList{"/opt/rclone"}));
-    QCOMPARE(GetRcloneCmd({"lsd"}), (QStringList{"/opt/rclone", "lsd"}));
+    // the program is shown with the separators of the platform (a backslash
+    // on Windows)
+    const QString rc = QDir::toNativeSeparators(QStringLiteral("/opt/rclone"));
+    QCOMPARE(GetRcloneCmd({}), (QStringList{rc}));
+    QCOMPARE(GetRcloneCmd({"lsd"}), (QStringList{rc, "lsd"}));
     QCOMPARE(GetRcloneCmd({"lsd", "a b:"}),
-             (QStringList{"/opt/rclone", "lsd", "\"a b:\""}));
+             (QStringList{rc, "lsd", "\"a b:\""}));
     QCOMPARE(GetRcloneCmd({"copy", "a b:", "c:", "-v"}),
-             (QStringList{"/opt/rclone", "copy", "\"a b:\"", "c:", "-v"}));
+             (QStringList{rc, "copy", "\"a b:\"", "c:", "-v"}));
   }
 
   void cleanupTestCase() {}
