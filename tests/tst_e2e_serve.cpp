@@ -117,7 +117,10 @@ private slots:
     mConf = mDir.filePath("rclone.conf");
     QFile f(mConf);
     QVERIFY(f.open(QIODevice::WriteOnly));
-    f.write("[loc]\ntype = local\n");
+    // and "fake", an alias of a folder of the tree: a remote of the config
+    // that is not the local backend itself
+    f.write("[loc]\ntype = local\n\n[fake]\ntype = alias\nremote = " +
+            QDir(tree()).filePath("sub dir").toUtf8() + "\n");
     f.close();
     SetRcloneConf(mConf);
 
@@ -126,6 +129,11 @@ private slots:
     QVERIFY(file.open(QIODevice::WriteOnly));
     file.write("hi");
     file.close();
+    QVERIFY(QDir().mkpath(QDir(tree()).filePath("sub dir")));
+    QFile aliased(QDir(tree()).filePath("sub dir/c.txt"));
+    QVERIFY(aliased.open(QIODevice::WriteOnly));
+    aliased.write("fake");
+    aliased.close();
   }
 
   void cleanup() {
@@ -247,6 +255,75 @@ private slots:
     mDaemon->stop();
     QTRY_VERIFY_WITH_TIMEOUT(mDaemon->state() == RcloneDaemon::State::Stopped,
                              5000);
+    QTRY_VERIFY_WITH_TIMEOUT(connectionRefused(port), 5000);
+  }
+
+  // T-E2E-SERVE-FAKE-AUTH: a webdav serve of "fake:", an alias remote of the
+  // test config (not the local backend itself), with a login: no answer
+  // without the credentials, read and write with them, and the write lands in
+  // the aliased folder.
+  void T_E2E_SERVE_FAKE_AUTH() {
+    startDaemon();
+    if (QTest::currentTestFailed()) {
+      return;
+    }
+    ServeManager manager(callFn());
+    QSignalSpy started(&manager, &ServeManager::started);
+    QSignalSpy errors(&manager, &ServeManager::error);
+    QSignalSpy listed(&manager, &ServeManager::listChanged);
+    ServeParams p;
+    p.type = "webdav";
+    p.fs = "fake:";
+    p.addr = "127.0.0.1:0";
+    p.user = "u";
+    p.pass = "p w";
+    manager.start(p);
+    QTRY_VERIFY_WITH_TIMEOUT(started.count() + errors.count() >= 1, 5000);
+    if (!errors.isEmpty()) {
+      QFAIL(qPrintable(errors.at(0).at(0).toString()));
+    }
+    const ServeEntry e = entryOf(started);
+    const quint16 port = portOf(e.addr);
+    QVERIFY(port > 0);
+    const QUrl base(serveUrl(e));
+
+    QNetworkAccessManager nam;
+    nam.setProxy(QNetworkProxy::NoProxy);
+    QNetworkReply *anon = nam.get(QNetworkRequest(base.resolved(QUrl("c.txt"))));
+    QVERIFY(finishedReply(anon));
+    QCOMPARE(anon->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt(),
+             401);
+    anon->deleteLater();
+
+    const auto authed = [](const QUrl &url) {
+      QNetworkRequest r(url);
+      r.setRawHeader("Authorization",
+                     "Basic " + QByteArray("u:p w").toBase64());
+      return r;
+    };
+    QNetworkReply *get = nam.get(authed(base.resolved(QUrl("c.txt"))));
+    QVERIFY(finishedReply(get));
+    QCOMPARE(get->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt(),
+             200);
+    QCOMPARE(get->readAll(), QByteArray("fake"));
+    get->deleteLater();
+
+    QNetworkReply *put =
+        nam.put(authed(base.resolved(QUrl("new.txt"))), QByteArray("x"));
+    QVERIFY(finishedReply(put));
+    QVERIFY2(put->error() == QNetworkReply::NoError,
+             qPrintable(put->errorString()));
+    put->deleteLater();
+    QFile written(QDir(tree()).filePath("sub dir/new.txt"));
+    QVERIFY(written.open(QIODevice::ReadOnly));
+    QCOMPARE(written.readAll(), QByteArray("x"));
+    written.close();
+    QVERIFY(written.remove());
+
+    QTRY_VERIFY_WITH_TIMEOUT(lastListHas(listed, e.id), 5000);
+    const int before = static_cast<int>(listed.count());
+    manager.stop(e.id);
+    QTRY_VERIFY_WITH_TIMEOUT(emptyListAfter(listed, before), 5000);
     QTRY_VERIFY_WITH_TIMEOUT(connectionRefused(port), 5000);
   }
 
