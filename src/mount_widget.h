@@ -38,7 +38,9 @@ private:
   bool mScriptStarted = false;
 
   QProcess *mProcess;
-  QProcess mScriptProcess;
+  // the post-mount script, a child of the widget: started at most once, and
+  // killed with the widget (it used to be a parentless process, never freed)
+  QProcess *mScriptProcess = nullptr;
 
   QString mUnmountingError = "0";
   QString mRcPort = "0";

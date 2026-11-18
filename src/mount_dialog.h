@@ -32,6 +32,9 @@ private:
   bool mIsEditMode;
 
   JobOptions *mJobOptions;
+  // true while mJobOptions is the dialog's own (made by getOptions for a new
+  // mount): freed by the destructor unless "Save task" gave it to the task list
+  bool mOwnsJobOptions = false;
 
   void mountOptionsWriteSettings();
 

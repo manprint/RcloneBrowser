@@ -15,7 +15,7 @@ MountWidget::MountWidget(QProcess *process, const QString &remote,
   updateStartFinishInfo();
 
   mUniqueID = uniqueID;
-  QProcess *mScriptProcess = new QProcess();
+  mScriptProcess = new QProcess(this);
 
   // args carry no rc credentials (I-5): they travel in the environment
   mCommand = commandLineForClipboard(QDir::toNativeSeparators(GetRclone()), args,
@@ -157,7 +157,6 @@ MountWidget::MountWidget(QProcess *process, const QString &remote,
           &QProcess::finished),
       this, [=](int status, QProcess::ExitStatus) {
         mScriptRunning = false;
-        mScriptProcess->deleteLater();
         if (status == 0) {
 
           if (iconsColour == "white") {
@@ -167,10 +166,10 @@ MountWidget::MountWidget(QProcess *process, const QString &remote,
 
           } else {
 
+            // the theme picks the colour only: exit code 0 is no error
             ui.l_script->setStyleSheet(
                 "QLabel { color: black; font-weight: bold;}");
-            ui.l_script->setText("Finished (returned error code: " +
-                                 QString::number(status) + ")");
+            ui.l_script->setText("Finished");
           }
 
         } else {
@@ -274,7 +273,9 @@ MountWidget::MountWidget(QProcess *process, const QString &remote,
       }
 
       // we only start custome script when rclone reports RC port
-      if (mRcPort != "0" && mScriptStarted == false) {
+      // a mount without a script starts nothing (an empty program only
+      // fails to start)
+      if (!script.isEmpty() && mRcPort != "0" && mScriptStarted == false) {
 
         mScriptStarted = true;
         QStringList sargs;
@@ -299,11 +300,9 @@ MountWidget::MountWidget(QProcess *process, const QString &remote,
     }
   });
 
-  QObject::connect(
-      mProcess,
-      static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
-          &QProcess::finished),
-      this, [=](int status, QProcess::ExitStatus) {
+  // the end of the mount, from finished() or from an rclone that could not
+  // start, which emits no finished() (the mount stayed "Mounted")
+  auto onMountEnd = [=](int status, QProcess::ExitStatus) {
         mProcess->deleteLater();
         isRunning = false;
         ui.refreshCache->setEnabled(false);
@@ -330,7 +329,7 @@ MountWidget::MountWidget(QProcess *process, const QString &remote,
         if (status == 0) {
           if (iconsColour == "white") {
             ui.showDetails->setStyleSheet(
-                "QToolButton { border: 0; wfont-weight: bold;}");
+                "QToolButton { border: 0; font-weight: bold;}");
           } else {
             ui.showDetails->setStyleSheet(
                 "QToolButton { border: 0; color: black; font-weight: bold;}");
@@ -343,7 +342,7 @@ MountWidget::MountWidget(QProcess *process, const QString &remote,
           ui.showDetails->setStyleSheet(
               "QToolButton { border: 0; color: red; font-weight: bold;}");
           ui.showDetails->setText("  Error");
-          mStatus = "1_zmount_erro";
+          mStatus = "1_zmount_error";
           ui.showDetails->setToolTip("Show details");
           ui.showDetails->setStatusTip("Show details");
         }
@@ -354,7 +353,22 @@ MountWidget::MountWidget(QProcess *process, const QString &remote,
         mFinishDateTime = QDateTime::currentDateTime();
         updateStartFinishInfo();
         emit finished();
-      });
+      };
+  QObject::connect(
+      mProcess,
+      static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
+          &QProcess::finished),
+      this, onMountEnd);
+  // queued, as in JobWidget: the error can come from inside start()
+  QObject::connect(
+      mProcess, &QProcess::errorOccurred, this,
+      [=](QProcess::ProcessError error) {
+        if (error == QProcess::FailedToStart && isRunning) {
+          ui.output->appendPlainText(mProcess->errorString());
+          onMountEnd(-1, QProcess::CrashExit);
+        }
+      },
+      Qt::QueuedConnection);
 }
 
 MountWidget::~MountWidget() {}
@@ -380,7 +394,8 @@ void MountWidget::cancel() {
     }
   });
 #else
-  QProcess *pUnmount = new QProcess();
+  // owned by the widget: a widget closed while unmounting does not leak it
+  QProcess *pUnmount = new QProcess(this);
 
   QObject::connect(
       pUnmount,
