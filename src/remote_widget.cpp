@@ -845,36 +845,74 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
     QString path = model->path(index).path();
     QString pathMsg = isLocal ? QDir::toNativeSeparators(path) : path;
 
-    QString name = model->data(index, Qt::DisplayRole).toString();
-    name = QInputDialog::getText(
+    const QString oldName = model->data(index, Qt::DisplayRole).toString();
+    bool ok = false;
+    const QString name = QInputDialog::getText(
         this, "Rename",
         QString("New name for %1")
             .arg("\"" + metrix.elidedText(pathMsg, Qt::ElideMiddle, 500) +
                  "\""),
-        QLineEdit::Normal, name);
-    if (!name.isEmpty()) {
-      QProcess process;
-      ApplyRcloneEnvironment(&process);
-      process.setProgram(GetRclone());
-      process.setArguments(QStringList()
-                           << "moveto" << GetRcloneConf()
-                           << GetRemoteModeRcloneOptions()
-                           << GetDefaultOptionsList("defaultRcloneOptions")
-                           << remote + ":" + path
-                           << remote + ":" +
-                                  model->path(index.parent()).filePath(name));
-      process.setProcessChannelMode(QProcess::MergedChannels);
+        QLineEdit::Normal, oldName, &ok);
+    if (!ok || name == oldName) {
+      return;
+    }
+    // a name with '/' would move the item into another folder
+    if (!RemoteOps::isValidFolderName(name)) {
+      QMessageBox::warning(this, tr("Rename"),
+                           tr("\"%1\" is not a valid name.").arg(name));
+      return;
+    }
 
-      ProgressDialog progress(
-          "Rename", "Renaming...",
-          "\"" + metrix.elidedText(pathMsg, Qt::ElideMiddle, 500) + "\"",
-          &process, this);
-      // without this the dialog's Cancel button stays disabled while a
-      // hanging rename runs
-      progress.allowToClose();
-      if (progress.exec() == QDialog::Accepted) {
-        model->rename(index, name);
+    const bool isFolder = model->isFolder(index);
+    const QString dest = model->path(index.parent()).filePath(name);
+    const QStringList common =
+        GetRcloneConf() + GetRemoteModeRcloneOptions() +
+        GetDefaultOptionsList("defaultRcloneOptions");
+
+    QProcess process;
+    ApplyRcloneEnvironment(&process);
+    process.setProgram(GetRclone());
+    process.setArguments(
+        RemoteOps::renameArgs(remote, path, dest, isFolder, common));
+    process.setProcessChannelMode(QProcess::MergedChannels);
+
+    ProgressDialog progress(
+        "Rename", "Renaming...",
+        "\"" + metrix.elidedText(pathMsg, Qt::ElideMiddle, 500) + "\"",
+        &process, this);
+    // without this the dialog's Cancel button stays disabled while a
+    // hanging rename runs
+    progress.allowToClose();
+    const bool renamed = progress.exec() == QDialog::Accepted;
+
+    // An empty folder of a bucket based remote is only a marker object, which
+    // rclone move does not carry over: create the new folder and remove the
+    // old one. Both fail harmlessly where the move already did the job.
+    if (isFolder) {
+      process.waitForFinished(3000);
+      const QList<QStringList> followUps = RemoteOps::folderRenameFollowUps(
+          remote, mRemoteType, path, dest, process.state(), process.error(),
+          process.exitStatus(), process.exitCode(), common);
+      if (!followUps.isEmpty()) {
+        QApplication::setOverrideCursor(Qt::WaitCursor);
+        for (const QStringList &args : followUps) {
+          QProcess step;
+          ApplyRcloneEnvironment(&step);
+          step.setProgram(GetRclone());
+          step.setArguments(args);
+          step.setProcessChannelMode(QProcess::MergedChannels);
+          step.start(QIODevice::ReadOnly);
+          if (!step.waitForFinished(20000)) {
+            step.kill();
+            step.waitForFinished(2000);
+          }
+        }
+        QApplication::restoreOverrideCursor();
       }
+    }
+
+    if (renamed) {
+      model->rename(index, name);
     }
   });
 
@@ -1006,6 +1044,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
                          << "copy" << GetRcloneConf()
                          << GetRemoteModeRcloneOptions()
                          << GetDefaultOptionsList("defaultRcloneOptions")
+                         << RemoteOps::emptyDirMarkerFlags(args)
                          << remote + ":" + path << remote + ":" + destFolder
                          << args);
 
@@ -1251,13 +1290,10 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
         QString path = model->path(index).path();
         QString pathMsg = isLocal ? QDir::toNativeSeparators(path) : path;
 
-        QStringList args;
-        args << (model->isFolder(index) ? "purge" : "delete") << GetRcloneConf()
-             << GetRemoteModeRcloneOptions()
-             << GetDefaultOptionsList("defaultRcloneOptions")
-             << remote + ":" + path;
-
-        pDataList.append(args);
+        pDataList.append(RemoteOps::deleteArgs(
+            remote, path, model->isFolder(index),
+            GetRcloneConf() + GetRemoteModeRcloneOptions() +
+                GetDefaultOptionsList("defaultRcloneOptions")));
       }
 
       DeleteProgressDialog deleteProgress(pDataList, this, true);
@@ -1338,11 +1374,10 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
       stream = commands.at(list->currentRow());
     }
 
-    QFileInfo fi(path);
-    QString filename = fi.fileName();
-    stream.replace("$file_name", filename);
-
-    emit addStream(remote + ":" + path, stream, remoteType);
+    // "$file_name" is replaced in each argument of the split command, so a
+    // name with spaces stays one argument
+    emit addStream(remote + ":" + path, stream, remoteType,
+                   QFileInfo(path).fileName());
   });
 
   // QObject::connect(ui.link
@@ -2066,8 +2101,12 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
           QString path = volume.rootPath();
           QString item =
               QString("%1 (%2)").arg(QDir::toNativeSeparators(path)).arg(name);
-          QTimer::singleShot(0, this,
-                             [=]() { model->rename(drives[path], item); });
+          // only the drives added above get a label: a volume mounted below
+          // one of them has no root here (drives.value() gives an invalid
+          // index for it), and the label must not change the drive's path
+          QTimer::singleShot(0, this, [=]() {
+            model->setRootLabel(drives.value(path), item);
+          });
         }
       }
 
@@ -2261,7 +2300,7 @@ void RemoteWidget::setButtonsHidden(bool hidden) {
                          ui.cb_GoogleDriveMode->isVisibleTo(ui.buttons));
 }
 
-QString setRemoteMode(int index, QString remoteType) {
+QString setRemoteMode(int index, const QString &remoteType) {
 
   QString mode = "main";
 

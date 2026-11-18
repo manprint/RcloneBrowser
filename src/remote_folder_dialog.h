@@ -5,7 +5,7 @@
 #include "pch.h"
 #include "ui_remote_folder_dialog.h"
 
-QString setRemoteMode(int, QString);
+QString setRemoteMode(int, const QString &);
 
 class IconCache;
 class QWidget;
@@ -15,7 +15,7 @@ class RemoteFolderDialog : public QDialog {
 
 public:
   RemoteFolderDialog(bool isMove, bool isMultiSelect,
-                     const QStringList includedList,
+                     const QStringList &includedList,
                      const QModelIndex &sourceIndex, const QString &remote,
                      const QString &remoteType, const QString &remoteMode,
                      bool isLocal, const QModelIndex &rootIndex,

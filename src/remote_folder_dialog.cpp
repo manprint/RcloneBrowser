@@ -4,14 +4,11 @@
 #include "utils.h"
 
 RemoteFolderDialog::RemoteFolderDialog(
-    bool isMove, bool isMultiSelect, QStringList includedList,
+    bool isMove, bool isMultiSelect, const QStringList &includedList,
     const QModelIndex &sourceIndex, const QString &remote,
     const QString &remoteType, const QString &remoteMode, bool isLocal,
     const QModelIndex &rootIndex, ItemModel *model, QWidget *parent)
-    : QDialog(parent) {
-
-  pSourceIndex = sourceIndex;
-  mRootIndex = rootIndex;
+    : QDialog(parent), pSourceIndex(sourceIndex), mRootIndex(rootIndex) {
 
   ui.setupUi(this);
 
@@ -358,8 +355,11 @@ QStringList RemoteFolderDialog::getFilterList() {
 
   if (!ui.textFilter->toPlainText().trimmed().isEmpty()) {
 
+    // as in a --filter-from file (and the Filter tab of a task): blank lines
+    // and "#"/";" comments are no rule; rclone stops on them ("malformed rule")
     for (auto line : ui.textFilter->toPlainText().trimmed().split('\n')) {
-      if (!line.isEmpty()) {
+      const QString t = line.trimmed();
+      if (!t.isEmpty() && !t.startsWith('#') && !t.startsWith(';')) {
         list << line;
       }
     }

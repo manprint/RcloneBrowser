@@ -276,7 +276,8 @@ private slots:
         "- go/version: go1.25\\n- go/linking: static\\n- go/tags: none\\n';;\n"
         " listremotes) echo '[]';;\n"
         " rcd) exit 1;;\n"
-        " *) exit 0;;\n"
+        // a transfer from a "slow-source" folder keeps running for a while
+        " *) case \"$*\" in *slow-source*) sleep 3;; esac; exit 0;;\n"
         "esac\n");
     script.close();
     QVERIFY(script.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner |
@@ -299,9 +300,14 @@ private slots:
     const QList<JobOptions *> all = list->getTasks();
     for (JobOptions *jo : all) {
       list->Forget(jo);
+      // the window of the test is gone: nothing else uses the task
+      delete jo;
     }
     GetSettings()->remove(QStringLiteral("Settings/confirmTaskRun"));
     GetSettings()->remove(QStringLiteral("Settings/sortTask"));
+    // a running queue would start at the next MainWindow
+    GetSettings()->remove(QStringLiteral("Settings/queueStatus"));
+    QFile::remove(GetConfigDir().absoluteFilePath(QStringLiteral("queue.conf")));
   }
 
   // T-TASK-DUP (#139)
@@ -527,6 +533,51 @@ private slots:
     QCOMPARE(box.texts.size(), 5);
     QCOMPARE(jobs(), 4);
     waitAllEnded(w);
+  }
+
+  // T-TASK-DELETE-QUEUED: a task deleted while its run waits first in the
+  // queue (another transfer is running) leaves the queue too. Its item used to
+  // stay there, and the deleted task ran when the other transfer ended.
+  void T_TASK_DELETE_QUEUED() {
+    GetSettings()->setValue(QStringLiteral("Settings/confirmTaskRun"), false);
+    mkTask(QStringLiteral("task-slow"),
+           QStringLiteral("/nonexistent/slow-source"),
+           QStringLiteral("/nonexistent/ds"));
+    mkTask(QStringLiteral("task-q"), QStringLiteral("/nonexistent/q"),
+           QStringLiteral("/nonexistent/dq"));
+
+    MainWindow w;
+    Answerer box;
+    box.answer = QMessageBox::Yes;
+    auto *list = w.findChild<QListWidget *>(QStringLiteral("tasksListWidget"));
+    auto *queue = w.findChild<QListWidget *>(QStringLiteral("queueListWidget"));
+    auto *tabs = w.findChild<QTabWidget *>(QStringLiteral("tabs"));
+    QVERIFY(list && queue && tabs);
+    const auto jobs = [&w]() { return w.findChildren<JobWidget *>().size(); };
+
+    action(w, "actionStartQueue")->trigger();
+    selectOnly(list, {QStringLiteral("task-slow")});
+    action(w, "actionRun")->trigger();
+    QCOMPARE(jobs(), 1);
+
+    // the queue runs, but another transfer does: task-q waits
+    selectOnly(list, {QStringLiteral("task-q")});
+    action(w, "actionAddToQueue")->trigger();
+    QCOMPARE(queue->count(), 1);
+    QCOMPARE(jobs(), 1);
+
+    selectOnly(list, {QStringLiteral("task-q")});
+    action(w, "actionDelete")->trigger();
+    QCOMPARE(itemTexts(list), QStringList{QStringLiteral("task-slow")});
+    QCOMPARE(queue->count(), 0);
+    QVERIFY2(tabs->tabText(3).startsWith(QStringLiteral("Queue (0)")),
+             qPrintable(tabs->tabText(3)));
+
+    // nothing is left to start when task-slow ends
+    waitAllEnded(w);
+    QTest::qWait(300);
+    QCOMPARE(jobs(), 1);
+    action(w, "actionStopQueue")->trigger();
   }
 };
 
