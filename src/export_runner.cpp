@@ -57,11 +57,15 @@ ProgressDialog *startExport(const QString &remote, const QString &path,
     QTextStream out(file);
     out.setEncoding(QStringConverter::Utf8);
     for (const ListEntry &e : entries) {
+      // a CSV field: a quote in a name is doubled (RFC 4180), else the line
+      // has one field more or less
+      const QString path =
+          QLatin1Char('"') + QString(e.path).replace("\"", "\"\"") +
+          QLatin1Char('"');
       if (onlyNames) {
-        out << "\"" << e.path << "\"" << '\n';
+        out << path << '\n';
       } else {
-        out << "\"" << e.path << "\""
-            << ","
+        out << path << ","
             << "\"" << lsjsonModifiedText(e.modTime) << "\""
             << "," << e.size << '\n';
       }
