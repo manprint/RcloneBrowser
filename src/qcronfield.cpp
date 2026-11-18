@@ -35,6 +35,24 @@
 
 QCronField::QCronField() : _is_valid(false) {}
 
+QCronField::~QCronField() { _freeNodes(); }
+
+/******************************************************************************/
+
+bool QCronField::_continuesNode(const QString &str) {
+  // what may follow a parsed node: a list element, a range end or a step
+  return !str.isEmpty() && (str[0] == ',' || str[0] == '-' || str[0] == '/');
+}
+
+/******************************************************************************/
+
+void QCronField::_freeNodes() {
+  qDeleteAll(_nodes);
+  _nodes.clear();
+  _root = nullptr;
+  _last_node = nullptr;
+}
+
 /******************************************************************************/
 
 QCronIntNode *QCronField::_parseInt(QString &str) {
@@ -58,7 +76,7 @@ QCronIntNode *QCronField::_parseInt(QString &str) {
                                   .arg(_min)
                                   .arg(_max));
   }
-  return new QCronIntNode(value);
+  return _own(new QCronIntNode(value));
 }
 
 /******************************************************************************/
@@ -83,7 +101,7 @@ QCronRangeNode *QCronField::_parseRange(QString &str) {
     throw QCronFieldException(
         QString("Invalid range: end is before start at %1").arg(str));
   }
-  return new QCronRangeNode(begin, end);
+  return _own(new QCronRangeNode(begin, end));
 }
 
 /******************************************************************************/
@@ -101,16 +119,24 @@ QCronEveryNode *QCronField::_parseEvery(QString &str) {
     throw QCronFieldException(
         QString("Invalid step %1: must be at least 1").arg(step->value()));
   }
-  return new QCronEveryNode(_last_node, step);
+  return _own(new QCronEveryNode(_last_node, step));
 }
 
 /******************************************************************************/
 
 QCronListNode *QCronField::_parseList(QString &str) {
-  QCronListNode *list = new QCronListNode();
+  if (_last_node == nullptr) {
+    // ",5": a list element would be a null node
+    throw QCronFieldException(
+        QString("Syntax error at %1: list has no first element").arg(str));
+  }
+  QCronListNode *list = _own(new QCronListNode());
   list->nodes() << _last_node;
   _last_node = list;
   while (!str.isEmpty()) {
+    if (!_continuesNode(str)) {
+      throw QCronFieldException(QString("Syntax error at %1").arg(str));
+    }
     // a range or a step is built on the element before it, which it replaces
     const bool extends = str[0] == '-' || str[0] == '/';
     if (str[0] == ',') {
@@ -147,7 +173,7 @@ QCronNode *QCronField::_parseNode(QString &str) {
     node = _parseEvery(str);
   } else if ("*" == QString(c)) {
     str.remove(0, 1);
-    node = new QCronAllNode;
+    node = _own(new QCronAllNode);
   } else if ("," == QString(c)) {
     node = _parseList(str);
   }
@@ -161,9 +187,15 @@ QCronNode *QCronField::_parseNode(QString &str) {
 /******************************************************************************/
 
 void QCronField::parse(QString &str) {
-  _last_node = NULL;
+  // a field parsed again drops the nodes of the previous pattern
+  _freeNodes();
+  _is_valid = false;
   _root = _parseNode(str);
   while (!str.isEmpty()) {
+    // "1*" or "*5" is not a value followed by another one
+    if (!_continuesNode(str)) {
+      throw QCronFieldException(QString("Syntax error at %1").arg(str));
+    }
     _last_node = _root;
     _root = _parseNode(str);
   }

@@ -35,8 +35,8 @@ public:
   QString getSchedulerTaskId();
   QString getSchedulerRequestId();
   int getExecutionMode();
-  void updateTaskName(const QString newTaskName);
-  void updateTaskStatus(const QString requestID, const QString taskStatus);
+  void updateTaskName(const QString &newTaskName);
+  void updateTaskStatus(const QString &requestID, const QString &taskStatus);
   void stopScheduler();
   void startScheduler();
 
@@ -56,11 +56,11 @@ private:
   QStringList mArgs;
 
   void applySettingsToScreen();
-  void applyArgsToScheduler(QStringList args);
+  void applyArgsToScheduler(const QStringList &args);
   void applyScreenToSettings();
   void updateInfoFields();
 
-  static QString enhanceCron(QString cron);
+  static QString enhanceCron(const QString &cron);
   friend QDateTime cronNextRun(const QString &, const QDateTime &, QString *);
 
   QDateTime nextRun();

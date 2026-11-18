@@ -54,6 +54,10 @@ private:
 class QCronField {
 public:
   QCronField();
+  ~QCronField();
+  // the field owns the nodes it parsed: a copy would free them twice
+  QCronField(const QCronField &) = delete;
+  QCronField &operator=(const QCronField &) = delete;
 
   // Accessors.
   void setField(EField field) {
@@ -109,12 +113,26 @@ public:
   void reset(QDateTime &dt);
 
 private:
-  int _min;
-  int _max;
-  EField _field;
+  // set by setField() and parse(); defaults so that a field that was never
+  // parsed (or failed to parse) holds no garbage pointer
+  int _min = 0;
+  int _max = 0;
+  EField _field = MINUTE;
   bool _is_valid;
-  QCronNode *_last_node;
-  QCronNode *_root;
+  QCronNode *_last_node = nullptr;
+  QCronNode *_root = nullptr;
+  // Every node parse() allocated. Nodes point at each other (a range at its
+  // ends, a step at what it steps through, a list at its elements, and a list
+  // element can be replaced by a range built on it), so they are freed here
+  // all together, also when parsing stops halfway on an exception.
+  QList<QCronNode *> _nodes;
+
+  template <class T> T *_own(T *node) {
+    _nodes << node;
+    return node;
+  }
+  void _freeNodes();
+  static bool _continuesNode(const QString &str);
 
   QCronIntNode *_parseInt(QString &str);
   QCronRangeNode *_parseRange(QString &str);

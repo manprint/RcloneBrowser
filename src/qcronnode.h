@@ -49,7 +49,8 @@ public:
   virtual void process(QCron *cron, QDateTime &dt, EField field) = 0;
 
 protected:
-  QCronField *_field;
+  // set by QCronField::_parseNode; the bounds of a range or a step have none
+  QCronField *_field = nullptr;
 };
 
 class QCronValueNode : public QCronNode {};
