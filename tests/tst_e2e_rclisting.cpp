@@ -489,6 +489,54 @@ private slots:
     QCOMPARE(lockedSpy.count(), 1);
     QCOMPARE(global.rcloneLsProcessCount, 0);
   }
+  // T-E2E-RCLIST-SAMENAME: a bucket remote lists a file and a folder of the
+  // same name (the objects "a" and "a/b"): one row each, also after refreshes
+  // (the merge matched rows by name only and added a row every time).
+  void T_E2E_RCLIST_SAMENAME() {
+    QTemporaryDir src;
+    QVERIFY(src.isValid());
+    QVERIFY(writeFile(QDir(src.path()).filePath("f"), "data"));
+
+    startDaemon();
+    if (QTest::currentTestFailed()) {
+      return;
+    }
+    // the memory backend keeps its objects while the daemon runs
+    RcReply reply;
+    for (const QString &dst : {QString("a"), QString("a/b")}) {
+      rcCall("operations/copyfile",
+             QJsonObject{{"srcFs", src.path()},
+                         {"srcRemote", "f"},
+                         {"dstFs", ":memory:bkt"},
+                         {"dstRemote", dst}},
+             reply);
+      if (QTest::currentTestFailed()) {
+        return;
+      }
+      QVERIFY2(reply.ok, qPrintable(reply.error));
+    }
+
+    IconCache icons;
+    ItemModel model(&icons, ":memory", nullptr);
+    QModelIndex root;
+    loadModel(model, "bkt", root);
+    if (QTest::currentTestFailed()) {
+      return;
+    }
+    QVERIFY(model.lastLoadUsedRc());
+    for (int pass = 0; pass < 3; ++pass) {
+      QCOMPARE(childNames(model, root), (QStringList{"a", "a"}));
+      int folders = 0;
+      for (int r = 0; r < model.rowCount(root); ++r) {
+        folders += model.isFolder(model.index(r, 0, root)) ? 1 : 0;
+      }
+      QCOMPARE(folders, 1);
+      model.refresh(root);
+      QTRY_VERIFY_WITH_TIMEOUT(isReady(root), 20000);
+      QTRY_VERIFY_WITH_TIMEOUT(iconsSettled(root), 20000);
+    }
+    QCOMPARE(global.rcloneLsProcessCount, 0);
+  }
 };
 
 QTEST_MAIN(TestE2eRcListing)

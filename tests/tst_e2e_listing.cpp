@@ -250,6 +250,112 @@ private slots:
     QCOMPARE(global.rcloneLsProcessCount, 0);
   }
 
+  // T-E2E-LIST-REFRESH-BUSY: a refresh drops the rows that are gone, but a
+  // folder still being listed or a file still waiting for its icon has its
+  // pointer held elsewhere (the listing, IconCache): it is only marked, the
+  // end of that work frees it. The same when its parent row is freed.
+  void T_E2E_LIST_REFRESH_BUSY() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QDir d(dir.path());
+    QVERIFY(QDir().mkpath(d.filePath("busy")));
+    QVERIFY(writeFile(d.filePath("icon.txt"), "i"));
+    QVERIFY(writeFile(d.filePath("keep.txt"), "k"));
+
+    IconCache icons;
+    ItemModel model(&icons, "loc", nullptr);
+    QModelIndex root;
+    loadModel(model, dir.path(), root);
+    if (QTest::currentTestFailed()) {
+      return;
+    }
+    QCOMPARE(childNames(model, root),
+             (QStringList{"busy", "icon.txt", "keep.txt"}));
+
+    // the states a running listing and a pending icon lookup leave
+    Item *busy = nullptr;
+    Item *icon = nullptr;
+    for (Item *c : itemOf(root)->childs) {
+      if (c->name == "busy") {
+        busy = c;
+      } else if (c->name == "icon.txt") {
+        icon = c;
+      }
+    }
+    QVERIFY(busy && icon);
+    busy->state = Item::Loading2;
+    icon->state = Item::LoadingIcon;
+
+    QVERIFY(QDir(d.filePath("busy")).removeRecursively());
+    QVERIFY(QFile::remove(d.filePath("icon.txt")));
+    model.refresh(root);
+    QTRY_VERIFY_WITH_TIMEOUT(isReady(root), 20000);
+    QTRY_VERIFY_WITH_TIMEOUT(iconsSettled(root), 20000);
+    QCOMPARE(childNames(model, root), QStringList{"keep.txt"});
+    // out of the tree but not freed
+    QVERIFY(busy->isDeleted);
+    QVERIFY(icon->isDeleted);
+    busy->state = Item::Ready;
+    delete busy;
+    icon->state = Item::Ready;
+    delete icon;
+
+    Item *parent = new Item();
+    Item *waiting = new Item();
+    waiting->parent = parent;
+    waiting->state = Item::LoadingIcon;
+    parent->childs.append(waiting);
+    delete parent;
+    QVERIFY(waiting->isDeleted);
+    waiting->state = Item::Ready;
+    delete waiting;
+  }
+
+  // T-E2E-LIST-RENAME: a renamed folder takes the items already listed under
+  // it along (their paths follow the new name, else an action on one of them
+  // would reach the old path); the model root (an invalid index) is never
+  // renamed; a drive label changes only the shown name of a root.
+  void T_E2E_LIST_RENAME() {
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QDir d(dir.path());
+    QVERIFY(writeFile(d.filePath("old/in.txt"), "i"));
+
+    IconCache icons;
+    ItemModel model(&icons, "loc", nullptr);
+    QModelIndex root;
+    loadModel(model, dir.path(), root);
+    if (QTest::currentTestFailed()) {
+      return;
+    }
+    QCOMPARE(childNames(model, root), QStringList{"old"});
+    const QModelIndex folder = model.index(0, 0, root);
+    model.rowCount(folder);
+    QTRY_VERIFY_WITH_TIMEOUT(isReady(folder), 20000);
+    QTRY_VERIFY_WITH_TIMEOUT(iconsSettled(folder), 20000);
+    QCOMPARE(childNames(model, folder), QStringList{"in.txt"});
+
+    // the rename on the remote, then the model's
+    QVERIFY(QDir(d).rename("old", "new"));
+    model.rename(folder, "new");
+    QCOMPARE(model.path(folder).path(), d.filePath("new"));
+    QCOMPARE(model.path(model.index(0, 0, folder)).path(),
+             d.filePath("new/in.txt"));
+
+    // the model root: no crash, nothing changes
+    model.rename(QModelIndex(), "x");
+    QCOMPARE(model.path(root).path(), d.path());
+
+    model.setRootLabel(root, "/ (label)");
+    QCOMPARE(model.data(root, Qt::DisplayRole).toString(), QString("/ (label)"));
+    QCOMPARE(model.path(root).path(), d.path());
+    // not a root: nothing changes
+    model.setRootLabel(folder, "y");
+    QCOMPARE(model.data(folder, Qt::DisplayRole).toString(), QString("new"));
+    model.setRootLabel(QModelIndex(), "z");
+    QCOMPARE(model.path(root).path(), d.path());
+  }
+
   // T-E2E-EXPORT: lsjson -R streamed into a CSV (and a names-only) file.
   void T_E2E_EXPORT() {
     QTemporaryDir src, out;
@@ -257,7 +363,7 @@ private slots:
     const QDir d(src.path());
     const QStringList files = {
         "a.txt", "b.csv", "dir [x] (y)/inner.txt", "12345 /trail.txt",
-        nameUmlaut(), "deep/er/" + nameTilde()};
+        nameUmlaut(), "deep/er/" + nameTilde(), "x \"q\".txt"};
     for (const QString &f : files) {
       QVERIFY(writeFile(d.filePath(f), QByteArray(7, 'x')));
     }
@@ -267,7 +373,18 @@ private slots:
     QVERIFY(options.mid(0, 4) ==
             (QStringList{"lsjson", "-R", "--files-only", "--no-mimetype"}));
 
-    // CSV: "path","yyyy-MM-dd HH:mm:ss",size
+    // the extra options split as in the other dialogs: quotes keep a value
+    // with spaces in one argument, a double space gives no empty argument
+    // (rclone would take it for a second path)
+    auto *extra = dlg.findChild<QLineEdit *>("textExtra");
+    QVERIFY(extra);
+    extra->setText("--exclude \"dir [x] (y)/**\"  --max-depth 9");
+    QCOMPARE(dlg.getOptions().mid(4),
+             (QStringList{"--exclude", "dir [x] (y)/**", "--max-depth", "9",
+                          "loc:" + QDir(src.path()).path()}));
+    extra->clear();
+
+    // CSV: "path","yyyy-MM-dd HH:mm:ss",size; a quote in a path is doubled
     const QString csv = QDir(out.path()).filePath("list.csv");
     ProgressDialog *p1 =
         startExport("loc", src.path(), options, csv, false, nullptr);
@@ -279,12 +396,13 @@ private slots:
     QCOMPARE(proc1->exitCode(), 0);
     QTRY_COMPARE_WITH_TIMEOUT(readLines(csv).size(), files.size(), 10000);
     const QRegularExpression csvRe(QRegularExpression::anchoredPattern(
-        R"re("(.+)","\d{4}-\d\d-\d\d \d\d:\d\d:\d\d",7)re"));
+        QStringLiteral("\"((?:[^\"]|\"\")+)\",\"\\d{4}-\\d\\d-\\d\\d "
+                       "\\d\\d:\\d\\d:\\d\\d\",7")));
     QStringList paths;
     for (const QString &line : readLines(csv)) {
       const auto m = csvRe.match(line);
       QVERIFY2(m.hasMatch(), qPrintable(line));
-      paths << m.captured(1);
+      paths << m.captured(1).replace("\"\"", "\"");
     }
     paths.sort();
     QStringList expected = files;
@@ -304,7 +422,7 @@ private slots:
     QTRY_COMPARE_WITH_TIMEOUT(readLines(txt).size(), files.size(), 10000);
     QStringList quoted;
     for (const QString &f : files) {
-      quoted << "\"" + f + "\"";
+      quoted << "\"" + QString(f).replace("\"", "\"\"") + "\"";
     }
     quoted.sort();
     QStringList got = readLines(txt);
