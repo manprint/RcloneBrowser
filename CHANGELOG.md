@@ -1,5 +1,31 @@
 # Change Log
 
+## [2.4.0] - 2026-11-18
+Changes since 2.3.0: bug fixes from a full bug-hunting review of the Linux build. On S3, Google Cloud Storage and Azure Blob remotes, Create folder, Delete, Rename and the transfers that create or remove empty folders now pass rclone's directory marker options (`--s3-directory-markers`, `--gcs-directory-markers`, `--azureblob-directory-markers`), so an empty folder there is kept as a `name/` marker object; with `--create-empty-src-dirs` this costs one more request for every file uploaded to such a remote.
+
+-   FIXED: a folder made with Create folder on an S3, Google Cloud Storage or Azure Blob remote did not appear, because rclone creates nothing there for an empty folder; it is now kept as a directory marker
+-   FIXED: on those remotes Delete of an empty folder left its marker behind, Rename of a folder left its empty subfolders (and an empty folder itself) behind, and a folder Move or a transfer with `--create-empty-src-dirs` or `--delete-empty-src-dirs` did not create or remove the empty folders
+-   FIXED: after Rename of a folder the files and folders listed below it kept the old path, so an action on one of them failed until the next refresh; a new name with `/` is refused, and an unchanged name does nothing
+-   FIXED: a bucket that holds both an object `a` and a folder `a/` showed them as one row
+-   FIXED: a refresh that removed a folder still being listed, or a file still waiting for its icon, could crash Rclone Browser
+-   FIXED: an rclone that cannot be started (missing or not executable) left a transfer job "Running", a mount "Mounted", a stream "Streaming", or a progress or Delete dialog open with no way to close it; each now ends with the error shown
+-   FIXED: Delete: Cancel while the remaining deletions waited for a free slot left the dialog "Cancelling" for good
+-   FIXED: Refresh of the Remotes list while the previous listing still ran showed every remote twice, and an rclone that crashed during the listing was reported as one that cannot be started
+-   FIXED: the Filter tab of a task and the filter of the folder Move/Copy dialog passed blank lines and `#` or `;` comment lines as rules, and rclone stopped with "malformed rule"; they are skipped, as in a filter file
+-   FIXED: Stream: a file name with spaces reached the player as several arguments; an empty player command, or a player that cannot be started, now shows an error and stops rclone
+-   FIXED: Export: a name with a double quote broke its CSV line, and extra options with quotes or a double space were passed wrongly
+-   FIXED: the upload file dialog crashed with a translated Qt (it looked for a button named "Open")
+-   FIXED: Check: "Download" and "Size only" could both be checked, although they exclude each other
+-   FIXED: queue: deleting a task that waited in the queue skipped the next queued item, kept the deleted task when it waited first while another transfer ran, and put the count of the Queue tab out of step; a saved transfer added to an empty queue ran as a scheduled task instead of a queue task
+-   FIXED: scheduler: a cron field that starts with a comma (`,5`) or puts a value next to a star (`1*`, `*5`) is reported as not valid instead of being accepted, and a cut-short line of `scheduler.conf` is skipped instead of being read past its end
+-   FIXED: "Add to scheduler" with mount tasks said that they cannot be added to the queue
+-   FIXED: a mount script that returns 0 showed "Finished (returned error code: 0)" with one of the icon themes
+-   FIXED: "rclone config" did nothing when the terminal could not be started; it now shows an error
+-   FIXED: Linux: without `XDG_CONFIG_HOME` (or with a relative one) a portable `rclone-browser.ini` was looked for in `/rclone-browser`
+-   FIXED: Linux: the message about missing write access to the temporary folder cut the end of the folder's name
+-   FIXED: memory leaks: queue and task list items, deleted tasks, the unsaved tasks of the Transfer and Mount dialogs, mount scripts, the cron parser, and an error box on every failed quit
+-   CHANGED: tests: new end-to-end tests of Delete, mounts and the Remotes list, and unit tests of the file and mount dialogs; like the others they use local throwaway configs only
+
 ## [2.3.0] - 2026-11-07
 Changes since 2.2.0: bug fixes of the scheduler, of the tasks file and of Unmount on Linux, found in a review with rclone 1.76.0. A cron list with a range or a step (`30,1-10/2`, `1,*/20`) now runs at the times it names, so a schedule saved with one runs at other times than before.
 
