@@ -134,11 +134,9 @@ StreamWidget::StreamWidget(QProcess *rclone, QProcess *player,
     }
   });
 
-  QObject::connect(
-      mRclone,
-      static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
-          &QProcess::finished),
-      this, [=](int status, QProcess::ExitStatus) {
+  // the end of the stream, from finished() or from an rclone that could not
+  // start, which emits no finished() (the job stayed "Streaming")
+  auto onRcloneEnd = [=](int status, QProcess::ExitStatus) {
         mRclone->deleteLater();
         isRunning = false;
 
@@ -177,7 +175,25 @@ StreamWidget::StreamWidget(QProcess *rclone, QProcess *player,
 
         emit finished();
         //          emit closed();
-      });
+      };
+  QObject::connect(
+      mRclone,
+      static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
+          &QProcess::finished),
+      this, onRcloneEnd);
+  // queued, as in JobWidget: the error can come from inside start()
+  QObject::connect(
+      mRclone, &QProcess::errorOccurred, this,
+      [=](QProcess::ProcessError error) {
+        if (error == QProcess::FailedToStart && isRunning) {
+          ui.output->appendPlainText(mRclone->errorString());
+          if (mPlayer) {
+            mPlayer->terminate();
+          }
+          onRcloneEnd(-1, QProcess::CrashExit);
+        }
+      },
+      Qt::QueuedConnection);
 
   ui.showDetails->setStyleSheet(
       "QToolButton { border: 0; color: green; font-weight: bold;}");
@@ -192,7 +208,9 @@ void StreamWidget::cancel() {
     return;
   }
 
-  mPlayer->terminate();
+  if (mPlayer) {
+    mPlayer->terminate();
+  }
   mRclone->kill();
   mRclone->waitForFinished();
 }

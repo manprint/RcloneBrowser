@@ -265,6 +265,28 @@ private slots:
     QCOMPARE(spy.count(), 1);
     QCOMPARE(spy.at(0).at(1).toString(), QStringLiteral("stopped"));
   }
+
+  // T-E2E-JOB-NOSTART: an rclone that cannot start emits no finished() from
+  // QProcess; the job still ends as an error (it used to stay "Running"
+  // forever, holding the queue).
+  void T_E2E_JOB_NOSTART() {
+    QTemporaryDir src, dst;
+    QVERIFY(src.isValid() && dst.isValid());
+    Job job({"copy", src.path(), dst.path()}, pollutedEnv());
+    QSignalSpy spy(job.w.get(), &JobWidget::finished);
+    job.proc->start(QDir(src.path()).filePath(QStringLiteral("no-rclone")),
+                    job.ta.args);
+    QVERIFY(waitFinished(spy));
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(spy.at(0).at(1).toString(), QStringLiteral("error"));
+    QVERIFY(!job.w->isRunning);
+    QCOMPARE(job.w->getStatus(), QStringLiteral("2_transfer_error"));
+    QVERIFY(job.output().contains(QStringLiteral("rclone could not be started")));
+    QTRY_VERIFY_WITH_TIMEOUT(job.proc.isNull(), 5000);
+    // closing the ended job does not cancel anything
+    job.w->cancel();
+    QCOMPARE(spy.count(), 1);
+  }
 };
 
 QTEST_MAIN(TestE2eJobWidget)

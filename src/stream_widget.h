@@ -28,7 +28,8 @@ private:
   Ui::StreamWidget ui;
 
   QProcess *mRclone;
-  QProcess *mPlayer;
+  // the player deletes itself when it ends or cannot start
+  QPointer<QProcess> mPlayer;
 
   // the command as the user would type it in the native shell
   QString mCommand;
