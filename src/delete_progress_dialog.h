@@ -57,6 +57,9 @@ private:
   int mDeletingProcessesCount = 0;
 
   void updateInfo();
+  // after a cancel with no rclone process left (the rest of the queue waited
+  // for a free slot): no process end comes to make the dialog closable
+  void endCancelledIfIdle();
 
   // deleteProcessor actions mutex
   QMutex deleteProcessorMutex;

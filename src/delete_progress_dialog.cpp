@@ -101,6 +101,7 @@ DeleteProgressDialog::DeleteProgressDialog(const QList<QStringList> &pDataList,
   QObject::connect(mCancelButton, &QPushButton::clicked, this, [=]() {
     if (mCancelled) {
       emit reject();
+      return;
     }
 
     mQuitting = true;
@@ -108,6 +109,7 @@ DeleteProgressDialog::DeleteProgressDialog(const QList<QStringList> &pDataList,
     ui.labelOperation->setStyleSheet(
         "QLabel { color: red; font-weight: bold; }");
     ui.labelOperation->setText("Cancelling ");
+    endCancelledIfIdle();
   });
 
   //  QObject::connect(ui.buttonBox, &QDialogButtonBox::rejected, this,
@@ -169,13 +171,33 @@ void DeleteProgressDialog::closeEvent(QCloseEvent *ev) {
 
   if (mCancelled) {
     emit reject();
+    ev->ignore();
+    return;
   }
 
   ui.labelOperation->setStyleSheet("QLabel { color: red; font-weight: bold; }");
   ui.labelOperation->setText("Cancelling ");
+  endCancelledIfIdle();
 
   ev->ignore();
   return;
+}
+
+void DeleteProgressDialog::endCancelledIfIdle() {
+  QMutexLocker locker(&deleteProcessMutex);
+  if (mCancelled || mDeletingProcessesCount != 0) {
+    return;
+  }
+  // a process given to start() counts only from its started()
+  for (const QProcess *p : findChildren<QProcess *>()) {
+    if (p->state() != QProcess::NotRunning) {
+      return;
+    }
+  }
+  ui.labelOperation->setStyleSheet("QLabel { color: red; font-weight: bold; }");
+  ui.labelOperation->setText(mError ? "Error " : "Cancelled ");
+  mCancelled = true;
+  mCancelButton->setText("&Close");
 }
 
 void DeleteProgressDialog::expand() { ui.buttonShowOutput->setChecked(true); }
@@ -201,67 +223,88 @@ void DeleteProgressDialog::addNewDeleteProcess(const QStringList &args) {
     updateInfo();
   });
 
+  // the end of one process, from finished() or from an rclone that could not
+  // start: that one emits no finished(), and the dialog stayed "Running"
+  // with no way to close it
+  auto onDeleteEnd = [=](int code, QProcess::ExitStatus status) {
+    QMutexLocker locker(&deleteProcessMutex);
+
+    global.rcloneLsProcessCount--;
+    mDeletingProcessesCount--;
+
+    if (status == QProcess::NormalExit && code == 0) {
+      mDeleted++;
+
+    } else {
+      mError = true;
+
+      ui.labelOperation->setStyleSheet(
+          "QLabel { color: red; font-weight: bold; }");
+      ui.labelOperation->setText("Error ");
+      ui.buttonShowOutput->setChecked(true);
+      ui.buttonBox->setEnabled(true);
+    }
+
+    updateInfo();
+    deleteProcess->deleteLater();
+
+    if (!mQuitting) {
+      if (mItemsToDelete.count() == 0 &&
+          mDeletingProcessesCount == 0) {
+        // all done - bye bye
+        if (mClose && !mError) {
+
+          QTimer::singleShot(1000, Qt::CoarseTimer, this,
+                             SLOT(emitAccept()));
+        } else {
+
+          mCancelled = true;
+          mCancelButton->setText("&Close");
+        }
+      }
+
+    } else {
+
+      if (mDeletingProcessesCount == 0) {
+
+        if (!mError) {
+          ui.labelOperation->setStyleSheet(
+              "QLabel { color: red; font-weight: bold; }");
+          ui.labelOperation->setText("Cancelled ");
+        } else {
+
+          ui.labelOperation->setStyleSheet(
+              "QLabel { color: red; font-weight: bold; }");
+          ui.labelOperation->setText("Error ");
+        }
+
+        mCancelled = true;
+
+        mCancelButton->setText("&Close");
+      }
+    }
+  };
   QObject::connect(deleteProcess,
                    static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
                        &QProcess::finished),
-                   this, [=](int code, QProcess::ExitStatus status) {
-                     QMutexLocker locker(&deleteProcessMutex);
-
-                     global.rcloneLsProcessCount--;
-                     mDeletingProcessesCount--;
-
-                     if (status == QProcess::NormalExit && code == 0) {
-                       mDeleted++;
-
-                     } else {
-                       mError = true;
-
-                       ui.labelOperation->setStyleSheet(
-                           "QLabel { color: red; font-weight: bold; }");
-                       ui.labelOperation->setText("Error ");
-                       ui.buttonShowOutput->setChecked(true);
-                       ui.buttonBox->setEnabled(true);
-                     }
-
-                     updateInfo();
-                     deleteProcess->deleteLater();
-
-                     if (!mQuitting) {
-                       if (mItemsToDelete.count() == 0 &&
-                           mDeletingProcessesCount == 0) {
-                         // all done - bye bye
-                         if (mClose && !mError) {
-
-                           QTimer::singleShot(1000, Qt::CoarseTimer, this,
-                                              SLOT(emitAccept()));
-                         } else {
-
-                           mCancelled = true;
-                           mCancelButton->setText("&Close");
-                         }
-                       }
-
-                     } else {
-
-                       if (mDeletingProcessesCount == 0) {
-
-                         if (!mError) {
-                           ui.labelOperation->setStyleSheet(
-                               "QLabel { color: red; font-weight: bold; }");
-                           ui.labelOperation->setText("Cancelled ");
-                         } else {
-
-                           ui.labelOperation->setStyleSheet(
-                               "QLabel { color: red; font-weight: bold; }");
-                           ui.labelOperation->setText("Error ");
-                         }
-
-                         mCancelled = true;
-
-                         mCancelButton->setText("&Close");
-                       }
-                     }
-                   });
+                   this, onDeleteEnd);
+  // queued: on Windows the error comes from inside start()
+  QObject::connect(
+      deleteProcess, &QProcess::errorOccurred, this,
+      [=](QProcess::ProcessError error) {
+        if (error != QProcess::FailedToStart) {
+          return;
+        }
+        ui.output->appendPlainText(deleteProcess->errorString());
+        {
+          // counted as started() counts a process that runs
+          QMutexLocker locker(&deleteProcessMutex);
+          global.rcloneLsProcessCount++;
+          mDeletingProcessesCount++;
+        }
+        onDeleteEnd(-1, QProcess::CrashExit);
+      },
+      Qt::QueuedConnection);
 
   QObject::connect(deleteProcess, &QProcess::readyRead, this, [=]() {
     QString output = deleteProcess->readAll();
