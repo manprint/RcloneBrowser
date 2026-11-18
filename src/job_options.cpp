@@ -1,4 +1,5 @@
 #include "job_options.h"
+#include "remote_ops.h"
 #include "upload_headers.h"
 #include "utils.h"
 #include <qexception.h>
@@ -187,6 +188,13 @@ QStringList JobOptions::getOptions() const {
     }
   }
 
+  // A bucket based remote (S3, GCS, Azure Blob) keeps an empty folder only as
+  // a marker object: without the marker flags --create-empty-src-dirs creates
+  // no folder there and --delete-empty-src-dirs leaves the markers behind.
+  // Other backends ignore the flags. A flag typed in the extra options counts
+  // too.
+  list << RemoteOps::emptyDirMarkerFlags(list);
+
   // rclone adds every include rule before every exclude rule whatever the
   // order of the flags, so with both an Include and an Exclude text the Exclude
   // text would never apply to a file that an include matches (#179). Then the
@@ -229,8 +237,15 @@ QStringList JobOptions::getOptions() const {
     }
   }
 
+  // the Filter tab reads like a --filter-from file: rclone skips its blank
+  // lines and its "#" and ";" comments there, but a comment given as --filter
+  // stops the job ("malformed rule")
   if (!filtered.isEmpty()) {
     for (auto line : filtered.split('\n')) {
+      const QString t = line.trimmed();
+      if (t.isEmpty() || t.startsWith('#') || t.startsWith(';')) {
+        continue;
+      }
       list << "--filter" << line;
     }
   }
@@ -301,5 +316,5 @@ QStringList JobOptions::getOptions() const {
   return list;
 }
 
-SerializationException::SerializationException(QString msg)
+SerializationException::SerializationException(const QString &msg)
     : QException(), Message(msg) {}

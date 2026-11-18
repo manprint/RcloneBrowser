@@ -7,14 +7,17 @@ class TestRemoteOps : public QObject {
 
 private slots:
   // T-OPS-MOVEARGS (#171): the argv of a folder move and of a file move, in
-  // today's order (verb, common options, source, destination, dialog options),
-  // and the cleanup of the source folder.
+  // today's order (verb, common options, directory marker flags, source,
+  // destination, dialog options), and the cleanup of the source folder.
   void T_OPS_MOVEARGS() {
     const QStringList common = {"--config", "/tmp/x y.conf", "--fast-list"};
     const QStringList extra = {"--create-empty-src-dirs",
                                "--delete-empty-src-dirs", "--verbose"};
+    const QStringList markers = {"--s3-directory-markers",
+                                 "--gcs-directory-markers",
+                                 "--azureblob-directory-markers"};
     const auto build = [&](const QStringList &pathsAndDest) {
-      return QStringList{"move"} + common + pathsAndDest + extra;
+      return QStringList{"move"} + common + markers + pathsAndDest + extra;
     };
 
     // a folder goes to L/F, not into the contents of L
@@ -45,6 +48,18 @@ private slots:
              build({"loc:p/f.txt", "loc:"}));
     QCOMPARE(RemoteOps::moveArgs("loc", "p", "L", {}, {}),
              QStringList({"move", "loc:p", "loc:L"}));
+    // the marker flags only come with an empty-folder option (they cost a
+    // HEAD request per file on a bucket based remote)
+    QCOMPARE(RemoteOps::moveArgs("loc", "p", "L", common, {"--verbose"}),
+             (QStringList{"move"} + common +
+              QStringList{"loc:p", "loc:L", "--verbose"}));
+    QCOMPARE(RemoteOps::dirMarkerFlags(), markers);
+    QCOMPARE(RemoteOps::emptyDirMarkerFlags({"--create-empty-src-dirs"}),
+             markers);
+    QCOMPARE(RemoteOps::emptyDirMarkerFlags({"--delete-empty-src-dirs"}),
+             markers);
+    QCOMPARE(RemoteOps::emptyDirMarkerFlags({"--verbose", "-n"}),
+             QStringList());
 
     // the path pieces
     QCOMPARE(RemoteOps::joinPath("", "F"), QString("F"));
@@ -67,10 +82,11 @@ private slots:
                QDir(parents.at(i)).filePath(QDir(srcs.at(i)).dirName()));
     }
 
-    // removing the empty source folder: rmdir, never rmdirs or purge
+    // removing the empty source folder: rmdir, never rmdirs or purge; the
+    // marker flags make it remove the marker of a bucket based remote
     QCOMPARE(RemoteOps::sourceCleanupArgs("loc", "p/F", common),
-             QStringList({"rmdir", "--config", "/tmp/x y.conf", "--fast-list",
-                          "loc:p/F"}));
+             QStringList({"rmdir", "--config", "/tmp/x y.conf", "--fast-list"}) +
+                 markers + QStringList{"loc:p/F"});
     QVERIFY(RemoteOps::wantsSourceCleanup(extra));
     QVERIFY(RemoteOps::wantsSourceCleanup({"--delete-empty-src-dirs"}));
     // unchecked: the empty source stays
@@ -165,10 +181,15 @@ private slots:
 
   // T-OPS-MKDIRARGS (#220): the created path is <parent>/<name>, the root
   // parent included, and the names the dialog refuses.
+  // The directory marker flags make a bucket based remote (S3, GCS, Azure
+  // Blob) keep the new empty folder, which it would not create otherwise.
   void T_OPS_MKDIRARGS() {
     const QStringList common = {"--config", "/tmp/x y.conf", "--fast-list"};
+    const QStringList markers = {"--s3-directory-markers",
+                                 "--gcs-directory-markers",
+                                 "--azureblob-directory-markers"};
     const auto build = [&](const QString &target) {
-      return QStringList{"mkdir"} + common + QStringList{target};
+      return QStringList{"mkdir"} + common + markers + QStringList{target};
     };
 
     QCOMPARE(RemoteOps::mkdirArgs("loc", "", "new f", common),
@@ -180,7 +201,7 @@ private slots:
     QCOMPARE(RemoteOps::mkdirArgs("loc", "a b", "[x] (y)", common),
              build("loc:a b/[x] (y)"));
     QCOMPARE(RemoteOps::mkdirArgs("loc", "a", "n", {}),
-             QStringList({"mkdir", "loc:a/n"}));
+             QStringList{"mkdir"} + markers + QStringList{"loc:a/n"});
 
     for (const QString name :
          {"a", "new folder", "[x] (y)", " a ", "a\\b", "..a", "a.", "..."}) {
@@ -191,6 +212,87 @@ private slots:
       QVERIFY2(!RemoteOps::isValidFolderName(name), qPrintable(name));
     }
     QCOMPARE(RemoteOps::kMkdirTimeoutMs, 60000);
+  }
+
+  // T-OPS-DELETEARGS: purge with the directory marker flags for a folder (so
+  // the marker of an empty folder of a bucket based remote goes too), delete
+  // for a file.
+  void T_OPS_DELETEARGS() {
+    const QStringList common = {"--config", "/tmp/x y.conf"};
+    const QStringList markers = RemoteOps::dirMarkerFlags();
+    QCOMPARE(RemoteOps::deleteArgs("s3r", "bkt/new f", true, common),
+             QStringList{"purge"} + common + markers +
+                 QStringList{"s3r:bkt/new f"});
+    QCOMPARE(RemoteOps::deleteArgs("s3r", "bkt/f.txt", false, common),
+             QStringList{"delete"} + common + QStringList{"s3r:bkt/f.txt"});
+    QCOMPARE(RemoteOps::deleteArgs("loc", "a", true, {}),
+             QStringList{"purge"} + markers + QStringList{"loc:a"});
+  }
+
+  // T-OPS-RENAMEARGS: a file is renamed with moveto; a folder with move, the
+  // marker flags and the empty-folder options, then mkdir of the new name and
+  // rmdir of the old one (an empty folder of a bucket based remote is only a
+  // marker, which move does not carry over).
+  void T_OPS_RENAMEARGS() {
+    const QStringList common = {"--config", "/tmp/x y.conf"};
+    const QStringList markers = RemoteOps::dirMarkerFlags();
+    QCOMPARE(
+        RemoteOps::renameArgs("s3r", "bkt/a.txt", "bkt/b.txt", false, common),
+        (QStringList{"moveto"} + common +
+         QStringList{"s3r:bkt/a.txt", "s3r:bkt/b.txt"}));
+    QCOMPARE(
+        RemoteOps::renameArgs("s3r", "bkt/old f", "bkt/new f", true, common),
+        (QStringList{"move"} + common + markers +
+         QStringList{"s3r:bkt/old f", "s3r:bkt/new f",
+                     "--create-empty-src-dirs", "--delete-empty-src-dirs"}));
+
+    const auto followUps = [](const QString &type, const QString &src,
+                              const QString &dest, QProcess::ProcessState state,
+                              QProcess::ProcessError error,
+                              QProcess::ExitStatus status, int exitCode,
+                              const QStringList &opts) {
+      return RemoteOps::folderRenameFollowUps("s3r", type, src, dest, state,
+                                              error, status, exitCode, opts);
+    };
+    const auto done = [&](const QString &type, const QString &src,
+                          const QString &dest, const QStringList &opts) {
+      return followUps(type, src, dest, QProcess::NotRunning,
+                       QProcess::UnknownError, QProcess::NormalExit, 0, opts);
+    };
+    const QStringList mkdirNew =
+        QStringList{"mkdir"} + common + markers + QStringList{"s3r:bkt/new f"};
+    const QStringList rmdirOld =
+        QStringList{"rmdir"} + common + markers + QStringList{"s3r:bkt/old f"};
+    QCOMPARE(done("s3", "bkt/old f", "bkt/new f", common),
+             (QList<QStringList>{mkdirNew, rmdirOld}));
+    QCOMPARE(done("local", "bkt/old f", "bkt/new f", common),
+             (QList<QStringList>{mkdirNew, rmdirOld}));
+    // a top-level folder of a bucket based remote is a bucket: the new one is
+    // created, the old one is kept
+    QCOMPARE(done("s3", "old", "new", common),
+             (QList<QStringList>{QStringList{"mkdir"} + common + markers +
+                                 QStringList{"s3r:new"}}));
+    // onto itself, a dry run, an interactive run: nothing
+    QVERIFY(done("s3", "bkt/old f", "bkt/old f", common).isEmpty());
+    QVERIFY(done("s3", "bkt/old f", "bkt/new f",
+                 common + QStringList{"--dry-run"})
+                .isEmpty());
+    QVERIFY(
+        done("s3", "bkt/old f", "bkt/new f", common + QStringList{"-i"})
+            .isEmpty());
+    // a move that did not finish cleanly: nothing
+    QVERIFY(followUps("s3", "bkt/old f", "bkt/new f", QProcess::NotRunning,
+                      QProcess::UnknownError, QProcess::NormalExit, 1, common)
+                .isEmpty());
+    QVERIFY(followUps("s3", "bkt/old f", "bkt/new f", QProcess::Running,
+                      QProcess::UnknownError, QProcess::NormalExit, 0, common)
+                .isEmpty());
+    QVERIFY(followUps("s3", "bkt/old f", "bkt/new f", QProcess::NotRunning,
+                      QProcess::Crashed, QProcess::NormalExit, 0, common)
+                .isEmpty());
+    QVERIFY(followUps("s3", "bkt/old f", "bkt/new f", QProcess::NotRunning,
+                      QProcess::UnknownError, QProcess::CrashExit, 0, common)
+                .isEmpty());
   }
 };
 

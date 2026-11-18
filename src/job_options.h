@@ -152,5 +152,5 @@ private:
 class SerializationException : public QException {
 public:
   QString Message;
-  explicit SerializationException(QString msg);
+  explicit SerializationException(const QString &msg);
 };
