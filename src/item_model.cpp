@@ -30,6 +30,15 @@ static Item *errorItem(Item *parent, const QString &msg) {
   error->name = QString::fromUtf8("\xE2\x9A\xA0 ") + msg;
   return error;
 }
+
+// Gives the items under a renamed folder the paths below its new path (a
+// refresh keeps the items it finds by name, so it would not fix them).
+void repathChildren(Item *item) {
+  for (Item *child : item->childs) {
+    child->path.setPath(item->path.filePath(child->name));
+    repathChildren(child);
+  }
+}
 } // namespace
 
 class ItemSorter {
@@ -155,11 +164,21 @@ void ItemModel::refresh(const QModelIndex &index) {
 
 void ItemModel::rename(const QModelIndex &index, const QString &name) {
   Item *item = get(index);
-  if (item->state == Item::Special) {
+  // an invalid index is the model root, which has no parent
+  if (item == mRoot || item->state == Item::Special) {
     return;
   }
   item->name = name;
   item->path.setPath(item->parent->path.filePath(item->name));
+  repathChildren(item);
+  emit dataChanged(index, index, QVector<int>{Qt::DisplayRole});
+}
+
+void ItemModel::setRootLabel(const QModelIndex &index, const QString &label) {
+  if (!index.isValid() || !isTopLevel(index)) {
+    return;
+  }
+  get(index)->name = label;
   emit dataChanged(index, index, QVector<int>{Qt::DisplayRole});
 }
 
@@ -341,12 +360,7 @@ bool ItemModel::removeRows(int row, int count, const QModelIndex &parent) {
   emit beginRemoveRows(parent, row, row + count - 1);
 
   for (int i = row; i < row + count; i++) {
-    Item *node = item->childs.at(i);
-    if (node->isLoading() || node->state == Item::LoadingIcon) {
-      node->isDeleted = true;
-    } else {
-      delete node;
-    }
+    Item::release(item->childs.at(i));
   }
   item->childs.remove(row, count);
 
@@ -433,6 +447,10 @@ void ItemModel::load(const QPersistentModelIndex &parentIndex, Item *parent) {
 
   QObject::connect(timer, &QTimer::timeout, this, [=]() {
     advanceSpinner(loading->name);
+    // the folder left the tree while it was listed: no row to update
+    if (parent->isDeleted) {
+      return;
+    }
     auto loadingIndex = createIndex(loading->num(), 0, loading);
     emit dataChanged(loadingIndex, loadingIndex, QVector<int>{Qt::DisplayRole});
   });
@@ -465,10 +483,14 @@ void ItemModel::load(const QPersistentModelIndex &parentIndex, Item *parent) {
       return;
     }
 
-    QHash<QString, int> existing;
-    for (int i = 0; i < parent->childs.count(); i++) {
-      if (parent->childs[i] != loading) {
-        existing.insert(parent->childs[i]->name, i);
+    // the rows already listed, by name and kind: a bucket remote can list a
+    // file and a folder of the same name ("a" and "a/b"), Google Drive even
+    // two files; the name alone would match an entry with the wrong row and
+    // add one more row on every refresh
+    QHash<QPair<QString, bool>, QList<Item *>> existing;
+    for (Item *child : parent->childs) {
+      if (child != loading) {
+        existing[qMakePair(child->name, child->isFolder)].append(child);
       }
     }
 
@@ -476,8 +498,8 @@ void ItemModel::load(const QPersistentModelIndex &parentIndex, Item *parent) {
 
     bool modified = false;
     for (auto &item : *cache) {
-      auto it = existing.find(item->name);
-      if (it == existing.end()) {
+      QList<Item *> &same = existing[qMakePair(item->name, item->isFolder)];
+      if (same.isEmpty()) {
         item->path.setPath(parent->path.filePath(item->name));
         // the error row is Special: it keeps its state and has no icon
         if (!item->isFolder && item->state != Item::Special && mFileIcons) {
@@ -490,30 +512,37 @@ void ItemModel::load(const QPersistentModelIndex &parentIndex, Item *parent) {
         todo.append(item);
         item = nullptr;
       } else {
-        Item *old = parent->childs[it.value()];
-        if (old->isFolder != item->isFolder ||
-            old->modified != item->modified || old->size != item->size) {
-          old->state = Item::Unknown;
-          old->isFolder = item->isFolder;
+        Item *old = same.takeFirst();
+        if (old->modified != item->modified || old->size != item->size) {
+          // listed again on the next expand; not while a listing or an icon
+          // lookup still runs on it, their end sets the state
+          if (!old->isLoading() && old->state != Item::LoadingIcon) {
+            old->state = Item::Unknown;
+          }
           old->modified = item->modified;
           old->size = item->size;
           modified = true;
-          emit dataChanged(createIndex(it.value(), 0, parent),
-                           createIndex(it.value(), 2, parent),
+          const int row = old->num();
+          emit dataChanged(createIndex(row, 0, old), createIndex(row, 2, old),
                            QVector<int>{Qt::DisplayRole});
         }
-        existing.erase(it);
       }
     }
 
     qDeleteAll(*cache);
     delete cache;
 
+    // what is left was not listed again
+    QSet<Item *> gone;
+    for (const QList<Item *> &rows : existing) {
+      for (Item *row : rows) {
+        gone.insert(row);
+      }
+    }
     for (int i = 0; i < parent->childs.count(); i++) {
-      if (parent->childs[i] == loading ||
-          existing.contains(parent->childs[i]->name)) {
+      if (parent->childs[i] == loading || gone.contains(parent->childs[i])) {
         emit beginRemoveRows(parentIndex, i, i);
-        delete parent->childs.takeAt(i);
+        Item::release(parent->childs.takeAt(i));
         emit endRemoveRows();
         i--;
       }

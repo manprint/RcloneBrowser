@@ -4,6 +4,7 @@
 #include "rb_test_support.h"
 #include "rclone_log.h"
 #include "rclone_process.h"
+#include "remote_ops.h"
 
 namespace {
 
@@ -137,6 +138,39 @@ class TestE2eS3Headers : public QObject {
            p.exitStatus() == QProcess::NormalExit && p.exitCode() == 0;
   }
 
+  // Runs `args` on the temporary config. `p` keeps the finished process;
+  // true if rclone exited normally with code 0.
+  bool run(const QStringList &args, QProcess &p) const {
+    p.setProcessChannelMode(QProcess::SeparateChannels);
+    p.setProcessEnvironment(RcloneEnvironment(RcloneEnvMode::Parsed));
+    p.start(rbRclone(), args + QStringList{"--config", mConf});
+    p.closeWriteChannel();
+    if (!p.waitForFinished(60000)) {
+      p.kill();
+      p.waitForFinished(5000);
+    }
+    return p.state() == QProcess::NotRunning &&
+           p.exitStatus() == QProcess::NormalExit && p.exitCode() == 0;
+  }
+
+  bool run(const QStringList &args) const {
+    QProcess p;
+    return run(args, p);
+  }
+
+  // The sorted entries of `path` as lsf prints them (folders end in '/').
+  QStringList entries(const QString &path) const {
+    QProcess p;
+    if (!run({"lsf", path}, p)) {
+      return {QStringLiteral("<lsf failed: %1>")
+                  .arg(QString::fromUtf8(p.readAllStandardError()))};
+    }
+    QStringList names = QString::fromUtf8(p.readAllStandardOutput())
+                            .split(QLatin1Char('\n'), Qt::SkipEmptyParts);
+    names.sort();
+    return names;
+  }
+
 private slots:
   void initTestCase() {
     rbInitTestEnvironment();
@@ -203,6 +237,84 @@ private slots:
     QVERIFY2(block2.contains("\r\nCache-Control: no-cache\r\n"),
              block2.constData());
     QVERIFY2(!block2.contains("X-Amz-Tagging"), block2.constData());
+
+    stopServer();
+  }
+
+  // T-E2E-S3-FOLDERS: "create folder", "rename" and "delete" of an empty
+  // folder as the remote browser runs them. S3 has no empty folders: a plain
+  // mkdir does nothing, the folder is a "<name>/" marker object.
+  void T_E2E_S3_FOLDERS() {
+    const int port = startServer();
+    QVERIFY2(port > 0, mServerLog.constData());
+    QVERIFY(writeFile(
+        mConf,
+        QStringLiteral("[s3t]\ntype = s3\nprovider = Rclone\n"
+                       "endpoint = http://127.0.0.1:%1\n"
+                       "force_path_style = true\n")
+            .arg(port)
+            .toUtf8()));
+    QVERIFY(QDir().mkpath(mDir.path() + "/store/bkt3"));
+
+    // negative control: without the marker flags nothing is created
+    QVERIFY(run({"mkdir", "s3t:bkt3/plain"}));
+    QCOMPARE(entries("s3t:bkt3"), QStringList());
+
+    QVERIFY(run(RemoteOps::mkdirArgs("s3t", "bkt3", "new f", {})));
+    QCOMPARE(entries("s3t:bkt3"), QStringList{"new f/"});
+
+    // rename: the move leaves the empty folder alone, its follow-ups create
+    // the new one and remove the old one
+    QProcess move;
+    QVERIFY(run(RemoteOps::renameArgs("s3t", "bkt3/new f", "bkt3/renamed",
+                                      true, {}),
+                move));
+    const QList<QStringList> followUps = RemoteOps::folderRenameFollowUps(
+        "s3t", "s3", "bkt3/new f", "bkt3/renamed", move.state(), move.error(),
+        move.exitStatus(), move.exitCode(), {});
+    QCOMPARE(followUps.size(), 2);
+    for (const QStringList &args : followUps) {
+      QVERIFY2(run(args), qPrintable(args.join(' ')));
+    }
+    QCOMPARE(entries("s3t:bkt3"), QStringList{"renamed/"});
+
+    // delete: purge fails on an empty folder without the marker flags
+    QVERIFY(run(RemoteOps::deleteArgs("s3t", "bkt3/renamed", true, {})));
+    QCOMPARE(entries("s3t:bkt3"), QStringList());
+
+    stopServer();
+  }
+
+  // T-E2E-S3-EMPTY-DIRS: a task with "create empty source dirs" copies an
+  // empty folder to S3 as a marker; --create-empty-src-dirs alone used to
+  // create nothing there.
+  void T_E2E_S3_EMPTY_DIRS() {
+    const int port = startServer();
+    QVERIFY2(port > 0, mServerLog.constData());
+    QVERIFY(writeFile(
+        mConf,
+        QStringLiteral("[s3t]\ntype = s3\nprovider = Rclone\n"
+                       "endpoint = http://127.0.0.1:%1\n"
+                       "force_path_style = true\n")
+            .arg(port)
+            .toUtf8()));
+    QVERIFY(QDir().mkpath(mDir.path() + "/store/bkt4"));
+    QVERIFY(QDir().mkpath(mDir.path() + "/store/bkt5"));
+    QVERIFY(writeFile(mDir.path() + "/src-empty/f.txt", "x"));
+    QVERIFY(QDir().mkpath(mDir.path() + "/src-empty/empty sub"));
+
+    JobOptions jo = makeUpload("s3", "s3t:bkt4");
+    jo.source = QDir(mDir.path()).filePath("src-empty");
+    jo.createEmptySrcDirs = true;
+    QByteArray err;
+    QVERIFY2(upload(jo, &err), err.constData());
+    QCOMPARE(entries("s3t:bkt4"), (QStringList{"empty sub/", "f.txt"}));
+
+    // negative control: the same task without the option copies no folder
+    jo.dest = QStringLiteral("s3t:bkt5");
+    jo.createEmptySrcDirs = false;
+    QVERIFY2(upload(jo, &err), err.constData());
+    QCOMPARE(entries("s3t:bkt5"), QStringList{"f.txt"});
 
     stopServer();
   }

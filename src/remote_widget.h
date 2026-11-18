@@ -4,7 +4,7 @@
 #include "pch.h"
 #include "ui_remote_widget.h"
 
-QString setRemoteMode(int, QString);
+QString setRemoteMode(int, const QString &);
 
 class IconCache;
 
@@ -24,8 +24,9 @@ signals:
                    const QString &remote, const QStringList &args,
                    const QString &uniqueId, const QString &transferMode,
                    const QString &requestId);
+  // fileName replaces "$file_name" in the player command (SplitStreamCommand)
   void addStream(const QString &remote, const QString &stream,
-                 const QString &remoteType);
+                 const QString &remoteType, const QString &fileName);
   void addNewMount(const QString &remote, const QString &folder,
                    const QString &remoteType, const QStringList &args,
                    const QString &script, const QString &uniqueId,

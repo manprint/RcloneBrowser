@@ -38,10 +38,7 @@ QDateTime neverRun() {
 
 SchedulerWidget::SchedulerWidget(const QString &taskId, const QString &taskName,
                                  const QStringList &args, QWidget *parent)
-    : QWidget(parent) {
-
-  mTaskId = taskId;
-  mTaskName = taskName;
+    : QWidget(parent), mTaskId(taskId), mTaskName(taskName) {
 
   ui.setupUi(this);
   auto settings = GetSettings();
@@ -666,14 +663,15 @@ QStringList SchedulerWidget::getSchedulerParameters() {
   return schedulerArgs;
 }
 
-void SchedulerWidget::applyArgsToScheduler(QStringList args) {
+void SchedulerWidget::applyArgsToScheduler(const QStringList &args) {
 
   int argsLength = args.count();
 
   QString arg;
   QString argValue;
 
-  for (int i = 0; i < argsLength; i = i + 2) {
+  // name/value pairs; a last name without its value is ignored
+  for (int i = 0; i + 1 < argsLength; i = i + 2) {
 
     arg = args.at(i);
     argValue = args.at(i + 1);
@@ -754,7 +752,7 @@ void SchedulerWidget::applyArgsToScheduler(QStringList args) {
   return;
 }
 
-void SchedulerWidget::updateTaskName(const QString newTaskName) {
+void SchedulerWidget::updateTaskName(const QString &newTaskName) {
 
   mTaskName = newTaskName;
   ui.taskName->setText(mTaskName);
@@ -797,7 +795,7 @@ QString SchedulerWidget::getSchedulerRequestId() { return mRequestId; }
 
 int SchedulerWidget::getExecutionMode() { return mExecutionMode.toInt(); }
 
-QString SchedulerWidget::enhanceCron(QString cron) {
+QString SchedulerWidget::enhanceCron(const QString &cron) {
 
   QString enhancedCron = cron.toUpper();
 
@@ -825,8 +823,8 @@ QString SchedulerWidget::enhanceCron(QString cron) {
   return enhancedCron;
 }
 
-void SchedulerWidget::updateTaskStatus(const QString requestID,
-                                       const QString taskStatus) {
+void SchedulerWidget::updateTaskStatus(const QString &requestID,
+                                       const QString &taskStatus) {
 
   if (requestID == mRequestId) {
 

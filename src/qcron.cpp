@@ -257,6 +257,10 @@ QDateTime QCron::next(int n) {
 /******************************************************************************/
 
 bool QCron::match(const QDateTime &dt) const {
+  // a field of an invalid pattern may have no parsed root
+  if (!_is_valid) {
+    return false;
+  }
   bool does_match = true;
   for (int i = 0; i < 6; ++i) {
     does_match &= _fields[i].match(dt);

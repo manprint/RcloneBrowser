@@ -49,8 +49,9 @@ private slots:
                    const QString &dest, const QStringList &args,
                    const QString &uniqueId, const QString &transferMode,
                    const QString &requestId);
+  // fileName replaces "$file_name" in the player command (SplitStreamCommand)
   void addStream(const QString &remote, const QString &stream,
-                 const QString &remoteType);
+                 const QString &remoteType, const QString &fileName);
 
   void addNewMount(const QString &remote, const QString &folder,
                    const QString &remoteType, const QStringList &args,
@@ -147,6 +148,9 @@ private:
   RcloneDaemon *mDaemon = nullptr;
   // ensureRcUnlocked() prompt loop is active
   bool mRcUnlockBusy = false;
+  // the newest "listremotes" run: an older one still running when the list is
+  // refreshed again ends without touching the list (it doubled the remotes)
+  quint64 mListRemotesGeneration = 0;
   ServeManager *mServeManager = nullptr;
   QHash<quint64, PendingServe> mPendingServes;
 

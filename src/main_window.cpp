@@ -1039,7 +1039,7 @@ void MainWindow::setupJobsTab() {
           queueActive = true;
           mQueueStatus = false;
           /// remove top task from queue + save it
-          ui.queueListWidget->takeItem(0);
+          delete ui.queueListWidget->takeItem(0);
           --mQueueCount;
           saveQueueFile();
 
@@ -1476,7 +1476,9 @@ void MainWindow::quitApp(void) {
     mQuitInfoDelay = 3;
 
     if (mQuittingErrorMsgBox != NULL) {
-      mQuittingErrorMsgBox->hide();
+      // close(), not hide(): the box is deleted on close; hidden, it leaked and
+      // a new one came with every failed quit
+      mQuittingErrorMsgBox->close();
       mQuittingErrorMsgBox = NULL;
     }
 
@@ -2157,6 +2159,23 @@ void MainWindow::rcloneConfig() {
                      emit rcloneListRemotes();
                      p->deleteLater();
                    });
+  // a terminal (rclone itself on Windows) that cannot start emits no
+  // finished(): say so instead of doing nothing. Queued: on Windows the error
+  // is emitted inside start().
+  QObject::connect(
+      p, &QProcess::errorOccurred, this,
+      [=](QProcess::ProcessError error) {
+        if (error != QProcess::FailedToStart) {
+          return;
+        }
+        QMessageBox::critical(
+            this, "Error",
+            QString("Cannot start %1: %2")
+                .arg(QDir::toNativeSeparators(p->program()), p->errorString()),
+            QMessageBox::Ok);
+        p->deleteLater();
+      },
+      Qt::QueuedConnection);
 #endif
 
 #if defined(Q_OS_WIN32)
@@ -2224,12 +2243,19 @@ void MainWindow::rcloneListRemotes() {
   QString mIconsLayout = settings->value("Settings/iconsLayout").toString();
 
   QProcess *p = new QProcess();
+  const quint64 generation = ++mListRemotesGeneration;
 
   QObject::connect(
       p,
       static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
           &QProcess::finished),
       this, [=](int code, QProcess::ExitStatus) {
+        // a newer refresh cleared the list and fills it: this one would add
+        // every remote a second time
+        if (generation != mListRemotesGeneration) {
+          p->deleteLater();
+          return;
+        }
         std::optional<QVector<RemoteInfo>> remotes;
         if (code == 0) {
           remotes = parseListRemotesJson(p->readAllStandardOutput());
@@ -2369,6 +2395,11 @@ void MainWindow::rcloneListRemotes() {
 
   QObject::connect(
       p, &QProcess::errorOccurred, this, [=](QProcess::ProcessError error) {
+        // a crash or a read error ends in finished(), which reports it; only
+        // a start failure has no finished() (and no deleteLater() there)
+        if (error != QProcess::FailedToStart) {
+          return;
+        }
         QString errorString =
             QMetaEnum::fromType<QProcess::ProcessError>().valueToKey(error);
 
@@ -2376,6 +2407,7 @@ void MainWindow::rcloneListRemotes() {
             this, "Error",
             "Cannot start rclone\n\n Error: " + errorString +
                 "\n\nPlease verify rclone excecutable location.");
+        p->deleteLater();
         emit ui.preferences->trigger();
       });
 
@@ -2756,7 +2788,7 @@ void MainWindow::addTransfer(const QString &message, const QString &source,
           // try to run next one
           if ((transfer->getUniqueID() == jo->uniqueId.toString()) &&
               (transfer->getRequestId() == item->GetRequestId())) {
-            ui.queueListWidget->takeItem(0);
+            delete ui.queueListWidget->takeItem(0);
             --mQueueCount;
 
             // queue is still running, even if mQueueCount is 0
@@ -3156,26 +3188,49 @@ void MainWindow::addNewMount(const QString &remote, const QString &folder,
   sortJobs();
 }
 
-void MainWindow::addStream(const QString &remote, const QString &stream,
-                           const QString &remoteType) {
+void MainWindow::addStream(const QString &remote, const QString &rawStream,
+                           const QString &remoteType, const QString &fileName) {
+  // a blank player command (cleared in the preferences) has no program to
+  // start: ask for one again on the next stream
+  QStringList streamArgs = SplitStreamCommand(rawStream, fileName);
+  if (streamArgs.isEmpty()) {
+    QMessageBox::critical(this, "Error", "The stream command is empty.");
+    auto settings = GetSettings();
+    settings->remove("Settings/streamConfirmed");
+    return;
+  }
+  const QString streamCmd = streamArgs.takeFirst();
+  const QString stream = QString(rawStream).replace("$file_name", fileName);
+
   auto player = new QProcess();
   auto rclone = new QProcess();
   rclone->setStandardOutputProcess(player);
+  // rclone goes away with its StreamWidget
+  const QPointer<QProcess> rcloneAlive(rclone);
 
+  // a player that cannot start emits no finished(): report it here, stop
+  // rclone (nothing reads its output) and ask for the command again
+  QObject::connect(player, &QProcess::errorOccurred, this,
+                   [=](QProcess::ProcessError error) {
+                     if (error != QProcess::FailedToStart) {
+                       return;
+                     }
+                     player->deleteLater();
+                     if (rcloneAlive) {
+                       rcloneAlive->kill();
+                     }
+                     QMessageBox::critical(
+                         this, "Error",
+                         QString("Failed to start '%1' player process")
+                             .arg(stream));
+                     auto settings = GetSettings();
+                     settings->remove("Settings/streamConfirmed");
+                   });
   QObject::connect(
       player,
       static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
           &QProcess::finished),
-      this, [=](int status, QProcess::ExitStatus) {
-        player->deleteLater();
-        if (status != 0 && player->error() == QProcess::FailedToStart) {
-          QMessageBox::critical(
-              this, "Error",
-              QString("Failed to start '%1' player process").arg(stream));
-          auto settings = GetSettings();
-          settings->remove("Settings/streamConfirmed");
-        }
-      });
+      this, [=](int, QProcess::ExitStatus) { player->deleteLater(); });
 
   ui.tabs->setTabText(1, QString("Jobs (%1)").arg(++mJobCount));
 
@@ -3255,17 +3310,6 @@ void MainWindow::addStream(const QString &remote, const QString &stream,
   int _jobsCount = (ui.jobs->count() - 2) / 2;
   ui.buttonSortByTime->setEnabled(_jobsCount > 1);
   ui.buttonSortByStatus->setEnabled(_jobsCount > 1);
-
-  QStringList streamPrefsList;
-
-  for (QString arg : stream.split(QRegularExpression(" (?=[^\"]*(\"[^\"]*\"[^\"]*)*$)"))) {
-    if (!arg.isEmpty()) {
-      streamPrefsList << arg.replace("\"", "");
-    }
-  }
-
-  QString streamCmd = streamPrefsList.takeAt(0);
-  QStringList streamArgs = streamPrefsList;
 
   player->start(streamCmd, streamArgs, QProcess::ReadOnly);
 

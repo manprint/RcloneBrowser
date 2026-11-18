@@ -37,6 +37,7 @@ TransferDialog::TransferDialog(bool isDownload, bool isDrop,
 
   if (mJobOptions == nullptr) {
     mJobOptions = new JobOptions(mIsDownload);
+    mOwnsJobOptions = true;
   }
 
   mJobOptionsRcloneCmd = new JobOptions(mIsDownload);
@@ -900,6 +901,10 @@ TransferDialog::~TransferDialog() {
   if (result() == QDialog::Accepted) {
     transferWriteSettings();
   }
+  if (mOwnsJobOptions) {
+    delete mJobOptions;
+  }
+  delete mJobOptionsRcloneCmd;
 }
 
 void TransferDialog::size() { resize(0, maximumHeight()); }
@@ -1405,6 +1410,8 @@ bool TransferDialog::saveTaskToFile(bool forRun) {
 
   JobOptions *jobo = getJobOptions(mJobOptions);
   ListOfJobOptions::getInstance()->Persist(jobo);
+  // the task list keeps the pointer from now on
+  mOwnsJobOptions = false;
 
   mTaskId = jobo->uniqueId.toString();
 

@@ -49,6 +49,9 @@ private:
 
   JobOptions *mJobOptions;
   JobOptions *mJobOptionsRcloneCmd;
+  // true while mJobOptions is the dialog's own new task: a task passed in, or
+  // one saved to the task list, belongs to ListOfJobOptions
+  bool mOwnsJobOptions = false;
 
   // the buttons of the button box that the upload headers check enables
   QPushButton *mSaveTaskButton = nullptr, *mDryRunButton = nullptr,

@@ -7,11 +7,18 @@ struct Item {
 
   ~Item() {
     for (auto child : childs) {
-      if (child->isLoading() || state == LoadingIcon) {
-        child->isDeleted = true;
-      } else {
-        delete child;
-      }
+      release(child);
+    }
+  }
+
+  // Frees an item taken out of the tree. A folder that is still being listed
+  // or a file that still waits for its icon is only marked: the listing or
+  // the icon lookup holds its pointer and frees it when it ends.
+  static void release(Item *item) {
+    if (item->isLoading() || item->state == LoadingIcon) {
+      item->isDeleted = true;
+    } else {
+      delete item;
     }
   }
 
@@ -50,7 +57,13 @@ public:
   const QDir &path(const QModelIndex &index) const;
   bool isLoading(const QModelIndex &index) const;
   void refresh(const QModelIndex &index);
+  // After a rename on the remote: the item's path and the paths of the items
+  // already listed under it follow the new name. Does nothing for the model
+  // root (an invalid index) and for a special row.
   void rename(const QModelIndex &index, const QString &name);
+  // Changes only the shown name of a root added by addRoot() (a drive label);
+  // its path stays. Does nothing for any other index.
+  void setRootLabel(const QModelIndex &index, const QString &label);
   bool isTopLevel(const QModelIndex &index) const;
   bool isFolder(const QModelIndex &index) const;
   // true for rows that are neither a file nor a folder: the loading spinner

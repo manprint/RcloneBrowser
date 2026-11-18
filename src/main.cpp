@@ -381,20 +381,11 @@ int main(int argc, char *argv[]) {
     } else {
       QMessageBox msgBox;
       msgBox.setIcon(QMessageBox::Warning);
+      // the temp folder itself: only the portable folder ends with the
+      // "/rclone-browser" the portable message strips
       msgBox.setText("You need write "
-                     "access to this folder: \n\n"
-#ifdef Q_OS_MACOS
-                     + tmpDir
-#else
-
-#ifdef Q_OS_WIN
-                     + tmpDir
-#else
-
-                     + tmpDir.left(tmpDir.length() - 15)
-#endif
-#endif
-      );
+                     "access to this folder: \n\n" +
+                     tmpDir);
       msgBox.exec();
     }
     return static_cast<int>(

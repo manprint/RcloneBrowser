@@ -81,6 +81,11 @@ private slots:
     QTest::newRow("reversed range") << "5-1 * * * * *";
     QTest::newRow("letters") << "a * * * * *";
     QTest::newRow("five fields") << "* * * * *";
+    QTest::newRow("leading comma") << ",5 * * * * *";
+    QTest::newRow("leading comma in a later field") << "* ,5 * * * *";
+    QTest::newRow("value then star") << "1* * * * * *";
+    QTest::newRow("star then value") << "*5 * * * * *";
+    QTest::newRow("list value then star") << "1,2* * * * * *";
   }
 
   // An invalid pattern is reported, never a crash.
@@ -90,6 +95,8 @@ private slots:
     QVERIFY(!cron.isValid());
     QVERIFY(!cron.error().isEmpty());
     QVERIFY(!cron.next(start()).isValid());
+    // a field that failed to parse has no root: no match, never a crash
+    QVERIFY(!cron.match(start()));
   }
 
   void T_QCRON_NEVER_data() {

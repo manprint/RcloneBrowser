@@ -286,6 +286,8 @@ MountDialog::MountDialog(const QString &remote, const QDir &path,
     getOptions();
     JobOptions *jobo = mJobOptions;
     { ListOfJobOptions::getInstance()->Persist(jobo); }
+    // the task list keeps the pointer from now on
+    mOwnsJobOptions = false;
     this->close();
   });
 
@@ -354,7 +356,11 @@ MountDialog::MountDialog(const QString &remote, const QDir &path,
   });
 }
 
-MountDialog::~MountDialog() {}
+MountDialog::~MountDialog() {
+  if (mOwnsJobOptions) {
+    delete mJobOptions;
+  }
+}
 
 void MountDialog::shrink() {
   resize(0, 0);
@@ -396,8 +402,11 @@ QStringList MountDialog::getOptions() {
    * This needs to be edited whenever options are added or changed.
    */
 
-  if (mJobOptions == nullptr)
+  if (mJobOptions == nullptr) {
     mJobOptions = new JobOptions(true);
+    // a mount run without "Save task" leaves it to the destructor
+    mOwnsJobOptions = true;
+  }
 
   QStringList list;
 

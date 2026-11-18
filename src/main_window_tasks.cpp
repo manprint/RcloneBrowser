@@ -451,18 +451,39 @@ void MainWindow::setupTasksActions() {
           JobOptions *jo = item->GetData();
           itemsIDsToDelete << jo->uniqueId.toString();
         }
+        QList<JobOptions *> forgotten;
         for (const auto &i : itemsIDsToDelete) {
-          int widgetsCount = ui.tasksListWidget->count();
-          for (int j = widgetsCount - 1; j >= 0; j = j - 1) {
+          for (int j = ui.tasksListWidget->count() - 1; j >= 0; --j) {
             JobOptionsListWidgetItem *item =
                 static_cast<JobOptionsListWidgetItem *>(
                     ui.tasksListWidget->item(j));
             JobOptions *jo = item->GetData();
             if (jo->uniqueId.toString() == i) {
-              {
-                ListOfJobOptions::getInstance()->Forget(jo);
+              // Forget() rebuilds the tasks list and drops the queued runs of
+              // the task (listTasks)
+              if (ListOfJobOptions::getInstance()->Forget(jo)) {
+                forgotten << jo;
+              }
+              break;
+            }
+          }
+        }
+        // free a deleted task that no list item refers to any more (one that is
+        // still shown, when the tasks file could not be saved, stays allocated)
+        const auto isListed = [this](const JobOptions *jo) {
+          for (QListWidget *list : {ui.tasksListWidget, ui.queueListWidget}) {
+            for (int k = 0; k < list->count(); ++k) {
+              if (static_cast<JobOptionsListWidgetItem *>(list->item(k))
+                      ->GetData() == jo) {
+                return true;
               }
             }
+          }
+          return false;
+        };
+        for (JobOptions *jo : forgotten) {
+          if (!isListed(jo)) {
+            delete jo;
           }
         }
 
@@ -579,7 +600,7 @@ void MainWindow::setupSchedulerAdd() {
 
         QMessageBox::information(
             this, tr("Mount tasks selected!"),
-            tr("You selected mount tasks - they can't be added to the queue."));
+            tr("You selected mount tasks - they can't be added to the scheduler."));
 
         return;
       }
@@ -923,7 +944,7 @@ void MainWindow::setupQueueEditing() {
                 }
               }
 
-              ui.queueListWidget->takeItem(1);
+              delete ui.queueListWidget->takeItem(1);
             }
           } else {
             --mQueueCount;
@@ -952,7 +973,7 @@ void MainWindow::setupQueueEditing() {
               }
             }
 
-            ui.queueListWidget->takeItem(0);
+            delete ui.queueListWidget->takeItem(0);
           }
 
           ui.buttonRemoveFromQueue->setEnabled(false);
@@ -1019,7 +1040,7 @@ void MainWindow::setupQueueEditing() {
         }
 
         --mQueueCount;
-        ui.queueListWidget->takeItem(ui.queueListWidget->currentRow());
+        delete ui.queueListWidget->takeItem(ui.queueListWidget->currentRow());
 
         if (ui.queueListWidget->currentRow() == 0 ||
             ui.queueListWidget->currentRow() ==
@@ -1077,7 +1098,7 @@ void MainWindow::setupQueueEditing() {
         }
       }
 
-      ui.queueListWidget->takeItem(ui.queueListWidget->currentRow());
+      delete ui.queueListWidget->takeItem(ui.queueListWidget->currentRow());
 
       if (ui.queueListWidget->currentRow() == ui.queueListWidget->count() - 1) {
         ui.buttonDownQueue->setEnabled(false);
@@ -1408,7 +1429,12 @@ void MainWindow::restoreSchedulersFromFile() {
       // check if corresponding task exist?
       // get scheduler taskId
       QStringList args = line.split(",");
-      QString schedulerTaskID = args.at(args.indexOf("mTaskId") + 1);
+      // a line without a task id (empty, cut short) is no scheduler
+      const int taskIdIndex = args.indexOf("mTaskId");
+      if (taskIdIndex < 0 || taskIdIndex + 1 >= args.size()) {
+        continue;
+      }
+      QString schedulerTaskID = args.at(taskIdIndex + 1);
 
       ListOfJobOptions *ljo = ListOfJobOptions::getInstance();
 
@@ -1668,7 +1694,7 @@ void MainWindow::listTasks() {
             itemFound = true;
             // update ui.queueListWidget
 
-            ui.queueListWidget->takeItem(i);
+            delete ui.queueListWidget->takeItem(i);
 
             QIcon jobIcon = mDownloadIcon;
 
@@ -1721,10 +1747,14 @@ void MainWindow::listTasks() {
         if (!itemFound) {
           // only if already running leave it
           // never should happen - as not possible to delete already running
-          if (i != 0) {
+          // (the first item also waits while another transfer runs: then it
+          // refers to the deleted task and must go as well)
+          if (i != 0 || !mQueueTaskRunning) {
             --mQueueCount;
-            ui.queueListWidget->takeItem(i);
-            if (mQueueCount == 0) {
+            delete ui.queueListWidget->takeItem(i);
+            // the next item moved into row i
+            --i;
+            if (mQueueCount == 0 || !mQueueTaskRunning) {
               ui.tabs->setTabText(3,
                                   QString("Queue (%1)>>(0)").arg(mQueueCount));
             } else {
@@ -1738,7 +1768,9 @@ void MainWindow::listTasks() {
         // stopped queue
         if (!itemFound) {
           --mQueueCount;
-          ui.queueListWidget->takeItem(i);
+          delete ui.queueListWidget->takeItem(i);
+          // the next item moved into row i
+          --i;
           if (mQueueCount == 0) {
             ui.tabs->setTabText(3, QString("Queue"));
           } else {
@@ -1774,7 +1806,7 @@ void MainWindow::listTasks() {
           scheduler->updateTaskName(joTasks->description);
 
           // update task name in tasks list + " (scheduled)"
-          ui.tasksListWidget->takeItem(i);
+          delete ui.tasksListWidget->takeItem(i);
 
           QIcon jobIcon = mDownloadIcon;
 
@@ -2425,7 +2457,7 @@ void MainWindow::addSavedTransfer(const QString &uniqueId, bool dryRun,
                 static_cast<JobOptionsListWidgetItem *>(
                     ui.queueListWidget->item(0));
 
-            runItem(item, "scheduler", item->GetRequestId());
+            runItem(item, "queue", item->GetRequestId());
             ui.queueListWidget->item(0)->setBackground(Qt::darkGreen);
             mQueueTaskRunning = true;
             ui.tabs->setTabText(
@@ -2465,18 +2497,6 @@ void MainWindow::addSavedTransfer(const QString &uniqueId, bool dryRun,
 
 //  runs Script
 void MainWindow::runScript(const QString &script) {
-
-  QProcess *p = new QProcess();
-
-  QObject::connect(p,
-                   static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
-                       &QProcess::finished),
-                   this, [=](int code, QProcess::ExitStatus) {
-                     if (code == 0) {
-                     }
-                     p->deleteLater();
-                   });
-
   QStringList scriptList;
 
   for (QString arg : script.split(QRegularExpression(" (?=[^\"]*(\"[^\"]*\"[^\"]*)*$)"))) {
@@ -2485,8 +2505,27 @@ void MainWindow::runScript(const QString &script) {
     }
   }
 
+  // a script of spaces only has no program to start
+  if (scriptList.isEmpty()) {
+    return;
+  }
+
   QString scriptCmd = scriptList.takeAt(0);
   QStringList scriptArgs = scriptList;
+
+  QProcess *p = new QProcess();
+
+  QObject::connect(p,
+                   static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
+                       &QProcess::finished),
+                   this, [=](int, QProcess::ExitStatus) { p->deleteLater(); });
+  // a script that cannot start emits no finished()
+  QObject::connect(p, &QProcess::errorOccurred, this,
+                   [=](QProcess::ProcessError error) {
+                     if (error == QProcess::FailedToStart) {
+                       p->deleteLater();
+                     }
+                   });
 
   p->start(scriptCmd, scriptArgs, QIODevice::ReadOnly);
 }
@@ -2564,7 +2603,8 @@ void MainWindow::addScheduler(const QString &taskId, const QString &taskName,
 
                 if (item_queue->GetRequestId() == requestID) {
 
-                  ui.queueListWidget->takeItem(i);
+                  --mQueueCount;
+                  delete ui.queueListWidget->takeItem(i);
 
                   break;
                 }
@@ -2587,7 +2627,7 @@ void MainWindow::addScheduler(const QString &taskId, const QString &taskName,
         if (item_queue->GetRequestId() == requestID) {
 
           --mQueueCount;
-          ui.queueListWidget->takeItem(i);
+          delete ui.queueListWidget->takeItem(i);
           widget->updateTaskStatus(requestID, "removed from the queue");
           mRunningSchedulersCount--;
           ui.tabs->setTabText(4, QString("Scheduler (%1)>>(%2)")

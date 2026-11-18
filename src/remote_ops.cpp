@@ -28,11 +28,26 @@ QString folderMoveDest(const QString &srcPath, const QString &destParent) {
   return joinPath(destParent, lastComponent(srcPath));
 }
 
+QStringList dirMarkerFlags() {
+  return {QStringLiteral("--s3-directory-markers"),
+          QStringLiteral("--gcs-directory-markers"),
+          QStringLiteral("--azureblob-directory-markers")};
+}
+
+QStringList emptyDirMarkerFlags(const QStringList &extra) {
+  if (extra.contains(QStringLiteral("--create-empty-src-dirs")) ||
+      extra.contains(QStringLiteral("--delete-empty-src-dirs"))) {
+    return dirMarkerFlags();
+  }
+  return {};
+}
+
 QStringList moveArgs(const QString &remote, const QString &srcPath,
                      const QString &destPath, const QStringList &common,
                      const QStringList &extra) {
   QStringList args;
-  args << QStringLiteral("move") << common << remote + QLatin1Char(':') + srcPath
+  args << QStringLiteral("move") << common << emptyDirMarkerFlags(extra)
+       << remote + QLatin1Char(':') + srcPath
        << remote + QLatin1Char(':') + destPath << extra;
   return args;
 }
@@ -48,7 +63,7 @@ QStringList folderMoveArgs(const QString &remote, const QString &srcPath,
 QStringList sourceCleanupArgs(const QString &remote, const QString &srcPath,
                               const QStringList &common) {
   QStringList args;
-  args << QStringLiteral("rmdir") << common
+  args << QStringLiteral("rmdir") << common << dirMarkerFlags()
        << remote + QLatin1Char(':') + srcPath;
   return args;
 }
@@ -172,9 +187,64 @@ bool isValidFolderName(const QString &name) {
 QStringList mkdirArgs(const QString &remote, const QString &parent,
                       const QString &name, const QStringList &common) {
   QStringList args;
-  args << QStringLiteral("mkdir") << common
+  args << QStringLiteral("mkdir") << common << dirMarkerFlags()
        << remote + QLatin1Char(':') + joinPath(parent, name);
   return args;
+}
+
+QStringList deleteArgs(const QString &remote, const QString &path,
+                       bool isFolder, const QStringList &common) {
+  QStringList args;
+  if (isFolder) {
+    args << QStringLiteral("purge") << common << dirMarkerFlags();
+  } else {
+    args << QStringLiteral("delete") << common;
+  }
+  args << remote + QLatin1Char(':') + path;
+  return args;
+}
+
+namespace {
+
+// The options of a folder rename after the two paths.
+QStringList folderRenameExtra() {
+  return {QStringLiteral("--create-empty-src-dirs"),
+          QStringLiteral("--delete-empty-src-dirs")};
+}
+
+} // namespace
+
+QStringList renameArgs(const QString &remote, const QString &srcPath,
+                       const QString &destPath, bool isFolder,
+                       const QStringList &common) {
+  if (isFolder) {
+    return moveArgs(remote, srcPath, destPath, common, folderRenameExtra());
+  }
+  QStringList args;
+  args << QStringLiteral("moveto") << common
+       << remote + QLatin1Char(':') + srcPath
+       << remote + QLatin1Char(':') + destPath;
+  return args;
+}
+
+QList<QStringList> folderRenameFollowUps(
+    const QString &remote, const QString &remoteType, const QString &srcPath,
+    const QString &destPath, QProcess::ProcessState state,
+    QProcess::ProcessError error, QProcess::ExitStatus status, int exitCode,
+    const QStringList &common) {
+  QList<QStringList> runs;
+  // the dry-run and interactive vetoes of the options apply to both runs
+  const QStringList options = common + folderRenameExtra();
+  if (!shouldCleanSource(true, QString(), srcPath, destPath, state, error,
+                         status, exitCode, options)) {
+    return runs;
+  }
+  runs << mkdirArgs(remote, QString(), destPath, common);
+  if (shouldCleanSource(true, remoteType, srcPath, destPath, state, error,
+                        status, exitCode, options)) {
+    runs << sourceCleanupArgs(remote, srcPath, common);
+  }
+  return runs;
 }
 
 } // namespace RemoteOps

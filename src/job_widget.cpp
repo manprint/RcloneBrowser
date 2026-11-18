@@ -238,11 +238,9 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
   QObject::connect(mProcess, &QProcess::readyRead, this,
                    [=]() { consumeProcessOutput(false); });
 
-  QObject::connect(
-      mProcess,
-      static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
-          &QProcess::finished),
-      this, [=](int code, QProcess::ExitStatus st) {
+  // the end of the job, from finished() or from a process that could not
+  // start (rclone missing or not executable), which emits no finished()
+  auto onProcessEnd = [=](int code, QProcess::ExitStatus st) {
         mProcess->deleteLater();
 
         // 1. Drain what is still buffered.
@@ -312,7 +310,24 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
 
         // 6. Notify.
         emit finished(ui.info->text(), mJobFinalStatus);
-      });
+      };
+  QObject::connect(
+      mProcess,
+      static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
+          &QProcess::finished),
+      this, onProcessEnd);
+  // queued: on Windows the error comes from inside start(), and the end of a
+  // job can start the next one of the queue (runItem holds its mutex there)
+  QObject::connect(
+      mProcess, &QProcess::errorOccurred, this,
+      [=](QProcess::ProcessError error) {
+        if (error == QProcess::FailedToStart && isRunning) {
+          appendOutputLine(tr("rclone could not be started: %1")
+                               .arg(mProcess->errorString()));
+          onProcessEnd(-1, QProcess::CrashExit);
+        }
+      },
+      Qt::QueuedConnection);
 
   ui.showDetails->setStyleSheet(
       "QToolButton { border: 0; color: green; font-weight: bold;}");

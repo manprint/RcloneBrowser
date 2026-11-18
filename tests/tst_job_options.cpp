@@ -261,6 +261,10 @@ QStringList commonTail() {
           QStringLiteral("--delete-excluded"),
           QStringLiteral("--extra-a"),
           QStringLiteral("x y"),
+          // the empty folder flags on a bucket based remote
+          QStringLiteral("--s3-directory-markers"),
+          QStringLiteral("--gcs-directory-markers"),
+          QStringLiteral("--azureblob-directory-markers"),
           QStringLiteral("--filter"),
           QStringLiteral("- *.exc"),
           QStringLiteral("--filter"),
@@ -1259,6 +1263,25 @@ private slots:
       QCOMPARE(ex.Message, QStringLiteral("stored version is newer"));
     }
     QVERIFY(thrown);
+  }
+
+  // T-JO-FILTER-COMMENTS: the Filter tab reads like a --filter-from file. Its
+  // blank lines and "#"/";" comments give no --filter (rclone stops on a
+  // "--filter '# x'" with "malformed rule").
+  void T_JO_FILTER_COMMENTS() {
+    JobOptions jo(false);
+    jo.operation = JobOptions::Copy;
+    jo.source = QStringLiteral("a:");
+    jo.dest = QStringLiteral("b:");
+    jo.filtered = QStringLiteral("# keep jpg\n+ *.jpg\n\n  ; rest\n- **");
+    const QStringList args = jo.getOptions();
+    QStringList filters;
+    for (int i = 0; i + 1 < args.size(); ++i) {
+      if (args.at(i) == QStringLiteral("--filter")) {
+        filters << args.at(i + 1);
+      }
+    }
+    QCOMPARE(filters, (QStringList{QStringLiteral("+ *.jpg"), QStringLiteral("- **")}));
   }
 };
 

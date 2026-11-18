@@ -128,10 +128,9 @@ ProgressDialog::ProgressDialog(const QString &title, const QString &operation,
         }
       });
 
-  QObject::connect(process,
-                   static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
-                       &QProcess::finished),
-                   this, [=](int code, QProcess::ExitStatus status) {
+  // the end of the process, from finished() or from a process that could not
+  // start, which emits no finished() (the dialog stayed open as running)
+  auto onProcessEnd = [=](int code, QProcess::ExitStatus status) {
                      mIsRunning = false;
                      cancelButton->setText("&Close");
 
@@ -158,6 +157,17 @@ ProgressDialog::ProgressDialog(const QString &title, const QString &operation,
 
                        ui.buttonShowOutput->setChecked(true);
                        ui.buttonBox->setEnabled(true);
+                     }
+                   };
+  QObject::connect(process,
+                   static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
+                       &QProcess::finished),
+                   this, onProcessEnd);
+  QObject::connect(process, &QProcess::errorOccurred, this,
+                   [=](QProcess::ProcessError error) {
+                     if (error == QProcess::FailedToStart && mIsRunning) {
+                       ui.output->appendPlainText(process->errorString());
+                       onProcessEnd(-1, QProcess::CrashExit);
                      }
                    });
 

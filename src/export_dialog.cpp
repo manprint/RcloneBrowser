@@ -91,10 +91,16 @@ QStringList ExportDialog::getOptions() const {
     }
   }
 
+  // split on spaces but not inside quotes, as the other dialogs do: a plain
+  // split on ' ' passes "--opt=\"a b\"" in two pieces and a double space as an
+  // empty argument, which rclone takes for a second path (usage error)
   QString extra = ui.textExtra->text().trimmed();
   if (!extra.isEmpty()) {
-    for (auto arg : extra.split(' ')) {
-      list << arg;
+    for (QString arg :
+         extra.split(QRegularExpression(" (?=[^\"]*(\"[^\"]*\"[^\"]*)*$)"))) {
+      if (!arg.isEmpty()) {
+        list << arg.replace("\"", "");
+      }
     }
   }
 

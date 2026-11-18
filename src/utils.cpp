@@ -25,7 +25,14 @@ static QString GetIniFilename() {
   QFileInfo applicationPath = qApp->applicationFilePath();
   return applicationPath.dir().filePath(applicationPath.baseName() + ".ini");
 #else
-  QString xdg_config_home = qgetenv("XDG_CONFIG_HOME");
+  // The portable AppImage sets XDG_CONFIG_HOME to its own folder. Without it
+  // (or with a relative one, which the XDG spec says to ignore) there is no
+  // portable ini, instead of one in "/rclone-browser" or in whatever folder
+  // the app was started from.
+  const QString xdg_config_home = qEnvironmentVariable("XDG_CONFIG_HOME");
+  if (xdg_config_home.isEmpty() || QDir::isRelativePath(xdg_config_home)) {
+    return QString();
+  }
   return xdg_config_home + "/rclone-browser/rclone-browser.ini";
 #endif
 #endif
@@ -339,6 +346,17 @@ QStringList GetDefaultOptionsList(const QString &settingsOptions) {
   return defaultOptionsList;
 }
 
+QStringList SplitStreamCommand(const QString &stream, const QString &fileName) {
+  QStringList list;
+  for (QString arg :
+       stream.split(QRegularExpression(" (?=[^\"]*(\"[^\"]*\"[^\"]*)*$)"))) {
+    if (!arg.isEmpty()) {
+      list << arg.replace("\"", "").replace("$file_name", fileName);
+    }
+  }
+  return list;
+}
+
 QStringList GetShowHidden() {
   auto settings = GetSettings();
   bool showHidden = settings->value("Settings/showHidden", true).toBool();
@@ -428,7 +446,9 @@ QStringList GetRcloneCmd(const QStringList &args) {
     }
   }
 
-  if (!rcloneOptions.isEmpty() && rcloneOptions.count() > 1) {
+  // command, source and destination; with fewer arguments the remaining
+  // options loop below quotes them (the destination was read past the end)
+  if (rcloneOptions.count() > 2) {
     // copy/move/sync
     rcloneTransferCmd << rcloneOptions.takeAt(0);
 
