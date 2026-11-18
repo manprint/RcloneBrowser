@@ -38,12 +38,13 @@ CheckDialog::CheckDialog(const QString &remote, const QDir &path,
                    &QDialog::reject);
 
   QObject::connect(ui.download, &QCheckBox::clicked, this, [=]() {
+    // --download and --size-only exclude each other
     if (ui.download->isChecked()) {
       ui.sizeOnly->setChecked(false);
       ui.sizeOnly->setDisabled(true);
     } else {
+      ui.sizeOnly->setDisabled(false);
     }
-    ui.sizeOnly->setDisabled(false);
   });
 
   QObject::connect(ui.sizeOnly, &QCheckBox::clicked, this, [=]() {
@@ -51,8 +52,8 @@ CheckDialog::CheckDialog(const QString &remote, const QDir &path,
       ui.download->setChecked(false);
       ui.download->setDisabled(true);
     } else {
+      ui.download->setDisabled(false);
     }
-    ui.download->setDisabled(false);
   });
 
   QObject::connect(ui.sourceDirBrowse, &QToolButton::clicked, this, [=]() {

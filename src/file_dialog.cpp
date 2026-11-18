@@ -41,8 +41,14 @@ FileDialog::FileDialog(bool isDownload) : QFileDialog() {
   this->setFileMode(QFileDialog::Directory);
   this->setOption(QFileDialog::DontUseNativeDialog, true);
 
+  // the accept button is the Open button of the dialog's button box, whatever
+  // its text: a translation or a platform theme can rename it
+  QDialogButtonBox *buttonBox = findChild<QDialogButtonBox *>("buttonBox");
+  if (buttonBox) {
+    m_btnOpen = buttonBox->button(QDialogButtonBox::Open);
+  }
   QList<QPushButton *> btns = this->findChildren<QPushButton *>();
-  if (!btns.isEmpty()) {
+  if (!m_btnOpen && !btns.isEmpty()) {
     // find accept button
     for (int i = 0; i < btns.size(); ++i) {
       QString text = btns[i]->text();
@@ -52,17 +58,17 @@ FileDialog::FileDialog(bool isDownload) : QFileDialog() {
         break;
       }
     }
-
-    if (!mIsDownload) {
-      // for uploads we take control of accept button
-      m_btnOpen->installEventFilter(this);
-      m_btnOpen->disconnect(SIGNAL(clicked()));
-      connect(m_btnOpen, SIGNAL(clicked()), this, SLOT(chooseClicked()));
-    }
   }
 
   if (!m_btnOpen)
     return;
+
+  if (!mIsDownload) {
+    // for uploads we take control of accept button
+    m_btnOpen->installEventFilter(this);
+    m_btnOpen->disconnect(SIGNAL(clicked()));
+    connect(m_btnOpen, SIGNAL(clicked()), this, SLOT(chooseClicked()));
+  }
 
   // change filter name
   QComboBox *fileTypeCombo = findChild<QComboBox *>("fileTypeCombo");
@@ -347,7 +353,7 @@ bool FileDialog::eventFilter(QObject *watched, QEvent *event) {
     }
   }
 
-  return QWidget::eventFilter(watched, event);
+  return QFileDialog::eventFilter(watched, event);
 }
 
 void FileDialog::chooseClicked() {
