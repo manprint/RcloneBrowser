@@ -25,6 +25,11 @@ QString GetRclonePassword();
 void SetRclonePassword(const QString &rclonePassword);
 
 QStringList GetDefaultOptionsList(const QString &settingsOptions);
+// The player command of a stream as program + arguments: split on spaces
+// outside quotes (as the default options), the quotes dropped, then
+// "$file_name" replaced in each argument, so a name with spaces or quotes
+// stays one argument. Empty for a blank command.
+QStringList SplitStreamCommand(const QString &stream, const QString &fileName);
 QStringList GetRemoteModeRcloneOptions();
 // remotes icon size setting -> multiplier; accepts a number ("2.5") or
 // one of the old letter values (XS, S, M, L, XL, XXL)
