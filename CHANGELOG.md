@@ -1,5 +1,8 @@
 # Change Log
 
+## [2.4.1] - 2026-11-18
+The first release of the 2.4.0 changes below: the CI run of the v2.4.0 tag failed in tests added in 2.4.0, so 2.4.0 has no release. No program code changed since 2.4.0; only those tests did (they now pass on Windows and OpenBSD, and with the rclone 1.75.2 of the CI).
+
 ## [2.4.0] - 2026-11-18
 Changes since 2.3.0: bug fixes from a full bug-hunting review of the Linux build. On S3, Google Cloud Storage and Azure Blob remotes, Create folder, Delete, Rename and the transfers that create or remove empty folders now pass rclone's directory marker options (`--s3-directory-markers`, `--gcs-directory-markers`, `--azureblob-directory-markers`), so an empty folder there is kept as a `name/` marker object; with `--create-empty-src-dirs` this costs one more request for every file uploaded to such a remote.
 
